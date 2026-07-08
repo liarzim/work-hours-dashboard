@@ -1,0 +1,3646 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Work Hours Dashboard</title>
+  
+  <!-- Font import: Google Fonts Outfit & Rubik for Hebrew/English compatibility -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Lucide Icons for premium micro-graphics -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* CSS Custom Properties for design consistency */
+    :root {
+      --primary-color: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      --font-family: 'Rubik', 'Outfit', sans-serif;
+      --border-radius: 12px;
+      --transition-speed: 0.2s;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding-bottom: 40px;
+      transition: background-color var(--transition-speed);
+    }
+
+    /* Google Sheets Mock Header */
+    .sheets-header {
+      background-color: #ffffff;
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 16px;
+    }
+
+    .sheets-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .sheets-left-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sheets-logo {
+      width: 24px;
+      height: 24px;
+      background-color: #0f9d58;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .sheets-title {
+      font-weight: 500;
+      font-size: 16px;
+      color: var(--text-main);
+    }
+
+    .sheets-menu-bar {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-left: 8px;
+    }
+
+    .sheets-menu-item {
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: background-color var(--transition-speed);
+    }
+
+    .sheets-menu-item:hover {
+      background-color: #f1f5f9;
+      color: var(--text-main);
+    }
+
+    .sheets-right-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .sheets-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      border: 1px solid var(--border-color);
+      background-color: #ffffff;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-weight: 500;
+      transition: all var(--transition-speed);
+    }
+
+    .sheets-btn:hover {
+      background-color: #f8fafc;
+      border-color: #cbd5e1;
+      color: var(--text-main);
+    }
+
+    .sheets-btn.share {
+      background-color: #c2e7ff;
+      border-color: transparent;
+      color: #001d35;
+    }
+
+    .sheets-btn.share:hover {
+      background-color: #b3dbf2;
+    }
+
+    /* Sub-header Toolbar */
+    .dashboard-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #ffffff;
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .new-report-btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition-speed);
+    }
+
+    .new-report-btn:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .date-navigator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 4px 12px;
+      background-color: #ffffff;
+    }
+
+    .nav-arrow {
+      background: none;
+      border: none;
+      font-size: 16px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color var(--transition-speed);
+    }
+
+    .nav-arrow:hover {
+      background-color: #f1f5f9;
+      color: var(--text-main);
+    }
+
+    .current-month-display {
+      font-weight: 600;
+      font-size: 14px;
+      min-width: 100px;
+      text-align: center;
+    }
+
+    .toolbar-tabs {
+      display: flex;
+      background-color: #f1f5f9;
+      padding: 4px;
+      border-radius: 8px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition-speed);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn.active {
+      background-color: #ffffff;
+      color: var(--primary-color);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dashboard-title-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .dashboard-title-main {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e3a8a;
+    }
+
+    .dashboard-title-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .logo-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: var(--primary-color);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Main Container Grid */
+    .dashboard-container {
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 4px;
+      height: 100%;
+      background-color: transparent;
+    }
+
+    .kpi-card.blue::before { background-color: #2563eb; }
+    .kpi-card.green::before { background-color: #10b981; }
+    .kpi-card.orange::before { background-color: #f59e0b; }
+    .kpi-card.purple::before { background-color: #8b5cf6; }
+
+    .kpi-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .kpi-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .kpi-subtext {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .kpi-icon-container {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .kpi-card.blue .kpi-icon-container { background-color: #eff6ff; color: #2563eb; }
+    .kpi-card.green .kpi-icon-container { background-color: #ecfdf5; color: #10b981; }
+    .kpi-card.orange .kpi-icon-container { background-color: #fffbeb; color: #f59e0b; }
+    .kpi-card.purple .kpi-icon-container { background-color: #f5f3ff; color: #8b5cf6; }
+
+    /* Dashboard Layout Splits */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Left Sidebar: Summary Status Card */
+    .summary-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .summary-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 15px;
+    }
+
+    .summary-row-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .summary-row-val {
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .summary-row-val.target { color: #1e3a8a; }
+    .summary-row-val.reported { color: #10b981; }
+    .summary-row-val.remaining { color: #f59e0b; }
+
+    .forecast-banner {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      margin-top: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .forecast-title {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-bottom: 4px;
+    }
+
+    .forecast-val {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .forecast-sub {
+      font-size: 11px;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    /* Main Chart Card */
+    .chart-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-canvas-container {
+      position: relative;
+      flex-grow: 1;
+      height: 300px;
+    }
+
+    /* Tab Contents Wrapper */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Forms and Inputs */
+    .settings-form {
+      display: grid;
+      gap: 20px;
+      width: 100%;
+      margin: 10px auto;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-family: var(--font-family);
+      font-size: 14px;
+      outline: none;
+      transition: border-color var(--transition-speed);
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--primary-color);
+    }
+
+    .submit-btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color var(--transition-speed);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .submit-btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    /* Report Table View */
+    .table-container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      overflow-x: auto;
+      margin-top: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+    }
+
+    html[dir="ltr"] table {
+      text-align: left;
+    }
+
+    th, td {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
+    }
+
+    th {
+      background-color: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background-color: #f8fafc;
+    }
+
+    /* Report Filter Bar Styling */
+    .report-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 16px;
+      background-color: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-select, .filter-input {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-family: var(--font-family);
+      font-size: 13px;
+      outline: none;
+      background-color: #ffffff;
+      min-width: 120px;
+    }
+
+    .filter-input {
+      min-width: 220px;
+    }
+
+    .reset-filter-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+      transition: all var(--transition-speed);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .reset-filter-btn:hover {
+      background-color: #f1f5f9;
+      color: var(--text-main);
+      border-color: #cbd5e1;
+    }
+
+    /* Table Badges & Action Buttons */
+    .category-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-work { background-color: #e0f2fe; color: #0369a1; }
+    .badge-vacation { background-color: #fef3c7; color: #d97706; }
+    .badge-sick { background-color: #fee2e2; color: #b91c1c; }
+    .badge-reserve { background-color: #f3e8ff; color: #6b21a8; }
+    .badge-empty { background-color: #f1f5f9; color: #94a3b8; }
+
+    .action-btn-container {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    
+    html[dir="ltr"] .action-btn-container {
+      justify-content: flex-start;
+    }
+
+    .action-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all var(--transition-speed);
+    }
+
+    .action-btn:hover {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      background-color: #eff6ff;
+    }
+
+    .action-btn.delete:hover {
+      border-color: #ef4444;
+      color: #ef4444;
+      background-color: #fef2f2;
+    }
+
+    /* Settings Redesign Specific Styles */
+    .settings-section-card {
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      background-color: #ffffff;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .settings-section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .settings-row-layout {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .accrual-display-card {
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 12px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 180px;
+    }
+
+    .accrual-card-label {
+      font-size: 11px;
+      color: #1e40af;
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .accrual-card-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1d4ed8;
+    }
+
+    .settings-grid-12 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .settings-grid-12 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .settings-grid-12 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .month-input-card {
+      background-color: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+
+    .month-card-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: right;
+    }
+    
+    html[dir="ltr"] .month-card-label {
+      text-align: left;
+    }
+
+    .month-card-input {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-family: var(--font-family);
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      color: #1e3a8a;
+      outline: none;
+      background-color: #ffffff;
+    }
+
+    .month-card-input:focus {
+      border-color: var(--primary-color);
+    }
+
+    .btn-inline-apply {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color var(--transition-speed);
+      white-space: nowrap;
+    }
+
+    .btn-inline-apply:hover {
+      background-color: var(--primary-hover);
+    }
+
+    /* Modal dialog */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-speed) ease;
+    }
+
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background-color: var(--card-bg);
+      border-radius: var(--border-radius);
+      width: 100%;
+      max-width: 480px;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      transform: scale(0.95);
+      transition: transform var(--transition-speed) ease;
+    }
+
+    .modal-backdrop.open .modal-content {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .close-modal-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 50%;
+      transition: background-color var(--transition-speed);
+    }
+
+    .close-modal-btn:hover {
+      background-color: #f1f5f9;
+      color: var(--text-main);
+    }
+
+    /* Languages Toggle Utility */
+    .lang-toggle {
+      background: none;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all var(--transition-speed);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .lang-toggle:hover {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    /* Notification system */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background-color: var(--text-main);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 2000;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+    
+    html[dir="ltr"] .toast {
+      right: auto;
+      left: 24px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Loader Indicator */
+    .loader-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(2px);
+      z-index: 1500;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-speed);
+    }
+
+    .loader-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border-color);
+      border-top: 4px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Bulk actions bar styling */
+    .bulk-actions-bar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 12px 18px;
+      background-color: var(--brand-light, #eff6ff);
+      border: 1px solid var(--primary-color, #3b82f6);
+      border-radius: var(--border-radius, 12px);
+      justify-content: space-between;
+      animation: slideIn var(--transition-speed) ease;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateY(-10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .bulk-field-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      border-bottom: 1px dashed var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .bulk-field-row .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      user-select: none;
+      min-width: 140px;
+    }
+
+    .bulk-field-input-container {
+      flex: 1;
+    }
+
+    .bulk-diff-container {
+      max-height: 250px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background-color: var(--bg-main, #f8fafc);
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .bulk-diff-row {
+      padding: 8px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 12px;
+      direction: rtl;
+    }
+
+    .bulk-diff-row:last-child {
+      border-bottom: none;
+    }
+
+    .bulk-diff-date {
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 4px;
+      text-align: right;
+    }
+
+    .bulk-diff-change-item {
+      margin-inline-start: 12px;
+      margin-bottom: 2px;
+      text-align: right;
+    }
+
+    .bulk-diff-field-name {
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .bulk-diff-old-val {
+      text-decoration: line-through;
+      color: var(--danger-color, #ef4444);
+      margin: 0 4px;
+    }
+
+    .bulk-diff-arrow {
+      color: var(--text-muted);
+      margin: 0 4px;
+    }
+
+    .bulk-diff-new-val {
+      color: var(--success-color, #10b981);
+      font-weight: 600;
+      margin: 0 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mock Sheets Application Header -->
+  <header class="sheets-header">
+    <div class="sheets-top-row">
+      <div class="sheets-left-controls">
+        <div class="sheets-logo">田</div>
+        <div>
+          <div class="sheets-title" id="app-title-display">Employee Work Hours Dashboard</div>
+          <div class="sheets-menu-bar">
+            <span class="sheets-menu-item" data-i18n="menuFile">קובץ</span>
+            <span class="sheets-menu-item" data-i18n="menuEdit">עריכה</span>
+            <span class="sheets-menu-item" data-i18n="menuView">תצוגה</span>
+            <span class="sheets-menu-item" data-i18n="menuInsert">הוספה</span>
+            <span class="sheets-menu-item" data-i18n="menuFormat">עיצוב</span>
+            <span class="sheets-menu-item" data-i18n="menuData">נתונים</span>
+            <span class="sheets-menu-item" data-i18n="menuTools">כלים</span>
+            <span class="sheets-menu-item" data-i18n="menuExtensions">תוספים</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="sheets-right-controls">
+        <!-- Language Switcher Toggle -->
+        <button class="lang-toggle" onclick="toggleLanguage()">
+          <i data-lucide="languages" style="width: 16px; height: 16px;"></i>
+          <span id="lang-btn-text">English</span>
+        </button>
+        
+        <button class="sheets-btn" data-i18n="viewDataBtn" id="view-data-btn">הצג נתונים</button>
+        <button class="sheets-btn share" data-i18n="shareBtn">שתף</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sub-header Web App Toolbar -->
+  <div class="dashboard-toolbar">
+    <div class="toolbar-left">
+      <!-- Add New Hours Button -->
+      <button class="new-report-btn" onclick="openModal()">
+        <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
+        <span data-i18n="newReportBtn">דיווח חדש</span>
+      </button>
+
+      <!-- Month Selector -->
+      <div class="date-navigator">
+        <button class="nav-arrow" onclick="adjustMonth(-1)" aria-label="Previous Month">
+          <i data-lucide="chevron-right" id="arrow-prev-icon"></i>
+        </button>
+        <span class="current-month-display" id="month-display">יולי 2026</span>
+        <button class="nav-arrow" onclick="adjustMonth(1)" aria-label="Next Month">
+          <i data-lucide="chevron-left" id="arrow-next-icon"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="toolbar-tabs">
+      <button class="tab-btn active" onclick="switchTab('dashboard')" id="tab-dashboard-btn">
+        <i data-lucide="layout-dashboard" style="width: 16px; height: 16px;"></i>
+        <span data-i18n="tabDashboard">לוח בקרה</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('reports')" id="tab-reports-btn">
+        <i data-lucide="list-todo" style="width: 16px; height: 16px;"></i>
+        <span data-i18n="tabReports">דיווחים</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('settings')" id="tab-settings-btn">
+        <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
+        <span data-i18n="tabSettings">הגדרות</span>
+      </button>
+    </div>
+
+    <div class="toolbar-right">
+      <div class="dashboard-title-right">
+        <span class="dashboard-title-main" data-i18n="bannerTitle">ניהול דיווח שעות</span>
+        <span class="dashboard-title-sub" data-i18n="bannerSub">24H WORK DASHBOARD</span>
+      </div>
+      <div class="logo-badge">
+        <i data-lucide="clock" style="width: 20px; height: 20px;"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Indicator Overlay -->
+  <div class="loader-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Central Dashboard Content Container -->
+  <main class="dashboard-container">
+
+    <!-- KPI Summary Stat Cards -->
+    <section class="kpi-grid">
+      <!-- Sick / Reserve Duty Days Card -->
+      <div class="kpi-card purple">
+        <div class="kpi-info">
+          <span class="kpi-label" data-i18n="kpiSickReserve">מילואים / מחלה</span>
+          <span class="kpi-value" id="kpi-sick-reserve-val">0 / 0</span>
+          <span class="kpi-subtext" data-i18n="kpiSickReserveSub">ימי היעדרות החודש</span>
+        </div>
+        <div class="kpi-icon-container">
+          <i data-lucide="shield-alert" style="width: 22px; height: 22px;"></i>
+        </div>
+      </div>
+
+      <!-- Vacation Balance Card -->
+      <div class="kpi-card orange">
+        <div class="kpi-info">
+          <span class="kpi-label" data-i18n="kpiVacation">יתרת חופשה לניצול</span>
+          <span class="kpi-value" id="kpi-vacation-val">42.0 <small style="font-size: 14px;" data-i18n="daysUnit">ימים</small></span>
+          <span class="kpi-subtext" id="kpi-vacation-sub">5 נוצלו החודש</span>
+        </div>
+        <div class="kpi-icon-container">
+          <i data-lucide="umbrella" style="width: 22px; height: 22px;"></i>
+        </div>
+      </div>
+
+      <!-- Remaining Work Hours Card -->
+      <div class="kpi-card green">
+        <div class="kpi-info">
+          <span class="kpi-label" data-i18n="kpiRemaining">שעות שנותרו</span>
+          <span class="kpi-value" id="kpi-remaining-val">169.8 <small style="font-size: 14px;" data-i18n="hoursUnit">שעות</small></span>
+          <span class="kpi-subtext" id="kpi-remaining-sub">ב- 8.9 ליום</span>
+        </div>
+        <div class="kpi-icon-container">
+          <i data-lucide="trending-up" style="width: 22px; height: 22px;"></i>
+        </div>
+      </div>
+
+      <!-- Total Hours Reported Card -->
+      <div class="kpi-card blue">
+        <div class="kpi-info">
+          <span class="kpi-label" data-i18n="kpiReported">שעות שדווחו</span>
+          <span class="kpi-value" id="kpi-reported-val">28.2 <small style="font-size: 14px;" data-i18n="hoursUnit">שעות</small></span>
+          <span class="kpi-subtext" id="kpi-reported-sub">מתוך יעד של 198.0</span>
+        </div>
+        <div class="kpi-icon-container">
+          <i data-lucide="clock-4" style="width: 22px; height: 22px;"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab Section 1: Dashboard Panel -->
+    <section id="tab-dashboard" class="tab-content active">
+      <div class="dashboard-layout">
+        <!-- Sidebar Month Details -->
+        <div class="summary-card">
+          <div class="summary-title">
+            <span data-i18n="summaryCardTitle">סיכום סטטוס חודשי</span>
+            <i data-lucide="calendar" style="width: 18px; height: 18px; color: var(--text-muted);"></i>
+          </div>
+          
+          <div class="summary-row">
+            <span class="summary-row-label" data-i18n="summaryTarget">יעד שעות</span>
+            <span class="summary-row-val target" id="summary-target-val">198.0</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row-label" data-i18n="summaryReported">דווח בפועל</span>
+            <span class="summary-row-val reported" id="summary-reported-val">28.2</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row-label" data-i18n="summaryRemaining">יתרה להשלמה</span>
+            <span class="summary-row-val remaining" id="summary-remaining-val">169.8</span>
+          </div>
+
+          <div class="forecast-banner">
+            <div class="forecast-title" data-i18n="forecastTitle">תחזית המשך עבודה:</div>
+            <div class="forecast-val" id="forecast-daily-val">8.9 שעות/יום</div>
+            <div class="forecast-sub" id="forecast-days-left-val">מתוך 19 ימי עבודה פוטנציאליים</div>
+          </div>
+        </div>
+
+        <!-- Main Chart panel -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title" data-i18n="chartTitle">פעילות שעות יומית</h3>
+            <i data-lucide="bar-chart-3" style="width: 18px; height: 18px; color: var(--text-muted);"></i>
+          </div>
+          <div class="chart-canvas-container">
+            <canvas id="hoursBarChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab Section 2: Detailed Reports View with filtering and CRUD controls -->
+    <section id="tab-reports" class="tab-content">
+      <div class="chart-card" style="min-height: 450px;">
+        <div class="chart-header">
+          <h3 class="chart-title" data-i18n="reportsTableTitle">רשימת דיווחים מפורטת</h3>
+          <i data-lucide="file-text" style="width: 18px; height: 18px; color: var(--text-muted);"></i>
+        </div>
+
+        <!-- Report Top Filter Bar -->
+        <div class="report-filter-bar">
+          <div class="filter-item">
+            <label for="filter-year" style="font-size: 12px; font-weight: 600;" data-i18n="lblYear">שנה:</label>
+            <select id="filter-year" class="filter-select" onchange="handleFiltersChange()">
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2025">2025</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label for="filter-month" style="font-size: 12px; font-weight: 600;" data-i18n="lblMonth">חודש:</label>
+            <select id="filter-month" class="filter-select" onchange="handleFiltersChange()">
+              <option value="1" data-i18n="mJan">ינואר</option>
+              <option value="2" data-i18n="mFeb">פברואר</option>
+              <option value="3" data-i18n="mMar">מרץ</option>
+              <option value="4" data-i18n="mApr">אפריל</option>
+              <option value="5" data-i18n="mMay">מאי</option>
+              <option value="6" data-i18n="mJun">יוני</option>
+              <option value="7" selected data-i18n="mJul">יולי</option>
+              <option value="8" data-i18n="mAug">אוגוסט</option>
+              <option value="9" data-i18n="mSep">ספטמבר</option>
+              <option value="10" data-i18n="mOct">אוקטובר</option>
+              <option value="11" data-i18n="mNov">נובמבר</option>
+              <option value="12" data-i18n="mDec">דצמבר</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label for="filter-category" style="font-size: 12px; font-weight: 600;" data-i18n="lblCategory">סוג:</label>
+            <select id="filter-category" class="filter-select" onchange="handleFiltersChange()">
+              <option value="All" data-i18n="optAll">הכל</option>
+              <option value="Work" data-i18n="optWork">עבודה בפועל</option>
+              <option value="Vacation" data-i18n="optVacation">יום חופש</option>
+              <option value="Sick" data-i18n="optSick">חופשת מחלה</option>
+              <option value="Reserve" data-i18n="optReserve">שירות מילואים</option>
+            </select>
+          </div>
+          <div class="filter-item" style="flex-grow: 1;">
+            <input type="text" id="filter-search" class="filter-input" placeholder="חיפוש בהערות / ..." oninput="handleFiltersChange()" data-i18n-placeholder="searchPlaceholder">
+          </div>
+          <button class="reset-filter-btn" onclick="resetFilters()">
+            <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i>
+            <span data-i18n="btnResetFilters">אפס מסננים</span>
+          </button>
+        </div>
+        
+        <!-- Bulk Actions Bar -->
+        <div id="bulk-actions-bar" class="bulk-actions-bar">
+          <div style="font-weight: 600; color: var(--primary-color);">
+            <span id="bulk-selected-count">0</span> <span data-i18n="selectedCount">רשומות נבחרו</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="submit-btn" style="padding: 6px 12px; margin: 0; font-size: 13px; display: flex; align-items: center; gap: 6px;" onclick="openBulkUpdateModal()">
+              <i data-lucide="edit-2" style="width: 14px; height: 14px;"></i>
+              <span data-i18n="bulkUpdateBtn">עדכון מרוכז</span>
+            </button>
+            <button class="reset-filter-btn" style="padding: 6px 12px; margin: 0; font-size: 13px; background: white;" onclick="clearSelection()">
+              <span data-i18n="clearSelectionBtn">ביטול בחירה</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table id="reports-table">
+            <thead>
+              <tr>
+                <th style="width: 5%; text-align: center;"><input type="checkbox" id="bulk-select-all" onclick="toggleSelectAll(this)" style="cursor: pointer;"></th>
+                <th style="width: 16%;" data-i18n="colDate">תאריך</th>
+                <th style="width: 18%;" data-i18n="colHoursRange">טווח שעות</th>
+                <th style="width: 12%;" data-i18n="colTotalHours">סה"כ שעות</th>
+                <th style="width: 14%;" data-i18n="colCategory">סוג</th>
+                <th style="width: 25%;" data-i18n="colNotes">הערות / נושא</th>
+                <th style="width: 15%; text-align: center;" data-i18n="colActions">פעולות</th>
+              </tr>
+            </thead>
+            <tbody id="reports-table-body">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab Section 3: Redesigned Settings Panel (matches screenshot) -->
+    <section id="tab-settings" class="tab-content">
+      <form class="settings-form" id="settings-form" onsubmit="handleSettingsSave(event)">
+        
+        <!-- Vacation Settings Card -->
+        <div class="settings-section-card">
+          <div class="settings-section-title">
+            <i data-lucide="umbrella" style="color: var(--primary-color);"></i>
+            <span data-i18n="settingsVacationTitle">הגדרות חופשה</span>
+          </div>
+          
+          <div class="settings-row-layout">
+            <div class="form-group" style="flex-grow: 1; min-width: 200px;">
+              <label for="setting-annual-vacation" data-i18n="formAnnualAllowance">מכסת חופשה שנתית (בימים)</label>
+              <input type="number" id="setting-annual-vacation" step="1" required min="0" value="21" oninput="updateAccrualDisplay()">
+            </div>
+            
+            <div class="accrual-display-card">
+              <span class="accrual-card-label" data-i18n="lblCalculatedAccrual">צבירה חודשית מחושבת</span>
+              <span class="accrual-card-val" id="setting-accrual-display-val">1.75 ימים/חודש</span>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+            <div class="form-group">
+              <label for="setting-daily-std-hours" data-i18n="formDailyStdHours">שעות תקן ליום עבודה</label>
+              <input type="number" id="setting-daily-std-hours" step="0.5" required min="1" max="24" value="9.0">
+            </div>
+            <div class="form-group">
+              <label for="setting-target-link" data-i18n="formTargetLink">קישור/מזהה גיליון Google Sheets</label>
+              <input type="text" id="setting-target-link" placeholder="השאר ריק לחיבור אוטומטי">
+            </div>
+          </div>
+        </div>
+
+        <!-- Annual Work Days Standard Card -->
+        <div class="settings-section-card">
+          <div class="settings-section-title">
+            <i data-lucide="shield-check" style="color: var(--primary-color);"></i>
+            <span data-i18n="settingsWorkdayTitle">תקן ימי עבודה שנתי</span>
+          </div>
+
+          <div class="settings-row-layout" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 16px;">
+            <div class="form-group" style="min-width: 120px;">
+              <label for="setting-selected-year" data-i18n="lblSelectYear">בחר שנה:</label>
+              <select id="setting-selected-year" onchange="loadYearWorkdays()">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+            
+            <!-- Add Year -->
+            <div class="form-group" style="flex-grow: 1; min-width: 180px;">
+              <label for="setting-add-year" data-i18n="lblAddYear">הוסף שנה לרשימה</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="number" id="setting-add-year" placeholder="לדוגמה: 2023" min="2000" max="2100" style="flex-grow: 1;">
+                <button type="button" class="btn-inline-apply" onclick="addNewYear()" data-i18n="btnAdd">הוסף</button>
+              </div>
+            </div>
+
+            <!-- Apply to All Months -->
+            <div class="form-group" style="flex-grow: 1; min-width: 180px;">
+              <label for="setting-apply-all-days" data-i18n="lblApplyAll">הגדר ימים לכל חודשי השנה</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="number" id="setting-apply-all-days" placeholder="מספר ימים חודשי" min="0" max="31" style="flex-grow: 1;">
+                <button type="button" class="btn-inline-apply" onclick="applyDaysToAllMonths()" data-i18n="btnApply">החל</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 12 Months Workdays Grid -->
+          <div class="settings-grid-12" id="workday-inputs-grid">
+            <!-- Populated dynamically in script -->
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" style="width: 100%; font-size: 15px;" data-i18n="saveSettingsBtn">
+          <i data-lucide="save" style="width: 18px; height: 18px;"></i>
+          <span>שמור הגדרות לגיליון</span>
+        </button>
+      </form>
+
+      <!-- Custom Holidays Section -->
+      <div class="settings-section-card" style="margin-top: 20px;">
+        <div class="settings-section-title" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="calendar" style="color: var(--primary-color);"></i>
+            <span>תאריכי חגים וסיווגם</span>
+          </div>
+
+          <!-- Year Navigation -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="btn-inline-apply" style="padding: 4px 8px; height: auto;" onclick="navigateHolidayYear(-1)">&rarr;</button>
+            <span style="font-weight: 800; font-size: 14px; width: 40px; text-align: center;" id="holiday-year-display">2026</span>
+            <button type="button" class="btn-inline-apply" style="padding: 4px 8px; height: auto;" onclick="navigateHolidayYear(1)">&larr;</button>
+          </div>
+        </div>
+
+        <!-- Add holiday form -->
+        <div class="settings-row-layout" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 16px; align-items: flex-end; display: flex; flex-wrap: wrap; gap: 12px;">
+          <div class="form-group" style="min-width: 120px; flex: 1;">
+            <label for="new-holiday-date">תאריך:</label>
+            <input type="date" id="new-holiday-date" style="width: 100%;">
+          </div>
+          <div class="form-group" style="flex-grow: 2; min-width: 150px; flex: 2;">
+            <label for="new-holiday-name">שם החג:</label>
+            <select id="new-holiday-name" style="width: 100%; height: 38px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <div class="form-group" style="min-width: 120px; flex: 1;">
+            <label for="new-holiday-category">סיווג:</label>
+            <select id="new-holiday-category" style="width: 100%;">
+              <option value="חג">חג</option>
+              <option value="ערב חג">ערב חג</option>
+              <option value="חול המועד">חול המועד</option>
+            </select>
+          </div>
+          <button type="button" class="btn-inline-apply" style="height: 38px; padding: 0 16px;" onclick="addCustomHoliday()">הוסף חג</button>
+        </div>
+
+        <!-- Holidays Table -->
+        <div class="table-container" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: right;">
+            <thead>
+              <tr style="background: var(--bg-card); border-bottom: 1px solid var(--border-color); font-size: 12px;">
+                <th style="padding: 10px 12px; font-weight: 600; color: var(--text-muted);">תאריך</th>
+                <th style="padding: 10px 12px; font-weight: 600; color: var(--text-muted);">שם החג</th>
+                <th style="padding: 10px 12px; font-weight: 600; color: var(--text-muted);">סיווג</th>
+                <th style="padding: 10px 12px; font-weight: 600; color: var(--text-muted); text-align: center; width: 80px;">פעולה</th>
+              </tr>
+            </thead>
+            <tbody id="holidays-table-body">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px;">
+          <button type="button" class="submit-btn" style="font-size: 13px; padding: 8px 16px; width: auto; margin: 0;" onclick="saveCustomHolidays()">שמור חגים</button>
+          
+          <!-- Holiday uploader -->
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; background: var(--bg-card); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <span style="font-weight: 600; color: var(--text-muted);">ייבוא חגים (Excel/CSV):</span>
+            <a id="holiday-csv-template-link" href="#" download="holidays_template.csv" style="color: var(--primary-color); font-weight: 700; text-decoration: none;">תבנית</a>
+            <label class="btn-inline-apply" style="padding: 4px 8px; font-size: 11px; margin: 0; cursor: pointer; height: auto;">
+              בחר קובץ
+              <input type="file" accept=".csv,.xls,.xlsx" onchange="handleHolidayExcelUpload(event)" style="display: none;">
+            </label>
+          </div>
+        </div>
+        <div id="holiday-import-status" style="font-size: 11px; margin-top: 8px; font-weight: 600;"></div>
+      </div>
+
+      <!-- Dropdowns Tables Section -->
+      <div class="settings-section-card" style="margin-top: 20px;">
+        <div class="settings-section-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="list" style="color: var(--primary-color);"></i>
+            <span>טבלאות ערכי רשימות נפתחות</span>
+          </div>
+
+          <!-- Tab Selector Buttons -->
+          <div style="display: flex; background: var(--bg-card); padding: 4px; border-radius: 8px; gap: 4px; border: 1px solid var(--border-color);" class="settings-tabs-container">
+            <button type="button" id="tab-btn-classifications" style="margin: 0; padding: 6px 12px; font-size: 11px; height: auto; border: none; background: white; color: var(--text-main); font-weight: 700; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer;" onclick="switchSettingsTab('classifications')">סיווגי פעילות</button>
+            <button type="button" id="tab-btn-ordertypes" style="margin: 0; padding: 6px 12px; font-size: 11px; height: auto; border: none; background: transparent; color: var(--text-muted); font-weight: 700; border-radius: 6px; cursor: pointer;" onclick="switchSettingsTab('ordertypes')">סוגי צו</button>
+            <button type="button" id="tab-btn-holidaynames" style="margin: 0; padding: 6px 12px; font-size: 11px; height: auto; border: none; background: transparent; color: var(--text-muted); font-weight: 700; border-radius: 6px; cursor: pointer;" onclick="switchSettingsTab('holidaynames')">שמות החגים</button>
+          </div>
+        </div>
+
+        <div style="max-width: 480px; margin: 20px auto 0 auto; background: var(--bg-card); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 16px;">
+          <!-- Classifications -->
+          <div id="tab-content-classifications" style="display: block;">
+            <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-main);">עריכת סיווגי פעילות</h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <input type="text" id="new-class-val" placeholder="סיווג חדש..." style="flex-grow: 1; padding: 8px 12px; font-size: 13px;">
+              <button type="button" class="btn-inline-apply" style="padding: 8px 16px; height: 38px;" onclick="addCustomClass()">הוסף</button>
+            </div>
+            <div style="border: 1px solid var(--border-color); border-radius: 8px; max-height: 200px; overflow-y: auto; background: white; margin-bottom: 12px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: right;">
+                <tbody id="classifications-list-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+            <button type="button" class="submit-btn" style="font-size: 12px; padding: 8px 16px; width: 100%; margin: 0;" onclick="saveCustomClassifications()">שמור סיווגים</button>
+          </div>
+
+          <!-- Order Types -->
+          <div id="tab-content-ordertypes" style="display: none;">
+            <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-main);">עריכת סוגי צו מילואים</h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <input type="text" id="new-ordertype-val" placeholder="סוג צו חדש..." style="flex-grow: 1; padding: 8px 12px; font-size: 13px;">
+              <button type="button" class="btn-inline-apply" style="padding: 8px 16px; height: 38px;" onclick="addCustomOrderType()">הוסף</button>
+            </div>
+            <div style="border: 1px solid var(--border-color); border-radius: 8px; max-height: 200px; overflow-y: auto; background: white; margin-bottom: 12px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: right;">
+                <tbody id="ordertypes-list-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+            <button type="button" class="submit-btn" style="font-size: 12px; padding: 8px 16px; width: 100%; margin: 0;" onclick="saveCustomOrderTypes()">שמור סוגי צו</button>
+          </div>
+
+          <!-- Holiday Names -->
+          <div id="tab-content-holidaynames" style="display: none;">
+            <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-main);">עריכת שמות חגים רשומים</h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <input type="text" id="new-holidayname-val" placeholder="שם חג חדש..." style="flex-grow: 1; padding: 8px 12px; font-size: 13px;">
+              <button type="button" class="btn-inline-apply" style="padding: 8px 16px; height: 38px;" onclick="addCustomHolidayName()">הוסף</button>
+            </div>
+            <div style="border: 1px solid var(--border-color); border-radius: 8px; max-height: 200px; overflow-y: auto; background: white; margin-bottom: 12px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: right;">
+                <tbody id="holidaynames-list-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+            <button type="button" class="submit-btn" style="font-size: 12px; padding: 8px 16px; width: 100%; margin: 0;" onclick="saveCustomHolidayNames()">שמור שמות חגים</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Add / Edit Report Modal Popup Dialog -->
+  <div class="modal-backdrop" id="report-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title" data-i18n="newReportModalTitle">דיווח שעות חדש</h3>
+        <button class="close-modal-btn" onclick="closeModal()" aria-label="Close modal">
+          <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+        </button>
+      </div>
+      
+      <form id="new-report-form" onsubmit="handleReportSubmit(event)">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="report-date" data-i18n="formDate">תאריך</label>
+          <input type="date" id="report-date" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label for="report-start-time" data-i18n="formStartTime">שעת התחלה</label>
+            <input type="time" id="report-start-time" onchange="autoCalculateHours()">
+          </div>
+          <div class="form-group">
+            <label for="report-end-time" data-i18n="formEndTime">שעת סיום</label>
+            <input type="time" id="report-end-time" onchange="autoCalculateHours()">
+          </div>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="report-hours" data-i18n="formHours">כמות שעות</label>
+          <input type="number" id="report-hours" step="0.1" required min="0" max="24" placeholder="8.5">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label for="report-category" data-i18n="formCategory">סוג פעילות</label>
+          <select id="report-category" required>
+            <option value="Work" data-i18n="optWork">עבודה בפועל</option>
+            <option value="Vacation" data-i18n="optVacation">יום חופש</option>
+            <option value="Sick" data-i18n="optSick">חופשת מחלה</option>
+            <option value="Reserve" data-i18n="optReserve">שירות מילואים</option>
+          </select>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="report-notes" data-i18n="formNotes">פירוט משימות / הערות</label>
+          <textarea id="report-notes" rows="3" placeholder="על מה עבדת היום?"></textarea>
+        </div>
+        
+        <button type="submit" class="submit-btn" style="width: 100%;" id="modal-submit-btn" data-i18n="submitReportBtn">שלח דיווח</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bulk Update Modal -->
+  <div class="modal-backdrop" id="bulk-update-modal">
+    <div class="modal-content" style="max-width: 550px;">
+      <div class="modal-header">
+        <h3 class="modal-title" data-i18n="bulkUpdateModalTitle">עדכון מרוכז של רשומות</h3>
+        <button class="close-modal-btn" onclick="closeBulkUpdateModal()" aria-label="Close modal">
+          <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+        </button>
+      </div>
+      
+      <!-- Stage 1: Form Inputs -->
+      <div id="bulk-modal-stage-edit">
+        <form id="bulk-update-form" onsubmit="handleBulkUpdatePreview(event)">
+          <!-- Field 1: Category -->
+          <div class="bulk-field-row">
+            <label class="checkbox-label" for="bulk-enable-category">
+              <input type="checkbox" id="bulk-enable-category" onchange="toggleBulkFieldInput('bulk-enable-category', 'bulk-category')" style="margin-inline-end: 6px; cursor: pointer;">
+              <span data-i18n="formCategory">סוג פעילות</span>
+            </label>
+            <div class="bulk-field-input-container">
+              <select id="bulk-category" disabled required style="width: 100%;" class="filter-input" onchange="handleBulkCategoryChange()">
+                <option value="Work" data-i18n="optWork">עבודה בפועל</option>
+                <option value="Vacation" data-i18n="optVacation">יום חופש</option>
+                <option value="Sick" data-i18n="optSick">חופשת מחלה</option>
+                <option value="Reserve" data-i18n="optReserve">שירות מילואים</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Field 2: Start/End Time -->
+          <div class="bulk-field-row">
+            <label class="checkbox-label" for="bulk-enable-times">
+              <input type="checkbox" id="bulk-enable-times" onchange="toggleBulkFieldInput('bulk-enable-times', ['bulk-start-time', 'bulk-end-time'])" style="margin-inline-end: 6px; cursor: pointer;">
+              <span data-i18n="colHoursRange">טווח שעות</span>
+            </label>
+            <div class="bulk-field-input-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group" style="margin: 0;">
+                <input type="time" id="bulk-start-time" disabled style="width: 100%;" class="filter-input" onchange="autoCalculateBulkHours()">
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <input type="time" id="bulk-end-time" disabled style="width: 100%;" class="filter-input" onchange="autoCalculateBulkHours()">
+              </div>
+            </div>
+          </div>
+
+          <!-- Field 3: Hours -->
+          <div class="bulk-field-row">
+            <label class="checkbox-label" for="bulk-enable-hours">
+              <input type="checkbox" id="bulk-enable-hours" onchange="toggleBulkFieldInput('bulk-enable-hours', 'bulk-hours')" style="margin-inline-end: 6px; cursor: pointer;">
+              <span data-i18n="formHours">כמות שעות</span>
+            </label>
+            <div class="bulk-field-input-container">
+              <input type="number" id="bulk-hours" step="0.1" disabled min="0" max="24" placeholder="8.5" style="width: 100%;" class="filter-input">
+            </div>
+          </div>
+
+          <!-- Field 4: Notes -->
+          <div class="bulk-field-row" style="margin-bottom: 20px; border-bottom: none; padding-bottom: 0;">
+            <label class="checkbox-label" for="bulk-enable-notes" style="align-self: flex-start; margin-top: 8px;">
+              <input type="checkbox" id="bulk-enable-notes" onchange="toggleBulkFieldInput('bulk-enable-notes', 'bulk-notes')" style="margin-inline-end: 6px; cursor: pointer;">
+              <span data-i18n="formNotes">הערות / נושא</span>
+            </label>
+            <div class="bulk-field-input-container">
+              <textarea id="bulk-notes" rows="3" disabled placeholder="על מה עבדת בימים אלו?" style="width: 100%; resize: vertical;" class="filter-input"></textarea>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" style="width: 100%;" data-i18n="btnPreviewChanges">תצוגה מקדימה של שינויים</button>
+        </form>
+      </div>
+
+      <!-- Stage 2: Diff Confirmation Preview -->
+      <div id="bulk-modal-stage-confirm" style="display: none;">
+        <p style="margin-bottom: 12px; font-weight: 500; color: var(--text-main); text-align: right;" id="bulk-confirm-message-text">האם אתה בטוח שברצונך לעדכן את הרשומות?</p>
+        
+        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; text-align: right;" data-i18n="bulkChangeSummary">סיכום שינויים:</div>
+        <div class="bulk-diff-container" id="bulk-diff-list">
+          <!-- Populated by JS -->
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <button class="submit-btn" style="margin: 0;" onclick="submitBulkUpdate()" data-i18n="btnConfirmUpdate">אשר עדכון</button>
+          <button class="reset-filter-btn" style="margin: 0; background: white;" onclick="backToBulkEdit()" data-i18n="btnBackToEdit">חזור לעריכה</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert/Notification Toast element -->
+  <div class="toast" id="toast-message">דיווח שעות נקלט בהצלחה!</div>
+
+  <!-- Javascript Logic, Translation dictionaries, Charts initialization, and Mock data fallback -->
+  <script>
+    // Translation dictionary configuration
+    const translations = {
+      he: {
+        dir: 'rtl',
+        langBtn: 'English',
+        menuFile: 'קובץ',
+        menuEdit: 'עריכה',
+        menuView: 'תצוגה',
+        menuInsert: 'הוספה',
+        menuFormat: 'עיצוב',
+        menuData: 'נתונים',
+        menuTools: 'כלים',
+        menuExtensions: 'תוספים',
+        viewDataBtn: 'הצג נתונים',
+        shareBtn: 'שתף',
+        newReportBtn: 'דיווח חדש',
+        tabDashboard: 'לוח בקרה',
+        tabReports: 'דיווחים',
+        tabSettings: 'הגדרות',
+        bannerTitle: 'ניהול דיווח שעות',
+        bannerSub: '24H WORK DASHBOARD',
+        kpiSickReserve: 'מילואים / מחלה',
+        kpiSickReserveSub: 'ימי היעדרות החודש',
+        kpiVacation: 'יתרת חופשה לניצול',
+        daysUnit: 'ימים',
+        kpiRemaining: 'שעות שנותרו',
+        hoursUnit: 'שעות',
+        kpiReported: 'שעות שדווחו',
+        summaryCardTitle: 'סיכום סטטוס חודשי',
+        summaryTarget: 'יעד שעות',
+        summaryReported: 'דווח בפועל',
+        summaryRemaining: 'יתרה להשלמה',
+        forecastTitle: 'תחזית המשך עבודה:',
+        chartTitle: 'פעילות שעות יומית',
+        reportsTableTitle: 'רשימת דיווחים מפורטת',
+        colDate: 'תאריך',
+        colHoursRange: 'טווח שעות',
+        colTotalHours: 'סה"כ שעות',
+        colCategory: 'סוג',
+        colNotes: 'הערות / נושא',
+        colActions: 'פעולות',
+        settingsVacationTitle: 'הגדרות חופשה',
+        formAnnualAllowance: 'מכסת חופשה שנתית (בימים)',
+        lblCalculatedAccrual: 'צבירה חודשית מחושבת',
+        accrualUnit: 'ימים/חודש',
+        formDailyStdHours: 'שעות תקן ליום עבודה',
+        formTargetLink: 'קישור/מזהה גיליון Google Sheets',
+        settingsWorkdayTitle: 'תקן ימי עבודה שנתי',
+        lblSelectYear: 'בחר שנה:',
+        lblAddYear: 'הוסף שנה לרשימה',
+        btnAdd: 'הוסף',
+        lblApplyAll: 'הגדר ימים לכל חודשי השנה',
+        btnApply: 'החל',
+        saveSettingsBtn: 'שמור הגדרות לגיליון',
+        newReportModalTitle: 'דיווח שעות חדש',
+        editReportModalTitle: 'עדכון דיווח שעות',
+        formDate: 'תאריך',
+        formStartTime: 'שעת התחלה',
+        formEndTime: 'שעת סיום',
+        formHours: 'כמות שעות',
+        formCategory: 'סוג פעילות',
+        formNotes: 'פירוט משימות / הערות',
+        optWork: 'עבודה בפועל',
+        optVacation: 'יום חופש',
+        optSick: 'חופשת מחלה',
+        optReserve: 'שירות מילואים',
+        submitReportBtn: 'שלח דיווח',
+        submitUpdateBtn: 'עדכן דיווח',
+        toastSuccess: 'הדיווח נקלט בהצלחה!',
+        toastCleared: 'הדיווח נמחק בהצלחה!',
+        toastSettingsSaved: 'ההגדרות נשמרו בהצלחה!',
+        toastBulkSuccess: 'העדכון המרוכז הושלם בהצלחה!',
+        bulkUpdateBtn: 'עדכון מרוכז',
+        clearSelectionBtn: 'ביטול בחירה',
+        selectedCount: 'רשומות נבחרו',
+        bulkUpdateModalTitle: 'עדכון מרוכז של רשומות',
+        bulkFieldUpdateCheckbox: 'עדכן שדה זה',
+        btnPreviewChanges: 'תצוגה מקדימה של שינויים',
+        btnConfirmUpdate: 'אשר עדכון',
+        btnBackToEdit: 'חזור לעריכה',
+        bulkConfirmTitle: 'אישור עדכון מרוכז',
+        bulkConfirmMessage: 'האם אתה בטוח שברצונך לעדכן את {count} הרשומות הבאות?',
+        bulkChangeSummary: 'סיכום שינויים:',
+        bulkNoChangesSelected: 'לא נבחרו שדות לעדכון',
+        bulkDiffNoData: '(רשומה ריקה)',
+        vacationUsedStr: 'נוצלו החודש',
+        remainingDailyStr: 'ליום',
+        outOfTargetStr: 'מתוך יעד של',
+        forecastSuffix: 'שעות/יום',
+        forecastDaysLeft: 'מתוך {days} ימי עבודה פוטנציאליים',
+        workBadge: 'עבודה',
+        vacationBadge: 'חופש',
+        sickBadge: 'מחלה',
+        reserveBadge: 'מילואים',
+        emptyBadge: 'שגרתי',
+        lblYear: 'שנה:',
+        lblMonth: 'חודש:',
+        lblCategory: 'סוג:',
+        optAll: 'הכל',
+        searchPlaceholder: 'חיפוש בהערות / ...',
+        btnResetFilters: 'אפס מסננים',
+        confirmClear: 'האם ברצונך למחוק את הדיווח של יום {date}?',
+        daysOfWeek: ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'יום שבת'],
+        mJan: 'ינואר', mFeb: 'פברואר', mMar: 'מרץ', mApr: 'אפריל', mMay: 'מאי', mJun: 'יוני',
+        mJul: 'יולי', mAug: 'אוגוסט', mSep: 'ספטמבר', mOct: 'אוקטובר', mNov: 'נובמבר', mDec: 'דצמבר',
+        monthsList: ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+      },
+      en: {
+        dir: 'ltr',
+        langBtn: 'עברית',
+        menuFile: 'File',
+        menuEdit: 'Edit',
+        menuView: 'View',
+        menuInsert: 'Insert',
+        menuFormat: 'Format',
+        menuData: 'Data',
+        menuTools: 'Tools',
+        menuExtensions: 'Extensions',
+        viewDataBtn: 'View data',
+        shareBtn: 'Share',
+        newReportBtn: 'New Report',
+        tabDashboard: 'Dashboard',
+        tabReports: 'Reports List',
+        tabSettings: 'Settings',
+        bannerTitle: 'Work Hours Manager',
+        bannerSub: '24H WORK DASHBOARD',
+        kpiSickReserve: 'Reserve / Sick Days',
+        kpiSickReserveSub: 'Absences this month',
+        kpiVacation: 'Vacation Balance',
+        daysUnit: 'days',
+        kpiRemaining: 'Remaining Hours',
+        hoursUnit: 'hours',
+        kpiReported: 'Hours Reported',
+        summaryCardTitle: 'Monthly Status Summary',
+        summaryTarget: 'Target Hours',
+        summaryReported: 'Reported Hours',
+        summaryRemaining: 'Remaining Hours',
+        forecastTitle: 'Remaining Work Forecast:',
+        chartTitle: 'Daily Hours Activity',
+        reportsTableTitle: 'Detailed Reports Table',
+        colDate: 'Date',
+        colHoursRange: 'Hours Range',
+        colTotalHours: 'Total Hours',
+        colCategory: 'Type',
+        colNotes: 'Notes / Topic',
+        colActions: 'Actions',
+        settingsVacationTitle: 'Vacation Settings',
+        formAnnualAllowance: 'Annual Vacation Allowance (Days)',
+        lblCalculatedAccrual: 'Calculated Monthly Accrual',
+        accrualUnit: 'days/month',
+        formDailyStdHours: 'Standard Daily Work Hours',
+        formTargetLink: 'Google Sheet Link / ID',
+        settingsWorkdayTitle: 'Annual Work Days Standard',
+        lblSelectYear: 'Select Year:',
+        lblAddYear: 'Add Year to List',
+        btnAdd: 'Add',
+        lblApplyAll: 'Set Days for All Months',
+        btnApply: 'Apply',
+        saveSettingsBtn: 'Save Settings to Sheet',
+        newReportModalTitle: 'Log New Hours',
+        editReportModalTitle: 'Update Logged Hours',
+        formDate: 'Date',
+        formStartTime: 'Start Time',
+        formEndTime: 'End Time',
+        formHours: 'Number of Hours',
+        formCategory: 'Activity Type',
+        formNotes: 'Tasks description / Notes',
+        optWork: 'Actual Work',
+        optVacation: 'Vacation Day',
+        optSick: 'Sick Leave',
+        optReserve: 'Reserve Duty',
+        submitReportBtn: 'Submit Log',
+        submitUpdateBtn: 'Update Log',
+        toastSuccess: 'Work log submitted successfully!',
+        toastCleared: 'Hours cleared successfully!',
+        toastSettingsSaved: 'Settings saved successfully!',
+        toastBulkSuccess: 'Bulk update completed successfully!',
+        bulkUpdateBtn: 'Bulk Update',
+        clearSelectionBtn: 'Clear Selection',
+        selectedCount: 'records selected',
+        bulkUpdateModalTitle: 'Bulk Update Records',
+        bulkFieldUpdateCheckbox: 'Update this field',
+        btnPreviewChanges: 'Preview Changes',
+        btnConfirmUpdate: 'Confirm Update',
+        btnBackToEdit: 'Back to Edit',
+        bulkConfirmTitle: 'Confirm Bulk Update',
+        bulkConfirmMessage: 'Are you sure you want to update the following {count} records?',
+        bulkChangeSummary: 'Summary of changes:',
+        bulkNoChangesSelected: 'No fields selected for update',
+        bulkDiffNoData: '(empty record)',
+        vacationUsedStr: 'used this month',
+        remainingDailyStr: '/ day',
+        outOfTargetStr: 'out of target of',
+        forecastSuffix: 'hrs/day',
+        forecastDaysLeft: 'over {days} remaining work days',
+        workBadge: 'Work',
+        vacationBadge: 'Vacation',
+        sickBadge: 'Sick',
+        reserveBadge: 'Reserve',
+        emptyBadge: 'Routine',
+        lblYear: 'Year:',
+        lblMonth: 'Month:',
+        lblCategory: 'Type:',
+        optAll: 'All',
+        searchPlaceholder: 'Search notes / ...',
+        btnResetFilters: 'Reset Filters',
+        confirmClear: 'Are you sure you want to clear the work log for {date}?',
+        daysOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        mJan: 'January', mFeb: 'February', mMar: 'March', mApr: 'April', mMay: 'May', mJun: 'June',
+        mJul: 'July', mAug: 'August', mSep: 'September', mOct: 'October', mNov: 'November', mDec: 'December',
+        monthsList: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      }
+    };
+
+    // State Variables
+    let currentLang = 'he';
+    let currentYear = 2026;
+    let currentMonth = 7; // July
+    let myChart = null;
+    let localDataStore = null;
+
+    // Filters State
+    let filterCategory = 'All';
+    let filterQuery = '';
+
+    // Set Default Date in Add Form to Today
+    document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+
+    // Check if running in Google Apps Script context
+    const isGoogleAppsScript = typeof google !== 'undefined' && google.script && google.script.run;
+
+    // Load Initial Mock Data for Local previewing/testing
+    function getMockData(monthStr) {
+      if (!localDataStore) {
+        localDataStore = {
+          settings: {
+            StandardHoursPerDay: 9.0,
+            AnnualVacationAllowance: 21.0,
+            VacationUsedThisMonth: 5.0,
+            ReserveDutyDays: 0.0,
+            TargetSpreadsheetLink: ''
+          },
+          workdaysMap: {
+            2025: [22, 20, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22],
+            2026: [21, 20, 23, 22, 21, 22, 22, 22, 22, 21, 22, 23],
+            2027: [22, 20, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22]
+          },
+          availableYears: [2025, 2026, 2027],
+          reports: [
+            { date: '2026-07-01', day: 1, startTime: '07:30', endTime: '16:30', hours: 9.0, category: 'Work', notes: 'Initial project setup & visual outline' },
+            { date: '2026-07-02', day: 2, startTime: '08:00', endTime: '17:00', hours: 9.0, category: 'Work', notes: 'Styling component tokens and design implementation' },
+            { date: '2026-07-05', day: 5, startTime: '06:57', endTime: '17:07', hours: 10.2, category: 'Work', notes: 'Creating charts & state manager' }
+          ]
+        };
+      }
+
+      const targetYear = parseInt(monthStr.split('-')[0]);
+      const targetMonth = parseInt(monthStr.split('-')[1]) - 1; // 0-indexed
+      const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+
+      const monthlyReports = localDataStore.reports.filter(r => r.date.startsWith(monthStr));
+      let totalReportedHours = 0;
+      let dailyHoursMap = {};
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        dailyHoursMap[d] = 0;
+      }
+
+      monthlyReports.forEach(r => {
+        totalReportedHours += r.hours;
+        dailyHoursMap[r.day] = (dailyHoursMap[r.day] || 0) + r.hours;
+      });
+
+      const standardDays = localDataStore.workdaysMap[targetYear] 
+        ? localDataStore.workdaysMap[targetYear][targetMonth] 
+        : 22;
+
+      const targetHours = standardDays * localDataStore.settings.StandardHoursPerDay;
+      const remainingHours = Math.max(0, targetHours - totalReportedHours);
+
+      // Workday estimation
+      let remainingWorkDays = 0;
+      const today = new Date();
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dayOfWeek = new Date(targetYear, targetMonth, d).getDay();
+        if (dayOfWeek !== 5 && dayOfWeek !== 6) { // Skip Fri/Sat
+          if (targetYear > today.getFullYear() || 
+             (targetYear === today.getFullYear() && targetMonth > today.getMonth()) || 
+             (targetYear === today.getFullYear() && targetMonth === today.getMonth() && d >= today.getDate())) {
+            remainingWorkDays++;
+          }
+        }
+      }
+
+      const dailyForecast = remainingWorkDays > 0 ? (remainingHours / remainingWorkDays) : 0;
+
+      return {
+        settings: localDataStore.settings,
+        reports: monthlyReports,
+        dailyHours: dailyHoursMap,
+        daysInMonth: daysInMonth,
+        workdaysMap: localDataStore.workdaysMap,
+        availableYears: localDataStore.availableYears,
+        stats: {
+          targetHours: targetHours,
+          reportedHours: totalReportedHours,
+          remainingHours: remainingHours,
+          potentialWorkDays: standardDays,
+          remainingWorkDays: remainingWorkDays,
+          dailyForecast: dailyForecast
+        }
+      };
+    }
+
+    // Auto calculate hours from start & end times
+    function autoCalculateHours() {
+      const startTime = document.getElementById('report-start-time').value;
+      const endTime = document.getElementById('report-end-time').value;
+      
+      if (startTime && endTime) {
+        const [startH, startM] = startTime.split(':').map(Number);
+        const [endH, endM] = endTime.split(':').map(Number);
+        
+        let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+        if (diffMinutes < 0) {
+          diffMinutes += 24 * 60; // Overnight logic
+        }
+        
+        const decimalHours = diffMinutes / 60;
+        document.getElementById('report-hours').value = decimalHours.toFixed(1);
+      }
+    }
+
+    // Toggle RTL/LTR and UI Languages
+    function toggleLanguage() {
+      currentLang = currentLang === 'he' ? 'en' : 'he';
+      
+      const htmlEl = document.documentElement;
+      htmlEl.setAttribute('lang', currentLang);
+      htmlEl.setAttribute('dir', translations[currentLang].dir);
+
+      document.getElementById('lang-btn-text').textContent = translations[currentLang].langBtn;
+
+      const prevIcon = document.getElementById('arrow-prev-icon');
+      const nextIcon = document.getElementById('arrow-next-icon');
+      if (currentLang === 'en') {
+        prevIcon.setAttribute('data-lucide', 'chevron-left');
+        nextIcon.setAttribute('data-lucide', 'chevron-right');
+      } else {
+        prevIcon.setAttribute('data-lucide', 'chevron-right');
+        nextIcon.setAttribute('data-lucide', 'chevron-left');
+      }
+      lucide.createIcons();
+
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        if (translations[currentLang][key]) {
+          element.textContent = translations[currentLang][key];
+        }
+      });
+
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        if (translations[currentLang][key]) {
+          element.setAttribute('placeholder', translations[currentLang][key]);
+        }
+      });
+
+      document.getElementById('month-display').textContent = getFormattedMonthName(currentYear, currentMonth);
+
+      refreshUI();
+    }
+
+    // Modal Control Functions
+    function openModal(dateToSelect = null) {
+      document.getElementById('report-modal').classList.add('open');
+      document.getElementById('modal-title').textContent = dateToSelect 
+        ? translations[currentLang].editReportModalTitle 
+        : translations[currentLang].newReportModalTitle;
+        
+      document.getElementById('modal-submit-btn').textContent = dateToSelect 
+        ? translations[currentLang].submitUpdateBtn 
+        : translations[currentLang].submitReportBtn;
+
+      if (dateToSelect) {
+        document.getElementById('report-date').value = dateToSelect;
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('report-modal').classList.remove('open');
+      document.getElementById('new-report-form').reset();
+      document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+    }
+
+    // Tab Switching Framework
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      document.getElementById(`tab-${tabId}-btn`).classList.add('active');
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+
+      if (tabId === 'dashboard' && myChart) {
+        setTimeout(() => myChart.resize(), 50);
+      }
+      
+      if (tabId === 'settings') {
+        buildSettingsGrids();
+      }
+    }
+
+    // Show Notification Toast
+    function showToast(messageKey) {
+      const msg = translations[currentLang][messageKey] || messageKey;
+      const toast = document.getElementById('toast-message');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Format Month String
+    function getFormattedMonthName(year, month) {
+      const date = new Date(year, month - 1, 1);
+      const locale = currentLang === 'he' ? 'he-IL' : 'en-US';
+      return date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+    }
+
+    // Adjust Selected Date
+    function adjustMonth(delta) {
+      currentMonth += delta;
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+      } else if (currentMonth < 1) {
+        currentMonth = 12;
+        currentYear--;
+      }
+      
+      document.getElementById('month-display').textContent = getFormattedMonthName(currentYear, currentMonth);
+      document.getElementById('filter-year').value = currentYear;
+      document.getElementById('filter-month').value = currentMonth;
+      
+      fetchData();
+    }
+
+    // Handle Top filters change
+    function handleFiltersChange() {
+      const selectedYear = parseInt(document.getElementById('filter-year').value);
+      const selectedMonth = parseInt(document.getElementById('filter-month').value);
+      filterCategory = document.getElementById('filter-category').value;
+      filterQuery = document.getElementById('filter-search').value.toLowerCase().trim();
+
+      if (selectedYear !== currentYear || selectedMonth !== currentMonth) {
+        currentYear = selectedYear;
+        currentMonth = selectedMonth;
+        document.getElementById('month-display').textContent = getFormattedMonthName(currentYear, currentMonth);
+        fetchData();
+      } else {
+        refreshUI();
+      }
+    }
+
+    // Reset filters action
+    function resetFilters() {
+      document.getElementById('filter-category').value = 'All';
+      document.getElementById('filter-search').value = '';
+      filterCategory = 'All';
+      filterQuery = '';
+      refreshUI();
+    }
+
+    // Global variable storing latest backend payloads
+    let currentDashboardState = null;
+
+    // Trigger row edit prefill
+    function triggerEditRow(dateStr) {
+      const report = currentDashboardState.reports.find(r => r.date === dateStr);
+      if (report) {
+        document.getElementById('report-date').value = report.date;
+        document.getElementById('report-start-time').value = report.startTime || '';
+        document.getElementById('report-end-time').value = report.endTime || '';
+        document.getElementById('report-hours').value = report.hours;
+        document.getElementById('report-category').value = report.category;
+        document.getElementById('report-notes').value = report.notes || '';
+      } else {
+        document.getElementById('report-date').value = dateStr;
+        document.getElementById('report-start-time').value = '';
+        document.getElementById('report-end-time').value = '';
+        document.getElementById('report-hours').value = '';
+        document.getElementById('report-category').value = 'Work';
+        document.getElementById('report-notes').value = '';
+      }
+      openModal(dateStr);
+    }
+
+    // Trigger row clear delete
+    function triggerClearRow(dateStr) {
+      const confirmMsg = translations[currentLang].confirmClear.replace('{date}', formatDateDisplay(dateStr));
+      if (confirm(confirmMsg)) {
+        document.getElementById('loading-overlay').classList.add('active');
+        
+        if (isGoogleAppsScript) {
+          google.script.run
+            .withSuccessHandler(function(response) {
+              currentDashboardState = response;
+              refreshUI();
+              document.getElementById('loading-overlay').classList.remove('active');
+              showToast('toastCleared');
+            })
+            .withFailureHandler(function(err) {
+              console.error(err);
+              document.getElementById('loading-overlay').classList.remove('active');
+              alert('Clear failed: ' + err.message);
+            })
+            .clearReport(dateStr);
+        } else {
+          setTimeout(() => {
+            localDataStore.reports = localDataStore.reports.filter(r => r.date !== dateStr);
+            const monthStr = `${currentYear}-${currentMonth < 10 ? '0' + currentMonth : currentMonth}`;
+            currentDashboardState = getMockData(monthStr);
+            refreshUI();
+            document.getElementById('loading-overlay').classList.remove('active');
+            showToast('toastCleared');
+          }, 300);
+        }
+      }
+    }
+
+    // Formatter utility to display date (e.g. 1.7.2026)
+    function formatDateDisplay(dateStr) {
+      const parts = dateStr.split('-');
+      return `${parseInt(parts[2])}.${parseInt(parts[1])}.${parts[0]}`;
+    }
+
+    // Get Hebrew/English Day of the week
+    function getDayOfWeekName(dateStr) {
+      const date = new Date(dateStr);
+      const dayIdx = date.getDay();
+      return translations[currentLang].daysOfWeek[dayIdx];
+    }
+
+    // Update calculated monthly vacation accrual display card
+    function updateAccrualDisplay() {
+      const val = parseFloat(document.getElementById('setting-annual-vacation').value) || 0;
+      const monthly = (val / 12).toFixed(2);
+      document.getElementById('setting-accrual-display-val').textContent = `${monthly} ${translations[currentLang].accrualUnit}`;
+    }
+
+    // Load available years in settings tab and set active grid
+    function buildSettingsGrids() {
+      if (!currentDashboardState) return;
+
+      const yearSelect = document.getElementById('setting-selected-year');
+      const savedSelectedValue = yearSelect.value;
+      yearSelect.innerHTML = '';
+
+      currentDashboardState.availableYears.forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        yearSelect.appendChild(opt);
+      });
+
+      if (savedSelectedValue && currentDashboardState.availableYears.includes(parseInt(savedSelectedValue))) {
+        yearSelect.value = savedSelectedValue;
+      } else {
+        yearSelect.value = currentYear;
+      }
+
+      loadYearWorkdays();
+    }
+
+    // Load standard workdays for the selected year in settings
+    function loadYearWorkdays() {
+      const selectedYear = parseInt(document.getElementById('setting-selected-year').value);
+      if (!currentDashboardState || !currentDashboardState.workdaysMap[selectedYear]) return;
+
+      const gridContainer = document.getElementById('workday-inputs-grid');
+      gridContainer.innerHTML = '';
+
+      const workdayList = currentDashboardState.workdaysMap[selectedYear];
+      const monthsNamesList = translations[currentLang].monthsList;
+
+      for (let m = 0; m < 12; m++) {
+        const card = document.createElement('div');
+        card.className = 'month-input-card';
+        card.innerHTML = `
+          <label class="month-card-label">${monthsNamesList[m]}</label>
+          <input type="number" class="month-card-input" id="setting-workdays-month-${m}" min="0" max="31" value="${workdayList[m]}">
+        `;
+        gridContainer.appendChild(card);
+      }
+    }
+
+    // Apply standard workdays input value to all 12 months in standard settings grid
+    function applyDaysToAllMonths() {
+      const days = document.getElementById('setting-apply-all-days').value;
+      if (days === '') return;
+      
+      for (let m = 0; m < 12; m++) {
+        const input = document.getElementById(`setting-workdays-month-${m}`);
+        if (input) {
+          input.value = days;
+        }
+      }
+    }
+
+    // Add new year standard configuration dynamically
+    function addNewYear() {
+      const newYearInput = document.getElementById('setting-add-year');
+      const newYear = parseInt(newYearInput.value);
+      if (!newYear || newYear < 2000 || newYear > 2100) return;
+
+      if (!currentDashboardState.availableYears.includes(newYear)) {
+        currentDashboardState.availableYears.push(newYear);
+        currentDashboardState.availableYears.sort();
+        // Initialize default array for new year with 22 days per month
+        currentDashboardState.workdaysMap[newYear] = [22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22];
+      }
+
+      newYearInput.value = '';
+      buildSettingsGrids();
+      document.getElementById('setting-selected-year').value = newYear;
+      loadYearWorkdays();
+    }
+
+    // Refresh layout views with latest data payload
+    function refreshUI() {
+      if (!currentDashboardState) return;
+
+      const data = currentDashboardState;
+      const t = translations[currentLang];
+
+      // Update KPI values
+      const sickVal = data.settings.ReserveDutyDays || 0;
+      const vacationUsed = data.settings.VacationUsedThisMonth || 0;
+      document.getElementById('kpi-sick-reserve-val').textContent = `${sickVal} / 0`;
+      
+      const annualVacation = data.settings.AnnualVacationAllowance || 21.0;
+      const vacationBalance = data.stats.vacationBalance !== undefined ? data.stats.vacationBalance : annualVacation;
+      const estBalance = data.stats.estimatedVacationBalanceYearEnd;
+      const showEstimation = estBalance !== undefined && estBalance !== vacationBalance;
+
+      document.getElementById('kpi-vacation-val').innerHTML = `${vacationBalance.toFixed(1)} <small style="font-size: 14px;">${t.daysUnit}</small>`;
+      
+      let subHtml = `${vacationUsed} ${t.vacationUsedStr}`;
+      if (showEstimation) {
+        subHtml += `<br/><span style="color: #d97706; font-weight: 600; font-size: 11px;">הערכה לסוף השנה (כולל עתידיים): ${estBalance.toFixed(1)} ימים</span>`;
+      }
+      document.getElementById('kpi-vacation-sub').innerHTML = subHtml;
+
+      document.getElementById('kpi-remaining-val').innerHTML = `${data.stats.remainingHours.toFixed(1)} <small style="font-size: 14px;">${t.hoursUnit}</small>`;
+      document.getElementById('kpi-remaining-sub').textContent = `${t.remainingDailyStr} ${data.stats.dailyForecast.toFixed(1)} ${t.remainingDailyStr}`;
+
+      document.getElementById('kpi-reported-val').innerHTML = `${data.stats.reportedHours.toFixed(1)} <small style="font-size: 14px;">${t.hoursUnit}</small>`;
+      document.getElementById('kpi-reported-sub').textContent = `${t.outOfTargetStr} ${data.stats.targetHours.toFixed(1)}`;
+
+      // Sidebar summary panel
+      document.getElementById('summary-target-val').textContent = data.stats.targetHours.toFixed(1);
+      document.getElementById('summary-reported-val').textContent = data.stats.reportedHours.toFixed(1);
+      document.getElementById('summary-remaining-val').textContent = data.stats.remainingHours.toFixed(1);
+
+      document.getElementById('forecast-daily-val').textContent = `${data.stats.dailyForecast.toFixed(1)} ${t.forecastSuffix}`;
+      document.getElementById('forecast-days-left-val').textContent = t.forecastDaysLeft.replace('{days}', data.stats.remainingWorkDays);
+
+      // Populate Settings configurations
+      document.getElementById('setting-annual-vacation').value = annualVacation;
+      document.getElementById('setting-daily-std-hours').value = data.settings.StandardHoursPerDay || 9.0;
+      document.getElementById('setting-target-link').value = data.settings.TargetSpreadsheetLink || '';
+      updateAccrualDisplay();
+
+      // Populate detailed reports table
+      const tbody = document.getElementById('reports-table-body');
+      tbody.innerHTML = '';
+
+      const daysCount = data.daysInMonth;
+      
+      for (let day = 1; day <= daysCount; day++) {
+        const dayStr = day < 10 ? '0' + day : '' + day;
+        const monthStr = currentMonth < 10 ? '0' + currentMonth : '' + currentMonth;
+        const loopDateStr = `${currentYear}-${monthStr}-${dayStr}`;
+
+        const report = data.reports.find(r => r.date === loopDateStr);
+
+        // Apply Top Filters
+        if (filterCategory !== 'All') {
+          if (!report || report.category !== filterCategory) continue;
+        }
+
+        if (filterQuery !== '') {
+          if (!report) continue;
+          const notesText = (report.notes || '').toLowerCase();
+          const categoryText = (report.category || '').toLowerCase();
+          if (!notesText.includes(filterQuery) && !categoryText.includes(filterQuery)) continue;
+        }
+
+        const tr = document.createElement('tr');
+        
+        const dateColVal = `<div style="font-weight:600;">${day}.${currentMonth}.${currentYear}</div><div style="font-size:11px; color:var(--text-muted);">${getDayOfWeekName(loopDateStr)}</div>`;
+        
+        let rangeColVal = '—';
+        let totalHoursVal = '0.0';
+        let categoryBadge = `<span class="category-badge badge-empty">${t.emptyBadge}</span>`;
+        let notesVal = '—';
+        let deleteBtnDisabledHtml = 'disabled style="opacity: 0.3; cursor: not-allowed;"';
+
+        if (report) {
+          if (report.startTime && report.endTime) {
+            rangeColVal = `${report.startTime} - ${report.endTime}`;
+          }
+          totalHoursVal = report.hours.toFixed(1);
+          
+          let categoryClass = 'badge-work';
+          let categoryText = t.workBadge;
+          if (report.category === 'Vacation') { categoryClass = 'badge-vacation'; categoryText = t.vacationBadge; }
+          else if (report.category === 'Sick') { categoryClass = 'badge-sick'; categoryText = t.sickBadge; }
+          else if (report.category === 'Reserve') { categoryClass = 'badge-reserve'; categoryText = t.reserveBadge; }
+          
+          categoryBadge = `<span class="category-badge ${categoryClass}">${categoryText}</span>`;
+          notesVal = report.notes || '';
+          deleteBtnDisabledHtml = '';
+        }
+
+        const checkboxCheckedHtml = selectedDates.has(loopDateStr) ? 'checked' : '';
+        const checkboxHtml = `<td style="text-align: center;"><input type="checkbox" class="row-select-checkbox" data-date="${loopDateStr}" ${checkboxCheckedHtml} onchange="handleRowCheckboxChange(this)" style="cursor: pointer;"></td>`;
+
+        tr.innerHTML = `
+          ${checkboxHtml}
+          <td>${dateColVal}</td>
+          <td style="font-family: Courier, monospace;">${rangeColVal}</td>
+          <td style="font-weight: 700;">${totalHoursVal}</td>
+          <td>${categoryBadge}</td>
+          <td style="color: ${notesVal === '—' ? 'var(--text-muted)' : 'var(--text-main)'}; font-size: 13px;">${notesVal}</td>
+          <td>
+            <div class="action-btn-container">
+              <button class="action-btn" onclick="triggerEditRow('${loopDateStr}')" title="Edit Hours">
+                <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
+              </button>
+              <button class="action-btn delete" onclick="triggerClearRow('${loopDateStr}')" ${deleteBtnDisabledHtml} title="Clear Row">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      lucide.createIcons();
+
+      // Render chart
+      renderChart(data);
+    }
+
+    // ChartJS renderer
+    function renderChart(data) {
+      const daysCount = data.daysInMonth;
+      const labels = [];
+      const chartData = [];
+      const dayArray = [];
+      
+      for (let i = 1; i <= daysCount; i++) {
+        dayArray.push(i);
+      }
+      
+      if (currentLang === 'he') {
+        dayArray.reverse();
+      }
+
+      dayArray.forEach(d => {
+        labels.push(d);
+        chartData.push(data.dailyHours[d] || 0);
+      });
+
+      const ctx = document.getElementById('hoursBarChart').getContext('2d');
+      
+      if (myChart) {
+        myChart.destroy();
+      }
+
+      myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: translations[currentLang].hoursUnit,
+            data: chartData,
+            backgroundColor: '#2563eb',
+            hoverBackgroundColor: '#1d4ed8',
+            borderRadius: 4,
+            barPercentage: 0.7
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                title: function(items) {
+                  return `${translations[currentLang].colDate}: ${items[0].label}/${currentMonth}/${currentYear}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 24,
+              ticks: {
+                stepSize: 4
+              },
+              grid: {
+                color: '#e2e8f0'
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Core Fetch API
+    function fetchData() {
+      selectedDates.clear();
+      updateBulkActionsBar();
+      document.getElementById('loading-overlay').classList.add('active');
+      const monthStr = `${currentYear}-${currentMonth < 10 ? '0' + currentMonth : currentMonth}`;
+
+      if (isGoogleAppsScript) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            currentDashboardState = response;
+            refreshUI();
+            document.getElementById('loading-overlay').classList.remove('active');
+          })
+          .withFailureHandler(function(err) {
+            console.error('Error fetching dashboard payload: ', err);
+            document.getElementById('loading-overlay').classList.remove('active');
+            alert('Failed to connect to Google Sheets server. Check your permissions.');
+          })
+          .getDashboardData(monthStr);
+      } else {
+        setTimeout(() => {
+          currentDashboardState = getMockData(monthStr);
+          refreshUI();
+          document.getElementById('loading-overlay').classList.remove('active');
+        }, 300);
+      }
+    }
+
+    // Handle Report Submission Form
+    function handleReportSubmit(e) {
+      e.preventDefault();
+      document.getElementById('loading-overlay').classList.add('active');
+
+      const dateStr = document.getElementById('report-date').value;
+      const startTime = document.getElementById('report-start-time').value;
+      const endTime = document.getElementById('report-end-time').value;
+      const hours = parseFloat(document.getElementById('report-hours').value);
+      const category = document.getElementById('report-category').value;
+      const notes = document.getElementById('report-notes').value;
+
+      if (isGoogleAppsScript) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            currentDashboardState = response;
+            refreshUI();
+            closeModal();
+            document.getElementById('loading-overlay').classList.remove('active');
+            showToast('toastSuccess');
+          })
+          .withFailureHandler(function(err) {
+            console.error(err);
+            document.getElementById('loading-overlay').classList.remove('active');
+            alert('Submit failed: ' + err.message);
+          })
+          .addReport(dateStr, startTime, endTime, hours, category, notes);
+      } else {
+        setTimeout(() => {
+          const targetDay = parseInt(dateStr.split('-')[2]);
+          const existingIdx = localDataStore.reports.findIndex(r => r.date === dateStr);
+          
+          const newReport = {
+            date: dateStr,
+            day: targetDay,
+            startTime: startTime,
+            endTime: endTime,
+            hours: hours,
+            category: category,
+            notes: notes
+          };
+
+          if (existingIdx !== -1) {
+            localDataStore.reports[existingIdx] = newReport;
+          } else {
+            localDataStore.reports.push(newReport);
+          }
+          
+          const monthStr = `${currentYear}-${currentMonth < 10 ? '0' + currentMonth : currentMonth}`;
+          currentDashboardState = getMockData(monthStr);
+          refreshUI();
+          closeModal();
+          document.getElementById('loading-overlay').classList.remove('active');
+          showToast('toastSuccess');
+        }, 500);
+      }
+    }
+
+    // Handle Settings Form Submission
+    function handleSettingsSave(e) {
+      e.preventDefault();
+      document.getElementById('loading-overlay').classList.add('active');
+
+      const annualAllowance = parseFloat(document.getElementById('setting-annual-vacation').value);
+      const dailyStdHours = parseFloat(document.getElementById('setting-daily-std-hours').value);
+      const targetLink = document.getElementById('setting-target-link').value;
+      const selectedYear = parseInt(document.getElementById('setting-selected-year').value);
+
+      // Collect workday standard inputs (12 months)
+      const workdayArray = [];
+      for (let m = 0; m < 12; m++) {
+        workdayArray.push(parseInt(document.getElementById(`setting-workdays-month-${m}`).value) || 22);
+      }
+
+      if (isGoogleAppsScript) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            currentDashboardState = response;
+            refreshUI();
+            document.getElementById('loading-overlay').classList.remove('active');
+            showToast('toastSettingsSaved');
+            switchTab('dashboard');
+          })
+          .withFailureHandler(function(err) {
+            console.error(err);
+            document.getElementById('loading-overlay').classList.remove('active');
+            alert('Update failed: ' + err.message);
+          })
+          .saveWorkdaySettings(selectedYear, annualAllowance, dailyStdHours, workdayArray, targetLink);
+      } else {
+        // Simulated local write
+        setTimeout(() => {
+          localDataStore.settings.AnnualVacationAllowance = annualAllowance;
+          localDataStore.settings.StandardHoursPerDay = dailyStdHours;
+          localDataStore.settings.TargetSpreadsheetLink = targetLink;
+          localDataStore.workdaysMap[selectedYear] = workdayArray;
+
+          const monthStr = `${currentYear}-${currentMonth < 10 ? '0' + currentMonth : currentMonth}`;
+          currentDashboardState = getMockData(monthStr);
+          refreshUI();
+          document.getElementById('loading-overlay').classList.remove('active');
+          showToast('toastSettingsSaved');
+          switchTab('dashboard');
+        }, 500);
+      }
+    }
+
+    // ==========================================
+    // Bulk Update Logic and Event Handlers
+    // ==========================================
+    const selectedDates = new Set();
+
+    // Toggle all visible rows
+    function toggleSelectAll(headerCb) {
+      const visibleCheckboxes = document.querySelectorAll('.row-select-checkbox');
+      visibleCheckboxes.forEach(cb => {
+        const date = cb.getAttribute('data-date');
+        cb.checked = headerCb.checked;
+        if (headerCb.checked) {
+          selectedDates.add(date);
+        } else {
+          selectedDates.delete(date);
+        }
+      });
+      updateBulkActionsBar();
+    }
+
+    // Toggle individual row
+    function handleRowCheckboxChange(rowCb) {
+      const date = rowCb.getAttribute('data-date');
+      if (rowCb.checked) {
+        selectedDates.add(date);
+      } else {
+        selectedDates.delete(date);
+      }
+      
+      const selectAllCb = document.getElementById('bulk-select-all');
+      const visibleCheckboxes = document.querySelectorAll('.row-select-checkbox');
+      let allChecked = true;
+      visibleCheckboxes.forEach(cb => {
+        if (!cb.checked) allChecked = false;
+      });
+      selectAllCb.checked = visibleCheckboxes.length > 0 && allChecked;
+      
+      updateBulkActionsBar();
+    }
+
+    // Update the floating bulk action panel visibility
+    function updateBulkActionsBar() {
+      const bar = document.getElementById('bulk-actions-bar');
+      const countEl = document.getElementById('bulk-selected-count');
+      
+      if (selectedDates.size > 0) {
+        bar.style.display = 'flex';
+        countEl.textContent = selectedDates.size;
+        
+        // Translate the selection count
+        const textKey = 'selectedCount';
+        const labelEl = bar.querySelector('[data-i18n="selectedCount"]');
+        if (labelEl) {
+          labelEl.textContent = translations[currentLang][textKey] || 'records selected';
+        }
+      } else {
+        bar.style.display = 'none';
+        const selectAllCb = document.getElementById('bulk-select-all');
+        if (selectAllCb) selectAllCb.checked = false;
+      }
+    }
+
+    // Clear all checked rows
+    function clearSelection() {
+      selectedDates.clear();
+      const checkboxes = document.querySelectorAll('.row-select-checkbox');
+      checkboxes.forEach(cb => cb.checked = false);
+      const selectAllCb = document.getElementById('bulk-select-all');
+      if (selectAllCb) selectAllCb.checked = false;
+      updateBulkActionsBar();
+    }
+
+    // Open Bulk Update Form Modal
+    function openBulkUpdateModal() {
+      document.getElementById('bulk-update-modal').classList.add('open');
+      document.getElementById('bulk-update-form').reset();
+      
+      // Reset inputs & disabled states
+      const fields = ['category', 'start-time', 'end-time', 'hours', 'notes'];
+      fields.forEach(f => {
+        const input = document.getElementById(`bulk-${f}`);
+        if (input) input.disabled = true;
+      });
+      
+      document.getElementById('bulk-modal-stage-edit').style.display = 'block';
+      document.getElementById('bulk-modal-stage-confirm').style.display = 'none';
+      
+      // Set default category to Work
+      document.getElementById('bulk-category').value = 'Work';
+    }
+
+    // Close Bulk Update Modal
+    function closeBulkUpdateModal() {
+      document.getElementById('bulk-update-modal').classList.remove('open');
+    }
+
+    // Enable/disable inputs based on field checkboxes
+    function toggleBulkFieldInput(checkboxId, inputIds) {
+      const checked = document.getElementById(checkboxId).checked;
+      const ids = Array.isArray(inputIds) ? inputIds : [inputIds];
+      ids.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+          input.disabled = !checked;
+          if (!checked) {
+            input.value = '';
+          }
+        }
+      });
+      
+      // Auto focus if checked
+      if (checked) {
+        const firstInput = document.getElementById(ids[0]);
+        if (firstInput) firstInput.focus();
+      }
+    }
+
+    // Auto calculate hours for bulk modal
+    function autoCalculateBulkHours() {
+      const startTime = document.getElementById('bulk-start-time').value;
+      const endTime = document.getElementById('bulk-end-time').value;
+      const hoursInput = document.getElementById('bulk-hours');
+      
+      if (startTime && endTime) {
+        const startParts = startTime.split(':').map(Number);
+        const endParts = endTime.split(':').map(Number);
+        const startMin = startParts[0] * 60 + startParts[1];
+        const endMin = endParts[0] * 60 + endParts[1];
+        const diff = endMin - startMin;
+        
+        if (diff > 0) {
+          hoursInput.value = (diff / 60).toFixed(1);
+          // If times are enabled, auto-check the hours checkbox so it gets updated
+          document.getElementById('bulk-enable-hours').checked = true;
+          hoursInput.disabled = false;
+        } else {
+          hoursInput.value = '0.0';
+        }
+      }
+    }
+
+    // Handle activity type change in bulk modal
+    function handleBulkCategoryChange() {
+      const category = document.getElementById('bulk-category').value;
+      // If setting an absence category, auto set hours to 0
+      if (category !== 'Work') {
+        document.getElementById('bulk-enable-hours').checked = true;
+        const hoursInput = document.getElementById('bulk-hours');
+        hoursInput.disabled = false;
+        hoursInput.value = '0.0';
+        
+        // Also clear times and uncheck them
+        document.getElementById('bulk-enable-times').checked = false;
+        document.getElementById('bulk-start-time').value = '';
+        document.getElementById('bulk-start-time').disabled = true;
+        document.getElementById('bulk-end-time').value = '';
+        document.getElementById('bulk-end-time').disabled = true;
+      }
+    }
+
+    // Generate and display before-and-after summary (Stage 2)
+    function handleBulkUpdatePreview(e) {
+      e.preventDefault();
+      
+      // Collect fields to update
+      const fieldsToUpdate = [];
+      if (document.getElementById('bulk-enable-category').checked) fieldsToUpdate.push('category');
+      if (document.getElementById('bulk-enable-times').checked) {
+        fieldsToUpdate.push('startTime');
+        fieldsToUpdate.push('endTime');
+      }
+      if (document.getElementById('bulk-enable-hours').checked) fieldsToUpdate.push('hours');
+      if (document.getElementById('bulk-enable-notes').checked) fieldsToUpdate.push('notes');
+      
+      if (fieldsToUpdate.length === 0) {
+        alert(currentLang === 'he' ? 'אנא בחר לפחות שדה אחד לעדכון' : 'Please select at least one field to update');
+        return;
+      }
+      
+      const newValues = {
+        category: document.getElementById('bulk-category').value,
+        startTime: document.getElementById('bulk-start-time').value,
+        endTime: document.getElementById('bulk-end-time').value,
+        hours: parseFloat(document.getElementById('bulk-hours').value) || 0.0,
+        notes: document.getElementById('bulk-notes').value
+      };
+
+      const diffListEl = document.getElementById('bulk-diff-list');
+      diffListEl.innerHTML = '';
+      
+      const sortedDates = Array.from(selectedDates).sort();
+      const t = translations[currentLang];
+      
+      sortedDates.forEach(dateStr => {
+        const existing = currentDashboardState.reports.find(r => r.date === dateStr);
+        const [y, m, d] = dateStr.split('-');
+        const dateDisplay = `${parseInt(d, 10)}.${parseInt(m, 10)}.${y}`;
+        
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'bulk-diff-row';
+        
+        let headerText = `${dateDisplay} (${getDayOfWeekName(dateStr)})`;
+        rowDiv.innerHTML = `<div class="bulk-diff-date">${headerText}</div>`;
+        
+        fieldsToUpdate.forEach(field => {
+          let fieldLabel = '';
+          let oldVal = '—';
+          let newVal = '';
+          
+          if (field === 'category') {
+            fieldLabel = t.colCategory || 'Type';
+            oldVal = existing ? (t[existing.category.toLowerCase() + 'Badge'] || existing.category) : t.emptyBadge;
+            newVal = t[newValues.category.toLowerCase() + 'Badge'] || newValues.category;
+          } else if (field === 'startTime') {
+            fieldLabel = t.formStartTime || 'Start';
+            oldVal = existing && existing.startTime ? existing.startTime : '—';
+            newVal = newValues.startTime || '—';
+          } else if (field === 'endTime') {
+            fieldLabel = t.formEndTime || 'End';
+            oldVal = existing && existing.endTime ? existing.endTime : '—';
+            newVal = newValues.endTime || '—';
+          } else if (field === 'hours') {
+            fieldLabel = t.colTotalHours || 'Hours';
+            oldVal = existing ? existing.hours.toFixed(1) : '0.0';
+            newVal = newValues.hours.toFixed(1);
+          } else if (field === 'notes') {
+            fieldLabel = t.colNotes || 'Notes';
+            oldVal = existing && existing.notes ? existing.notes : '—';
+            newVal = newValues.notes || '—';
+          }
+          
+          // Only show if value actually changed, or if it is a new record
+          if (oldVal !== newVal) {
+            const changeItem = document.createElement('div');
+            changeItem.className = 'bulk-diff-change-item';
+            changeItem.innerHTML = `
+              <span class="bulk-diff-field-name">${fieldLabel}:</span>
+              <span class="bulk-diff-old-val">${oldVal === '—' ? (currentLang === 'he' ? 'שגרתי' : 'Routine') : oldVal}</span>
+              <span class="bulk-diff-arrow">&larr;</span>
+              <span class="bulk-diff-new-val">${newVal}</span>
+            `;
+            rowDiv.appendChild(changeItem);
+          }
+        });
+        
+        // If there were no differences for this row (e.g. updating work hours to the same values)
+        if (rowDiv.children.length === 1) {
+          const noChangeDiv = document.createElement('div');
+          noChangeDiv.className = 'bulk-diff-change-item';
+          noChangeDiv.style.color = 'var(--text-muted)';
+          noChangeDiv.style.fontStyle = 'italic';
+          noChangeDiv.textContent = currentLang === 'he' ? 'אין שינוי' : 'No changes';
+          rowDiv.appendChild(noChangeDiv);
+        }
+        
+        diffListEl.appendChild(rowDiv);
+      });
+      
+      // Update confirmation message text
+      const msgText = t.bulkConfirmMessage.replace('{count}', selectedDates.size);
+      document.getElementById('bulk-confirm-message-text').textContent = msgText;
+      
+      document.getElementById('bulk-modal-stage-edit').style.display = 'none';
+      document.getElementById('bulk-modal-stage-confirm').style.display = 'block';
+    }
+
+    function backToBulkEdit() {
+      document.getElementById('bulk-modal-stage-edit').style.display = 'block';
+      document.getElementById('bulk-modal-stage-confirm').style.display = 'none';
+    }
+
+    // Submit batch changes to server/mock
+    function submitBulkUpdate() {
+      document.getElementById('loading-overlay').classList.add('active');
+      
+      const fieldsToUpdate = [];
+      if (document.getElementById('bulk-enable-category').checked) fieldsToUpdate.push('category');
+      if (document.getElementById('bulk-enable-times').checked) {
+        fieldsToUpdate.push('startTime');
+        fieldsToUpdate.push('endTime');
+      }
+      if (document.getElementById('bulk-enable-hours').checked) fieldsToUpdate.push('hours');
+      if (document.getElementById('bulk-enable-notes').checked) fieldsToUpdate.push('notes');
+
+      const values = {
+        category: document.getElementById('bulk-category').value,
+        startTime: document.getElementById('bulk-start-time').value,
+        endTime: document.getElementById('bulk-end-time').value,
+        hours: parseFloat(document.getElementById('bulk-hours').value) || 0.0,
+        notes: document.getElementById('bulk-notes').value
+      };
+
+      const reportsBatch = [];
+      selectedDates.forEach(dateStr => {
+        reportsBatch.push({
+          date: dateStr,
+          ...values
+        });
+      });
+
+      if (isGoogleAppsScript) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            currentDashboardState = response;
+            refreshUI();
+            closeBulkUpdateModal();
+            clearSelection();
+            document.getElementById('loading-overlay').classList.remove('active');
+            showToast('toastBulkSuccess');
+          })
+          .withFailureHandler(function(err) {
+            console.error(err);
+            document.getElementById('loading-overlay').classList.remove('active');
+            alert('Bulk update failed: ' + err.message);
+          })
+          .updateReportsBatch(reportsBatch, fieldsToUpdate);
+      } else {
+        // Mock offline bulk update
+        setTimeout(() => {
+          const fieldsSet = {};
+          fieldsToUpdate.forEach(f => fieldsSet[f] = true);
+          
+          function getHebrewCategory(engVal) {
+            if (engVal === 'Work') return 'עבודה';
+            if (engVal === 'Vacation') return 'חופש';
+            if (engVal === 'Sick') return 'מחלה';
+            if (engVal === 'Reserve') return 'מילואים';
+            return 'עבודה';
+          }
+          
+          reportsBatch.forEach(updateItem => {
+            const dateStr = updateItem.date;
+            const day = parseInt(dateStr.split('-')[2]);
+            let existingIdx = localDataStore.reports.findIndex(r => r.date === dateStr);
+            
+            const currentRecord = {
+              date: dateStr,
+              day: day,
+              startTime: '',
+              endTime: '',
+              hours: 0.0,
+              category: 'Work',
+              notes: ''
+            };
+            
+            if (existingIdx !== -1) {
+              const r = localDataStore.reports[existingIdx];
+              currentRecord.startTime = r.startTime || '';
+              currentRecord.endTime = r.endTime || '';
+              currentRecord.hours = r.hours || 0.0;
+              currentRecord.category = r.category || 'Work';
+              currentRecord.notes = r.notes || '';
+            }
+            
+            // Apply updates
+            if (fieldsSet['category']) currentRecord.category = updateItem.category;
+            if (fieldsSet['startTime']) currentRecord.startTime = updateItem.startTime;
+            if (fieldsSet['endTime']) currentRecord.endTime = updateItem.endTime;
+            if (fieldsSet['startTime'] || fieldsSet['endTime']) {
+              if (currentRecord.startTime && currentRecord.endTime) {
+                const startParts = currentRecord.startTime.split(':').map(Number);
+                const endParts = currentRecord.endTime.split(':').map(Number);
+                const diff = (endParts[0]*60 + endParts[1]) - (startParts[0]*60 + startParts[1]);
+                currentRecord.hours = diff > 0 ? parseFloat((diff / 60).toFixed(1)) : 0.0;
+              } else {
+                currentRecord.hours = 0.0;
+              }
+            }
+            if (fieldsSet['hours']) currentRecord.hours = updateItem.hours;
+            if (fieldsSet['notes']) currentRecord.notes = updateItem.notes;
+            
+            if (existingIdx !== -1) {
+              localDataStore.reports[existingIdx] = currentRecord;
+            } else {
+              localDataStore.reports.push(currentRecord);
+            }
+          });
+          
+          const monthStr = `${currentYear}-${currentMonth < 10 ? '0' + currentMonth : currentMonth}`;
+          currentDashboardState = getMockData(monthStr);
+          refreshUI();
+          closeBulkUpdateModal();
+          clearSelection();
+          document.getElementById('loading-overlay').classList.remove('active');
+          showToast('toastBulkSuccess');
+        }, 500);
+      }
+    }
+
+    // Standalone list and holiday manager for Apps Script
+    const DEFAULT_CLASSIFICATIONS = [
+      "עבודה",
+      "חופש",
+      "מחלה",
+      "מילואים",
+      "חג",
+      "ערב חג",
+      "סופ\"ש",
+      "עבודה במילואים"
+    ];
+
+    const DEFAULT_ORDER_TYPES = [
+      "מילואים רגילים",
+      "צו 8"
+    ];
+
+    const DEFAULT_HOLIDAYS = [
+      { date: "2026-04-02", name: "ערב פסח", category: "ערב חג" },
+      { date: "2026-04-03", name: "פסח א'", category: "חג" },
+      { date: "2026-04-09", name: "שביעי של פסח", category: "חג" },
+      { date: "2026-05-21", name: "ערב שבועות", category: "ערב חג" },
+      { date: "2026-05-22", name: "שבועות", category: "חג" },
+      { date: "2026-09-11", name: "ערב ראש השנה", category: "ערב חג" },
+      { date: "2026-09-12", name: "ראש השנה א'", category: "חג" },
+      { date: "2026-09-13", name: "ראש השנה ב'", category: "חג" },
+      { date: "2026-09-20", name: "ערב יום כיפור", category: "ערב חג" },
+      { date: "2026-09-21", name: "יום כיפור", category: "חג" },
+      { date: "2026-09-25", name: "ערב סוכות", category: "ערב חג" },
+      { date: "2026-09-26", name: "סוכות א'", category: "חג" },
+      { date: "2026-10-02", name: "שמיני עצרת / שמחת תורה", category: "חג" }
+    ];
+
+    function getCustomClassifications() {
+      try {
+        const val = localStorage.getItem("work-hours-classifications");
+        return val ? JSON.parse(val) : DEFAULT_CLASSIFICATIONS;
+      } catch {
+        return DEFAULT_CLASSIFICATIONS;
+      }
+    }
+
+    function saveCustomClassificationsList(list) {
+      localStorage.setItem("work-hours-classifications", JSON.stringify(list));
+      populateDropdowns();
+    }
+
+    function getCustomOrderTypes() {
+      try {
+        const val = localStorage.getItem("work-hours-ordertypes");
+        return val ? JSON.parse(val) : DEFAULT_ORDER_TYPES;
+      } catch {
+        return DEFAULT_ORDER_TYPES;
+      }
+    }
+
+    function saveCustomOrderTypesList(list) {
+      localStorage.setItem("work-hours-ordertypes", JSON.stringify(list));
+    }
+
+    // Standalone list and holiday manager for Apps Script
+    let currentHolidayYear = new Date().getFullYear();
+
+    const DEFAULT_HOLIDAY_NAMES = [
+      "ערב פסח",
+      "פסח א'",
+      "שביעי של פסח",
+      "ערב שבועות",
+      "שבועות",
+      "ערב ראש השנה",
+      "ראש השנה א'",
+      "ראש השנה ב'",
+      "ערב יום כיפור",
+      "יום כיפור",
+      "ערב סוכות",
+      "סוכות א'",
+      "שמיני עצרת / שמחת תורה",
+      "יום העצמאות",
+      "יום הזיכרון",
+      "פורים",
+      "חנוכה",
+    ];
+
+    function getCustomHolidayNames() {
+      try {
+        const val = localStorage.getItem("work-hours-holidaynames");
+        return val ? JSON.parse(val) : DEFAULT_HOLIDAY_NAMES;
+      } catch {
+        return DEFAULT_HOLIDAY_NAMES;
+      }
+    }
+
+    function saveCustomHolidayNamesList(list) {
+      localStorage.setItem("work-hours-holidaynames", JSON.stringify(list));
+      populateDropdowns();
+    }
+
+    function getCustomHolidays() {
+      try {
+        const val = localStorage.getItem("work-hours-holidays");
+        return val ? JSON.parse(val) : DEFAULT_HOLIDAYS;
+      } catch {
+        return DEFAULT_HOLIDAYS;
+      }
+    }
+
+    function saveCustomHolidaysList(list) {
+      localStorage.setItem("work-hours-holidays", JSON.stringify(list));
+    }
+
+    // Populate dropdowns with custom classifications
+    function populateDropdowns() {
+      const singleSelect = document.getElementById("report-category");
+      const bulkSelect = document.getElementById("bulk-category");
+      const classes = getCustomClassifications();
+
+      if (singleSelect) {
+        const currentVal = singleSelect.value;
+        singleSelect.innerHTML = "";
+        classes.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c;
+          opt.textContent = c;
+          singleSelect.appendChild(opt);
+        });
+        if (classes.includes(currentVal)) {
+          singleSelect.value = currentVal;
+        }
+      }
+
+      if (bulkSelect) {
+        const currentVal = bulkSelect.value;
+        bulkSelect.innerHTML = "";
+        classes.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c;
+          opt.textContent = c;
+          bulkSelect.appendChild(opt);
+        });
+        if (classes.includes(currentVal)) {
+          bulkSelect.value = currentVal;
+        }
+      }
+
+      const holidayNameSelect = document.getElementById("new-holiday-name");
+      if (holidayNameSelect) {
+        const currentVal = holidayNameSelect.value;
+        holidayNameSelect.innerHTML = "";
+        const names = getCustomHolidayNames();
+        names.forEach(n => {
+          const opt = document.createElement("option");
+          opt.value = n;
+          opt.textContent = n;
+          holidayNameSelect.appendChild(opt);
+        });
+        if (names.includes(currentVal)) {
+          holidayNameSelect.value = currentVal;
+        }
+      }
+    }
+
+    // Render list tables in settings screen
+    function renderSettingsLists() {
+      // Holidays
+      const holidays = getCustomHolidays();
+      const hBody = document.getElementById("holidays-table-body");
+      
+      const yearDisp = document.getElementById("holiday-year-display");
+      if (yearDisp) {
+        yearDisp.textContent = currentHolidayYear;
+      }
+
+      const filtered = holidays.filter(h => h.date.startsWith(String(currentHolidayYear)));
+
+      if (hBody) {
+        hBody.innerHTML = "";
+        filtered.forEach(h => {
+          const [y, m, d] = h.date.split("-");
+          const tr = document.createElement("tr");
+          tr.style.borderBottom = "1px solid var(--border-color)";
+          tr.innerHTML = `
+            <td style="padding: 10px 12px; font-weight: 500; color: var(--text-main);">${d}/${m}/${y}</td>
+            <td style="padding: 10px 12px; color: var(--text-main);">${h.name}</td>
+            <td style="padding: 10px 12px;"><span style="background: #f3e8ff; color: #6b21a8; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600;">${h.category}</span></td>
+            <td style="padding: 10px 12px; text-align: center;"><button type="button" class="reset-filter-btn" style="padding: 2px 8px; margin: 0; color: var(--danger-color); font-size: 11px;" onclick="removeCustomHoliday('${h.date}')">מחק</button></td>
+          `;
+          hBody.appendChild(tr);
+        });
+        if (!filtered.length) {
+          hBody.innerHTML = `<tr><td colspan="4" style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 11px;">אין חגים רשומים לשנת ${currentHolidayYear}</td></tr>`;
+        }
+      }
+
+      // Classifications
+      const classes = getCustomClassifications();
+      const cBody = document.getElementById("classifications-list-body");
+      if (cBody) {
+        cBody.innerHTML = "";
+        classes.forEach(c => {
+          const tr = document.createElement("tr");
+          tr.style.borderBottom = "1px solid var(--border-color)";
+          tr.innerHTML = `
+            <td style="padding: 8px 12px; font-weight: 500; color: var(--text-main);">${c}</td>
+            <td style="padding: 8px 12px; text-align: center; width: 60px;"><button type="button" class="reset-filter-btn" style="padding: 2px 6px; margin: 0; color: var(--danger-color); font-size: 11px;" onclick="removeCustomClass('${c}')">מחק</button></td>
+          `;
+          cBody.appendChild(tr);
+        });
+      }
+
+      // Order Types
+      const orderTypes = getCustomOrderTypes();
+      const otBody = document.getElementById("ordertypes-list-body");
+      if (otBody) {
+        otBody.innerHTML = "";
+        orderTypes.forEach(ot => {
+          const tr = document.createElement("tr");
+          tr.style.borderBottom = "1px solid var(--border-color)";
+          tr.innerHTML = `
+            <td style="padding: 8px 12px; font-weight: 500; color: var(--text-main);">${ot}</td>
+            <td style="padding: 8px 12px; text-align: center; width: 60px;"><button type="button" class="reset-filter-btn" style="padding: 2px 6px; margin: 0; color: var(--danger-color); font-size: 11px;" onclick="removeCustomOrderType('${ot}')">מחק</button></td>
+          `;
+          otBody.appendChild(tr);
+        });
+      }
+
+      // Holiday Names
+      const names = getCustomHolidayNames();
+      const hnBody = document.getElementById("holidaynames-list-body");
+      if (hnBody) {
+        hnBody.innerHTML = "";
+        names.forEach(n => {
+          const tr = document.createElement("tr");
+          tr.style.borderBottom = "1px solid var(--border-color)";
+          tr.innerHTML = `
+            <td style="padding: 8px 12px; font-weight: 500; color: var(--text-main);">${n}</td>
+            <td style="padding: 8px 12px; text-align: center; width: 60px;"><button type="button" class="reset-filter-btn" style="padding: 2px 6px; margin: 0; color: var(--danger-color); font-size: 11px;" onclick="removeCustomHolidayName('${n}')">מחק</button></td>
+          `;
+          hnBody.appendChild(tr);
+        });
+      }
+    }
+
+    // Holiday handlers
+    function navigateHolidayYear(dir) {
+      currentHolidayYear += dir;
+      renderSettingsLists();
+    }
+
+    function addCustomHoliday() {
+      const date = document.getElementById("new-holiday-date").value;
+      const name = document.getElementById("new-holiday-name").value;
+      const category = document.getElementById("new-holiday-category").value;
+      if (!date || !name) return;
+
+      const holidays = getCustomHolidays();
+      if (holidays.some(h => h.date === date)) {
+        alert("כבר קיים חג בתאריך זה");
+        return;
+      }
+
+      const hYear = parseInt(date.split("-")[0]);
+      currentHolidayYear = hYear;
+
+      holidays.push({ date, name, category });
+      holidays.sort((a, b) => a.date.localeCompare(b.date));
+      saveCustomHolidaysList(holidays);
+      renderSettingsLists();
+
+      document.getElementById("new-holiday-date").value = "";
+    }
+
+    function removeCustomHoliday(date) {
+      let holidays = getCustomHolidays();
+      holidays = holidays.filter(h => h.date !== date);
+      saveCustomHolidaysList(holidays);
+      renderSettingsLists();
+    }
+
+    function saveCustomHolidays() {
+      alert("רשימת החגים נשמרה בהצלחה בדפדפן");
+    }
+
+    // Holiday names handlers
+    function addCustomHolidayName() {
+      const val = document.getElementById("new-holidayname-val").value.trim();
+      if (!val) return;
+      const names = getCustomHolidayNames();
+      if (names.includes(val)) return;
+      names.push(val);
+      saveCustomHolidayNamesList(names);
+      renderSettingsLists();
+      document.getElementById("new-holidayname-val").value = "";
+    }
+
+    function removeCustomHolidayName(val) {
+      let names = getCustomHolidayNames();
+      names = names.filter(n => n !== val);
+      saveCustomHolidayNamesList(names);
+      renderSettingsLists();
+    }
+
+    function saveCustomHolidayNames() {
+      alert("שמות החגים נשמרו בהצלחה בדפדפן");
+    }
+
+    function switchSettingsTab(tab) {
+      document.getElementById('tab-content-classifications').style.display = tab === 'classifications' ? 'block' : 'none';
+      document.getElementById('tab-content-ordertypes').style.display = tab === 'ordertypes' ? 'block' : 'none';
+      document.getElementById('tab-content-holidaynames').style.display = tab === 'holidaynames' ? 'block' : 'none';
+
+      const cBtn = document.getElementById('tab-btn-classifications');
+      const oBtn = document.getElementById('tab-btn-ordertypes');
+      const hBtn = document.getElementById('tab-btn-holidaynames');
+
+      if (cBtn && oBtn && hBtn) {
+        cBtn.style.background = tab === 'classifications' ? 'white' : 'transparent';
+        cBtn.style.color = tab === 'classifications' ? 'var(--text-main)' : 'var(--text-muted)';
+        cBtn.style.boxShadow = tab === 'classifications' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none';
+
+        oBtn.style.background = tab === 'ordertypes' ? 'white' : 'transparent';
+        oBtn.style.color = tab === 'ordertypes' ? 'var(--text-main)' : 'var(--text-muted)';
+        oBtn.style.boxShadow = tab === 'ordertypes' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none';
+
+        hBtn.style.background = tab === 'holidaynames' ? 'white' : 'transparent';
+        hBtn.style.color = tab === 'holidaynames' ? 'var(--text-main)' : 'var(--text-muted)';
+        hBtn.style.boxShadow = tab === 'holidaynames' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none';
+      }
+    }
+
+    // Excel/CSV Holiday Importer for Apps Script
+    function handleHolidayExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const statusEl = document.getElementById("holiday-import-status");
+      statusEl.style.color = "var(--primary-color)";
+      statusEl.textContent = "מנתח קובץ...";
+
+      const isExcel = file.name.endsWith(".xls") || file.name.endsWith(".xlsx");
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        try {
+          const dataBytes = e.target.result;
+          let rows = [];
+
+          if (isExcel) {
+            const workbook = XLSX.read(dataBytes, { type: "array" });
+            const firstSheet = workbook.SheetNames[0];
+            rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1 });
+          } else {
+            const text = e.target.result;
+            rows = text.split("\n").map(line => {
+              return line.split(",").map(cell => cell.replace(/^["']|["']$/g, "").trim());
+            });
+          }
+
+          if (!rows.length) throw new Error("הקובץ ריק");
+
+          const headers = rows[0].map(h => String(h || "").trim());
+          let dateIdx = headers.indexOf("תאריך");
+          let nameIdx = headers.indexOf("שם החג");
+          let catIdx = headers.indexOf("סיווג");
+
+          if (dateIdx === -1) dateIdx = headers.indexOf("Date") !== -1 ? headers.indexOf("Date") : 0;
+          if (nameIdx === -1) nameIdx = headers.indexOf("Holiday Name") !== -1 ? headers.indexOf("Holiday Name") : 1;
+          if (catIdx === -1) catIdx = headers.indexOf("Category") !== -1 ? headers.indexOf("Category") : 2;
+
+          const importedHolidays = [];
+          for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length < 2 || !row[dateIdx]) continue;
+
+            let rawDate = String(row[dateIdx]).trim();
+            let rawName = String(row[nameIdx] || "").trim();
+            let rawCat = String(row[catIdx] || "חג").trim();
+
+            if (!rawDate || !rawName) continue;
+
+            let parsedDate = "";
+            const ddmmyyyyMatch = /^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})$/.exec(rawDate);
+            const yyyymmddMatch = /^(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})$/.exec(rawDate);
+
+            if (ddmmyyyyMatch) {
+              parsedDate = `${ddmmyyyyMatch[3]}-${ddmmyyyyMatch[2].padStart(2, "0")}-${ddmmyyyyMatch[1].padStart(2, "0")}`;
+            } else if (yyyymmddMatch) {
+              parsedDate = `${yyyymmddMatch[1]}-${yyyymmddMatch[2].padStart(2, "0")}-${yyyymmddMatch[3].padStart(2, "0")}`;
+            } else {
+              const serial = parseFloat(rawDate);
+              if (!isNaN(serial) && serial > 30000 && serial < 60000) {
+                const d = new Date((serial - 25569) * 86400 * 1000);
+                parsedDate = d.toISOString().split("T")[0];
+              } else {
+                try {
+                  const d = new Date(rawDate);
+                  if (!isNaN(d.getTime())) {
+                    parsedDate = d.toISOString().split("T")[0];
+                  }
+                } catch {}
+              }
+            }
+
+            if (!parsedDate || !/^\d{4}-\d{2}-\d{2}$/.test(parsedDate)) continue;
+
+            if (rawCat.includes("ערב")) rawCat = "ערב חג";
+            else if (rawCat.includes("מועד") || rawCat.includes("חול")) rawCat = "חול המועד";
+            else rawCat = "חג";
+
+            importedHolidays.push({
+              date: parsedDate,
+              name: rawName,
+              category: rawCat
+            });
+          }
+
+          if (!importedHolidays.length) {
+            throw new Error("לא נמצאו רשומות חגים תקינות בקובץ");
+          }
+
+          const existingHolidays = getCustomHolidays();
+          let addedCount = 0;
+          let updatedCount = 0;
+
+          for (const newH of importedHolidays) {
+            const existingIdx = existingHolidays.findIndex(h => h.date === newH.date);
+            if (existingIdx !== -1) {
+              existingHolidays[existingIdx] = newH;
+              updatedCount++;
+            } else {
+              existingHolidays.push(newH);
+              addedCount++;
+            }
+          }
+
+          existingHolidays.sort((a, b) => a.date.localeCompare(b.date));
+          saveCustomHolidaysList(existingHolidays);
+          renderSettingsLists();
+
+          statusEl.style.color = "var(--success-color)";
+          statusEl.textContent = `הייבוא הושלם! נוספו ${addedCount} חגים, עודכנו ${updatedCount} חגים.`;
+
+        } catch (err) {
+          statusEl.style.color = "var(--danger-color)";
+          statusEl.textContent = err.message || "שגיאה בניתוח קובץ החגים";
+        }
+      };
+
+      reader.onerror = function() {
+        statusEl.style.color = "var(--danger-color)";
+        statusEl.textContent = "שגיאה בקריאת הקובץ מהמכשיר";
+      };
+
+      if (isExcel) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file, "UTF-8");
+      }
+    }
+
+    // Classifications handlers
+    function addCustomClass() {
+      const val = document.getElementById("new-class-val").value.trim();
+      if (!val) return;
+      const classes = getCustomClassifications();
+      if (classes.includes(val)) return;
+      classes.push(val);
+      saveCustomClassificationsList(classes);
+      renderSettingsLists();
+      document.getElementById("new-class-val").value = "";
+    }
+
+    function removeCustomClass(val) {
+      let classes = getCustomClassifications();
+      classes = classes.filter(c => c !== val);
+      saveCustomClassificationsList(classes);
+      renderSettingsLists();
+    }
+
+    function saveCustomClassifications() {
+      alert("סיווגי הפעילות נשמרו בהצלחה בדפדפן");
+    }
+
+    // Order Types handlers
+    function addCustomOrderType() {
+      const val = document.getElementById("new-ordertype-val").value.trim();
+      if (!val) return;
+      const types = getCustomOrderTypes();
+      if (types.includes(val)) return;
+      types.push(val);
+      saveCustomOrderTypesList(types);
+      renderSettingsLists();
+      document.getElementById("new-ordertype-val").value = "";
+    }
+
+    function removeCustomOrderType(val) {
+      let types = getCustomOrderTypes();
+      types = types.filter(t => t !== val);
+      saveCustomOrderTypesList(types);
+      renderSettingsLists();
+    }
+
+    function saveCustomOrderTypes() {
+      alert("סוגי הצו נשמרו בהצלחה בדפדפן");
+    }
+
+    // Initialize application on load
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      document.getElementById('month-display').textContent = getFormattedMonthName(currentYear, currentMonth);
+      fetchData();
+      
+      // Load and render custom lists
+      populateDropdowns();
+      renderSettingsLists();
+
+      // Hook up holiday CSV template link
+      const holidayCsvTemplate = "תאריך,שם החג,סיווג\n" +
+        "02/04/2026,ערב פסח,ערב חג\n" +
+        "03/04/2026,פסח א',חג\n" +
+        "09/04/2026,שביעי של פסח,חג\n" +
+        "21/05/2026,ערב שבועות,ערב חג\n";
+      const hLink = document.getElementById("holiday-csv-template-link");
+      if (hLink) {
+        hLink.href = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(holidayCsvTemplate);
+      }
+
+      // Auto-detect holiday when selecting a date in reports form
+      const dateEl = document.getElementById("report-date");
+      if (dateEl) {
+        dateEl.addEventListener("change", function(e) {
+          const date = e.target.value;
+          if (!date) return;
+          const holidays = getCustomHolidays();
+          const match = holidays.find(h => h.date === date);
+          if (match) {
+            document.getElementById("report-category").value = match.category;
+          }
+        });
+      }
+
+      // Handle View Data button click (opens the Google Sheet, or closes the panel if inside Sheets)
+      document.getElementById('view-data-btn').onclick = function() {
+        if (typeof google !== 'undefined' && google.script && google.script.host && google.script.host.close) {
+          google.script.host.close();
+        } else if (currentDashboardState && currentDashboardState.spreadsheetUrl) {
+          window.open(currentDashboardState.spreadsheetUrl, '_blank');
+        } else {
+          window.open('https://docs.google.com/spreadsheets', '_blank');
+        }
+      };
+    });
+  </script>
+</body>
+</html>

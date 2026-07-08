@@ -1,0 +1,35 @@
+{
+  "name": "work-hours-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/generate-docs.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/generate-docs.mjs",
+    "build": "next build",
+    "start": "next start",
+    "docs": "node scripts/generate-docs.mjs",
+    "package": "node scripts/generate-docs.mjs && node scripts/package-app.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.110.1",
+    "googleapis": "^140.0.1",
+    "next": "14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7",
+    "server-only": "^0.0.1",
+    "swr": "^2.2.5",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.5.2"
+  }
+}
