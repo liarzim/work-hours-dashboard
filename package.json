@@ -16,6 +16,7 @@
     "@capacitor/ios": "^8.4.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.1",
+    "@vercel/speed-insights": "^1.0.15",
     "googleapis": "^140.0.1",
     "next": "14.2.15",
     "react": "^18.3.1",
