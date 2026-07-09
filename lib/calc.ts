@@ -20,18 +20,11 @@ export function computeMonthSummary(
   );
   const remainingHours = round1(Math.max(targetHours - reportedHours, 0));
 
-  // Calculate fully updated or resolved weekdays
+  // Calculate fully updated weekdays (only days with clockin and clockout)
   const updatedFullyDays = records.filter((r) => {
     const isWeekend = r.dailyStandard === 0;
     if (!isWeekend) {
-      return (
-        (r.entry && r.exit) ||
-        (r.vacationDays || 0) > 0 ||
-        (r.sickDays || 0) > 0 ||
-        (r.reserveDays || 0) > 0 ||
-        r.classification === "חג" ||
-        r.classification === "ערב חג"
-      );
+      return r.entry && r.exit;
     }
     return false;
   }).length;

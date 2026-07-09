@@ -327,7 +327,7 @@ function getDashboardData(monthStr) {
     }
   }
   
-  // Calculate fully updated or resolved weekdays
+  // Calculate fully updated weekdays (only days with clockin and clockout)
   var updatedFullyDays = 0;
   for (var j = 1; j < reportsData.length; j++) {
     var row = reportsData[j];
@@ -338,19 +338,13 @@ function getDashboardData(monthStr) {
     if (dateStr.indexOf(monthStr) === 0) {
       var startTime = String(row[1] || '').trim();
       var endTime = String(row[2] || '').trim();
-      var categoryVal = String(row[4] || '').trim();
-      
-      var isVacation = ["חופש", "יום חופש", "Vacation"].indexOf(categoryVal) !== -1;
-      var isSick = ["מחלה", "חופשת מחלה", "Sick"].indexOf(categoryVal) !== -1;
-      var isReserve = ["מילואים", "שירות מילואים", "Reserve"].indexOf(categoryVal) !== -1;
-      var isHoliday = ["חג", "ערב חג", "Holiday"].indexOf(categoryVal) !== -1;
       
       var dParts = dateStr.split('-');
       var dayOfWeek = new Date(parseInt(dParts[0], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[2], 10)).getDay();
       var isWeekday = (dayOfWeek !== 5 && dayOfWeek !== 6);
       
       if (isWeekday) {
-        if ((startTime && endTime) || isVacation || isSick || isReserve || isHoliday) {
+        if (startTime && endTime) {
           updatedFullyDays++;
         }
       }

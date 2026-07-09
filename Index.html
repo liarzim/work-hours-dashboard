@@ -2013,24 +2013,18 @@
       const targetHours = standardDays * localDataStore.settings.StandardHoursPerDay;
       const remainingHours = Math.max(0, targetHours - totalReportedHours);
 
-      // Calculate fully updated or resolved weekdays
+      // Calculate fully updated weekdays (only days with clockin and clockout)
       let updatedFullyDays = 0;
       monthlyReports.forEach(r => {
         const startTime = String(r.startTime || '').trim();
         const endTime = String(r.endTime || '').trim();
-        const categoryVal = String(r.category || '').trim();
-        
-        const isVacation = ["חופש", "יום חופש", "Vacation"].indexOf(categoryVal) !== -1;
-        const isSick = ["מחלה", "חופשת מחלה", "Sick"].indexOf(categoryVal) !== -1;
-        const isReserve = ["מילואים", "שירות מילואים", "Reserve"].indexOf(categoryVal) !== -1;
-        const isHoliday = ["חג", "ערב חג", "Holiday"].indexOf(categoryVal) !== -1;
         
         const dParts = r.date.split('-');
         const dayOfWeek = new Date(parseInt(dParts[0], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[2], 10)).getDay();
         const isWeekday = (dayOfWeek !== 5 && dayOfWeek !== 6);
         
         if (isWeekday) {
-          if ((startTime && endTime) || isVacation || isSick || isReserve || isHoliday) {
+          if (startTime && endTime) {
             updatedFullyDays++;
           }
         }
