@@ -20,19 +20,23 @@ export function computeMonthSummary(
   );
   const remainingHours = round1(Math.max(targetHours - reportedHours, 0));
 
-  const today = todayIso();
+  // Calculate fully updated or resolved weekdays
+  const updatedFullyDays = records.filter((r) => {
+    const isWeekend = r.dailyStandard === 0;
+    if (!isWeekend) {
+      return (
+        (r.entry && r.exit) ||
+        (r.vacationDays || 0) > 0 ||
+        (r.sickDays || 0) > 0 ||
+        (r.reserveDays || 0) > 0 ||
+        r.classification === "חג" ||
+        r.classification === "ערב חג"
+      );
+    }
+    return false;
+  }).length;
 
-  // Potential remaining workdays: days from today onward with a positive daily
-  // standard (i.e. not weekend/holiday) and no hours reported yet.
-  const remainingWorkdays = records.filter(
-    (r) =>
-      r.date >= today &&
-      r.dailyStandard > 0 &&
-      (r.totalHoursDecimal || 0) === 0 &&
-      !r.vacationDays &&
-      !r.sickDays &&
-      !r.reserveDays
-  ).length;
+  const remainingWorkdays = Math.max(0, standardWorkDays - updatedFullyDays);
 
   const forecastHoursPerDay =
     remainingWorkdays > 0 ? round1(remainingHours / remainingWorkdays) : 0;

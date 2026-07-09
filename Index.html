@@ -2013,21 +2013,30 @@
       const targetHours = standardDays * localDataStore.settings.StandardHoursPerDay;
       const remainingHours = Math.max(0, targetHours - totalReportedHours);
 
-      // Workday estimation
-      let remainingWorkDays = 0;
-      const today = new Date();
-
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dayOfWeek = new Date(targetYear, targetMonth, d).getDay();
-        if (dayOfWeek !== 5 && dayOfWeek !== 6) { // Skip Fri/Sat
-          if (targetYear > today.getFullYear() || 
-             (targetYear === today.getFullYear() && targetMonth > today.getMonth()) || 
-             (targetYear === today.getFullYear() && targetMonth === today.getMonth() && d >= today.getDate())) {
-            remainingWorkDays++;
+      // Calculate fully updated or resolved weekdays
+      let updatedFullyDays = 0;
+      monthlyReports.forEach(r => {
+        const startTime = String(r.startTime || '').trim();
+        const endTime = String(r.endTime || '').trim();
+        const categoryVal = String(r.category || '').trim();
+        
+        const isVacation = ["חופש", "יום חופש", "Vacation"].indexOf(categoryVal) !== -1;
+        const isSick = ["מחלה", "חופשת מחלה", "Sick"].indexOf(categoryVal) !== -1;
+        const isReserve = ["מילואים", "שירות מילואים", "Reserve"].indexOf(categoryVal) !== -1;
+        const isHoliday = ["חג", "ערב חג", "Holiday"].indexOf(categoryVal) !== -1;
+        
+        const dParts = r.date.split('-');
+        const dayOfWeek = new Date(parseInt(dParts[0], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[2], 10)).getDay();
+        const isWeekday = (dayOfWeek !== 5 && dayOfWeek !== 6);
+        
+        if (isWeekday) {
+          if ((startTime && endTime) || isVacation || isSick || isReserve || isHoliday) {
+            updatedFullyDays++;
           }
         }
-      }
+      });
 
+      const remainingWorkDays = Math.max(0, standardDays - updatedFullyDays);
       const dailyForecast = remainingWorkDays > 0 ? (remainingHours / remainingWorkDays) : 0;
 
       return {
