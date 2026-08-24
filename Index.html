@@ -2671,12 +2671,25 @@
         const date = new Date(currentYear, currentMonth - 1, d);
         const dayOfWeek = date.getDay();
         const isNonWorking = nonWorkingDays.includes(dayOfWeek);
+
+        const dateStr = `${currentYear}-${currentMonth < 10 ? '0' + currentMonth : currentMonth}-${d < 10 ? '0' + d : d}`;
+        const report = data.reports ? data.reports.find(r => r.date === dateStr || r.day === d) : null;
+        const cat = report ? (report.category || '') : '';
         
         if (isNonWorking) {
           bgColors.push(hours > 0 ? '#64748b' : '#94a3b8');
           hoverColors.push(hours > 0 ? '#475569' : '#64748b');
+        } else if (cat === 'Vacation' || cat === 'חופשה') {
+          bgColors.push('#a855f7'); // Purple
+          hoverColors.push('#9333ea');
+        } else if (cat === 'Reserve' || cat === 'ReserveDuty' || cat === 'מילואים' || cat === 'עבודה במילואים') {
+          bgColors.push('#10b981'); // Green
+          hoverColors.push('#059669');
+        } else if (cat === 'Sick' || cat === 'מחלה') {
+          bgColors.push('#f59e0b'); // Amber/Orange
+          hoverColors.push('#d97706');
         } else {
-          bgColors.push('#2563eb');
+          bgColors.push('#2563eb'); // Default Blue
           hoverColors.push('#1d4ed8');
         }
       });
@@ -2712,11 +2725,25 @@
               callbacks: {
                 title: function(items) {
                   const dayNum = items[0].label;
+                  const dateStr = `${currentYear}-${currentMonth < 10 ? '0' + currentMonth : currentMonth}-${dayNum < 10 ? '0' + dayNum : dayNum}`;
+                  const report = data.reports ? data.reports.find(r => r.date === dateStr || r.day === parseInt(dayNum)) : null;
+                  const cat = report ? (report.category || '') : '';
                   const date = new Date(currentYear, currentMonth - 1, dayNum);
                   const dayOfWeek = date.getDay();
                   const isNonWorking = nonWorkingDays.includes(dayOfWeek);
-                  const suffix = isNonWorking ? (currentLang === 'he' ? ' (יום מנוחה)' : ' (Non-working day)') : '';
-                  return `${translations[currentLang].colDate}: ${dayNum}/${currentMonth}/${currentYear}${suffix}`;
+                  
+                  let catSuffix = '';
+                  if (isNonWorking) {
+                    catSuffix = currentLang === 'he' ? ' (יום מנוחה)' : ' (Non-working day)';
+                  } else if (cat === 'Vacation' || cat === 'חופשה') {
+                    catSuffix = currentLang === 'he' ? ' (חופשה)' : ' (Vacation)';
+                  } else if (cat === 'Reserve' || cat === 'ReserveDuty' || cat === 'מילואים' || cat === 'עבודה במילואים') {
+                    catSuffix = currentLang === 'he' ? ' (מילואים)' : ' (Reserve Duty)';
+                  } else if (cat === 'Sick' || cat === 'מחלה') {
+                    catSuffix = currentLang === 'he' ? ' (מחלה)' : ' (Sick)';
+                  }
+
+                  return `${translations[currentLang].colDate}: ${dayNum}/${currentMonth}/${currentYear}${catSuffix}`;
                 }
               }
             }
