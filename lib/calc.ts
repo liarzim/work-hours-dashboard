@@ -12,7 +12,8 @@ export function computeMonthSummary(
   year: number,
   month: number,
   records: DayRecord[],
-  standardWorkDays: number
+  standardWorkDays: number,
+  nonWorkingDays: number[] = [5, 6]
 ): MonthSummary {
   const targetHours = round1(standardWorkDays * DEFAULT_DAILY_HOURS);
   const reportedHours = round1(
@@ -20,11 +21,14 @@ export function computeMonthSummary(
   );
   const remainingHours = round1(Math.max(targetHours - reportedHours, 0));
 
-  // Calculate fully updated weekdays (only days with clockin and clockout)
+  // Calculate fully updated weekdays (only days with clockin and clockout on working days)
   const updatedFullyDays = records.filter((r) => {
-    const isWeekend = r.dailyStandard === 0;
-    if (!isWeekend) {
-      return r.entry && r.exit;
+    const dParts = r.date.split("-");
+    const dateObj = new Date(parseInt(dParts[0], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[2], 10));
+    const dayOfWeek = dateObj.getDay();
+    const isWorkday = !nonWorkingDays.includes(dayOfWeek);
+    if (isWorkday) {
+      return Boolean(r.entry && r.exit);
     }
     return false;
   }).length;

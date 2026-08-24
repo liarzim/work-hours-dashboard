@@ -166,7 +166,6 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                 if (r.vacationDays) absences.push(`חופש ${r.vacationDays}`);
                 if (r.sickDays) absences.push(`מחלה ${r.sickDays}`);
                 if (r.reserveDays) absences.push(`מילואים ${r.reserveDays}`);
-                const [d, m, y] = r.dateDisplay.split("/");
                 return (
                   <tr key={r.date} className="border-b border-slate-50 transition hover:bg-slate-50/60">
                     <td className="px-4 py-2.5 text-center">
@@ -179,7 +178,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="font-semibold text-slate-800">
-                        {parseInt(d, 10)}.{parseInt(m, 10)}.{y}
+                        {r.dateDisplay}
                       </div>
                       <div className="text-[11px] text-slate-400">{r.dayName}</div>
                     </td>

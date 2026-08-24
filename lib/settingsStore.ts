@@ -117,3 +117,21 @@ export function saveHolidayNames(list: string[]): void {
   if (typeof window === "undefined") return;
   localStorage.setItem("work-hours-holidaynames", JSON.stringify(list));
 }
+
+export const DEFAULT_NON_WORKING_DAYS = [5, 6]; // Friday & Saturday
+
+export function getNonWorkingDays(): number[] {
+  if (typeof window === "undefined") return DEFAULT_NON_WORKING_DAYS;
+  try {
+    const val = localStorage.getItem("work-hours-non-working-days");
+    return val ? JSON.parse(val) : DEFAULT_NON_WORKING_DAYS;
+  } catch {
+    return DEFAULT_NON_WORKING_DAYS;
+  }
+}
+
+export function saveNonWorkingDays(days: number[]): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("work-hours-non-working-days", JSON.stringify(days));
+}
+

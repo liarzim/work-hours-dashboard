@@ -416,7 +416,7 @@ export default function BulkUpdateModal({
               {selectedDates.sort().map((dateStr) => {
                 const existing = existingRecords.find((r) => r.date === dateStr);
                 const [y, m, d] = dateStr.split("-");
-                const formattedDate = `${parseInt(d, 10)}/${parseInt(m, 10)}/${y}`;
+                const formattedDate = `${d}/${m}/${y}`;
 
                 return (
                   <div key={dateStr} className="border-b border-slate-100 pb-2 last:border-b-0 last:pb-0 text-right">

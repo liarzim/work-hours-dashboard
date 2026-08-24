@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -12,14 +13,20 @@ import {
 } from "recharts";
 import { DayRecord } from "@/lib/types";
 import { daysInMonth } from "@/lib/date";
+import { getNonWorkingDays } from "@/lib/settingsStore";
 
 interface Props {
   records: DayRecord[];
   year: number;
   month: number;
+  nonWorkingDays?: number[];
 }
 
-export default function DailyChart({ records, year, month }: Props) {
+export default function DailyChart({ records, year, month, nonWorkingDays: customNonWorking }: Props) {
+  const nonWorkingDays = useMemo(() => {
+    return customNonWorking ?? getNonWorkingDays();
+  }, [customNonWorking]);
+
   const data = useMemo(() => {
     const byDay = new Map<number, number>();
     for (const r of records) {
@@ -29,9 +36,13 @@ export default function DailyChart({ records, year, month }: Props) {
     // Day 1 rendered on the right (RTL) -> feed days descending.
     return Array.from({ length: n }, (_, i) => {
       const day = n - i;
-      return { day, hours: Math.round((byDay.get(day) ?? 0) * 10) / 10 };
+      const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay();
+      const isNonWorking = nonWorkingDays.includes(dayOfWeek);
+      const hours = Math.round((byDay.get(day) ?? 0) * 10) / 10;
+      return { day, hours, isNonWorking };
     });
-  }, [records, year, month]);
+  }, [records, year, month, nonWorkingDays]);
 
   return (
     <section className="h-full rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
@@ -55,7 +66,10 @@ export default function DailyChart({ records, year, month }: Props) {
             />
             <Tooltip
               cursor={{ fill: "rgba(37, 99, 235, 0.06)" }}
-              formatter={(v) => [`${v} שעות`, "סה\"כ"]}
+              formatter={(v: any, name: any, item: any) => [
+                `${v} שעות${item?.payload?.isNonWorking ? " (יום מנוחה)" : ""}`,
+                'סה"כ',
+              ]}
               labelFormatter={(d) => `יום ${d} בחודש`}
               contentStyle={{
                 direction: "rtl",
@@ -66,11 +80,16 @@ export default function DailyChart({ records, year, month }: Props) {
             />
             <Bar
               dataKey="hours"
-              fill="#2563eb"
               radius={[4, 4, 0, 0]}
-              background={{ fill: "#f1f5f9", radius: 4 }}
               maxBarSize={26}
-            />
+            >
+              {data.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.isNonWorking ? (entry.hours > 0 ? "#64748b" : "#cbd5e1") : "#2563eb"}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

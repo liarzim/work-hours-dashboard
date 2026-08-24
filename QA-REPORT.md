@@ -21,3 +21,19 @@ Feature request for multi-record editing capabilities, and a subsequent request 
   - Added checkbox toggle for `סוג צו` (Order Type) with value selector ("מילואים רגילים" / "צו 8") which appears in the diff preview and updates Supabase/mock records correctly.
   - Submitting writes only the selected fields to the reports, leaving other values unmodified.
 
+## Addendum — 2026-08-24
+
+### 1. What Changed
+Implemented customizable Weekly Non-Working Days and solid gray chart visualization across the Google Apps Script Web App (`Index.html`, `Code.gs`) and Next.js App (`components/SettingsScreen.tsx`, `components/DailyChart.tsx`, `lib/calc.ts`, `lib/settingsStore.ts`).
+- **Settings UI**: Added a new settings card ("ימי מנוחה שבועיים (ימים לא עובדים בשבוע)") with interactive checkboxes for all 7 days of the week (Sunday through Saturday). Added a "חישוב תקן שנתי לפי ימי מנוחה" button that automatically recalculates the 12-month standard grid based on calendar days minus non-working days.
+- **Working Days Logic**: Updated monthly calculations (`computeMonthSummary`, `getWorkDaysCount`, `updatedFullyDays`, `remainingWorkDays`, `potentialWorkDays`) to exclude user-configured non-working days instead of hardcoding Friday & Saturday.
+- **Daily Activity Chart**: Updated Chart.js (`Index.html`) with a custom plugin `nonWorkingDaysChartPlugin` and Recharts (`components/DailyChart.tsx`) with `<Cell>` fill logic to draw solid gray background columns and bar colors for all non-working days.
+
+### 2. Root Cause
+Feature request to exclude custom non-working days from monthly work day calculations and highlight non-working days in solid gray on the daily activity chart.
+
+### 3. Verification Details
+- **TypeScript Static Verification**: Ran `node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json` with 0 errors.
+- **Data & Calculation Integrity**: Verified that non-working days persist in local storage and Google Sheets settings (`NonWorkingDaysOfWeek`), dynamically updating target hours, remaining forecast, and chart display.
+
+

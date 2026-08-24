@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState, useMemo } from "react";
 import { DayRecord, ReportInput } from "@/lib/types";
 import { SaveIcon, XIcon } from "./Icons";
 import { getClassifications, getOrderTypes, getHolidays } from "@/lib/settingsStore";
+import { isoToDdmmyyyy } from "@/lib/date";
 
 interface Props {
   /** Existing record when editing, null for a fresh report. */
@@ -172,9 +173,11 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-500">תאריך</label>
               <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                type={record ? "text" : "date"}
+                value={record ? isoToDdmmyyyy(date) : date}
+                onChange={(e) => {
+                  if (!record) setDate(e.target.value);
+                }}
                 disabled={Boolean(record)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-100/70 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100 disabled:opacity-60"
               />

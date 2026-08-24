@@ -110,6 +110,7 @@ function initSheets(ss) {
     settingsSheet.appendRow(['AnnualVacationAllowance', '21.0', 'Annual vacation allowance (in days)']);
     settingsSheet.appendRow(['VacationUsedThisMonth', '5.0', 'Vacation days used this month']);
     settingsSheet.appendRow(['ReserveDutyDays', '0.0', 'Reserve duty / illness days this month']);
+    settingsSheet.appendRow(['NonWorkingDaysOfWeek', '5,6', 'Non-working days of the week (0=Sun..6=Sat)']);
     settingsSheet.appendRow(['TargetSpreadsheetLink', '', 'Google Sheet ID or URL to link to']);
     settingsSheet.getRange('A1:C1').setFontWeight('bold').setBackground('#f3f3f3');
   } else {
@@ -124,6 +125,9 @@ function initSheets(ss) {
     }
     if (!keys['AnnualVacationAllowance']) {
       settingsSheet.appendRow(['AnnualVacationAllowance', '21.0', 'Annual vacation allowance (in days)']);
+    }
+    if (!keys['NonWorkingDaysOfWeek']) {
+      settingsSheet.appendRow(['NonWorkingDaysOfWeek', '5,6', 'Non-working days of the week (0=Sun..6=Sat)']);
     }
     if (!keys['TargetSpreadsheetLink']) {
       settingsSheet.appendRow(['TargetSpreadsheetLink', '', 'Google Sheet ID or URL to link to']);
@@ -229,8 +233,16 @@ function getDashboardData(monthStr) {
   var settings = {};
   for (var i = 1; i < settingsData.length; i++) {
     var val = settingsData[i][1];
-    settings[settingsData[i][0]] = isNaN(val) || val === '' ? val : parseFloat(val);
+    if (settingsData[i][0] === 'NonWorkingDaysOfWeek') {
+      settings[settingsData[i][0]] = String(val).split(',').map(Number);
+    } else {
+      settings[settingsData[i][0]] = isNaN(val) || val === '' ? val : parseFloat(val);
+    }
   }
+  if (!settings['NonWorkingDaysOfWeek']) {
+    settings['NonWorkingDaysOfWeek'] = [5, 6];
+  }
+  var nonWorkingDays = settings['NonWorkingDaysOfWeek'];
   
   // Also read TargetSpreadsheetLink from the container sheet
   var ssContainer = SpreadsheetApp.getActiveSpreadsheet();
@@ -268,9 +280,9 @@ function getDashboardData(monthStr) {
     workdaysMap[y] = row.slice(1).map(Number);
   }
   
-  var monthlyStandardDays = 22;
-  if (workdaysMap[year]) {
-    monthlyStandardDays = workdaysMap[year][month] || 22;
+  var monthlyStandardDays = getWorkDaysCount(year, month, nonWorkingDays);
+  if (workdaysMap[year] && workdaysMap[year][month] !== undefined) {
+    monthlyStandardDays = workdaysMap[year][month];
   }
   
   var dailyStdHours = parseFloat(settings['StandardHoursPerDay']) || 9.0;
@@ -327,7 +339,7 @@ function getDashboardData(monthStr) {
     }
   }
   
-  // Calculate fully updated weekdays (only days with clockin and clockout)
+  // Calculate fully updated weekdays (only days with clockin and clockout on working days)
   var updatedFullyDays = 0;
   for (var j = 1; j < reportsData.length; j++) {
     var row = reportsData[j];
@@ -341,9 +353,9 @@ function getDashboardData(monthStr) {
       
       var dParts = dateStr.split('-');
       var dayOfWeek = new Date(parseInt(dParts[0], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[2], 10)).getDay();
-      var isWeekday = (dayOfWeek !== 5 && dayOfWeek !== 6);
+      var isWorkday = (nonWorkingDays.indexOf(dayOfWeek) === -1);
       
-      if (isWeekday) {
+      if (isWorkday) {
         if (startTime && endTime) {
           updatedFullyDays++;
         }
@@ -637,7 +649,7 @@ function clearReport(dateStr) {
 /**
  * Save workday standard and vacation configurations
  */
-function saveWorkdaySettings(selectedYear, annualAllowance, standardHours, workdayArray, targetLink) {
+function saveWorkdaySettings(selectedYear, annualAllowance, standardHours, workdayArray, targetLink, nonWorkingDays) {
   var ssContainer = SpreadsheetApp.getActiveSpreadsheet();
   initContainerSheets(ssContainer);
   var containerSettingsSheet = ssContainer.getSheetByName('Settings');
@@ -663,6 +675,10 @@ function saveWorkdaySettings(selectedYear, annualAllowance, standardHours, workd
   var settingsData = settingsSheet.getDataRange().getValues();
   var keys = ['AnnualVacationAllowance', 'StandardHoursPerDay'];
   var vals = [annualAllowance, standardHours];
+  if (nonWorkingDays && Array.isArray(nonWorkingDays)) {
+    keys.push('NonWorkingDaysOfWeek');
+    vals.push(nonWorkingDays.join(','));
+  }
   
   for (var k = 0; k < keys.length; k++) {
     var key = keys[k];
@@ -675,7 +691,7 @@ function saveWorkdaySettings(selectedYear, annualAllowance, standardHours, workd
       }
     }
     if (rowIdx !== -1) {
-      settingsSheet.getRange(rowIdx, 2).setValue(parseFloat(val) || 0);
+      settingsSheet.getRange(rowIdx, 2).setValue(val);
     } else {
       settingsSheet.appendRow([key, val, '']);
     }
@@ -749,27 +765,29 @@ function updateSettings(targetHours, totalVacation, vacationUsed, reserveDuty, t
 }
 
 /**
- * Helpers to calculate work days (excluding Fridays and Saturdays)
+ * Helpers to calculate work days (excluding configured non-working days)
  */
-function getWorkDaysCount(year, month) {
+function getWorkDaysCount(year, month, nonWorkingDays) {
+  if (!nonWorkingDays) nonWorkingDays = [5, 6];
   var days = new Date(year, month + 1, 0).getDate();
   var count = 0;
   for (var d = 1; d <= days; d++) {
     var dayOfWeek = new Date(year, month, d).getDay();
-    if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+    if (nonWorkingDays.indexOf(dayOfWeek) === -1) {
       count++;
     }
   }
   return count;
 }
 
-function getRemainingWorkDaysCount(year, month) {
+function getRemainingWorkDaysCount(year, month, nonWorkingDays) {
+  if (!nonWorkingDays) nonWorkingDays = [5, 6];
   var today = new Date();
   if (today.getFullYear() > year || (today.getFullYear() === year && today.getMonth() > month)) {
     return 0;
   }
   if (today.getFullYear() < year || (today.getFullYear() === year && today.getMonth() < month)) {
-    return getWorkDaysCount(year, month);
+    return getWorkDaysCount(year, month, nonWorkingDays);
   }
   
   var days = new Date(year, month + 1, 0).getDate();
@@ -777,9 +795,10 @@ function getRemainingWorkDaysCount(year, month) {
   var count = 0;
   for (var d = startDay; d <= days; d++) {
     var dayOfWeek = new Date(year, month, d).getDay();
-    if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+    if (nonWorkingDays.indexOf(dayOfWeek) === -1) {
       count++;
     }
   }
   return count;
 }
+

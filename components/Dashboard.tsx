@@ -7,11 +7,11 @@ import DailyChart from "./DailyChart";
 import ReserveChart from "./ReserveChart";
 import AlertToast from "./AlertToast";
 
-/** yyyy-mm-dd -> d.m.yyyy for the info banner. */
+/** yyyy-mm-dd -> dd/mm/yyyy for the info banner. */
 function formatIso(iso: string): string {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
-  return `${parseInt(d, 10)}.${parseInt(m, 10)}.${y}`;
+  return `${d}/${m}/${y}`;
 }
 
 interface Props {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSWRConfig } from "swr";
 import { useSettings } from "@/lib/client";
-import { HEBREW_MONTHS } from "@/lib/types";
+import { HEBREW_MONTHS, HEBREW_DAYS } from "@/lib/types";
 import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon } from "./Icons";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import * as XLSX from "xlsx";
@@ -16,6 +16,8 @@ import {
   saveHolidays,
   getHolidayNames,
   saveHolidayNames,
+  getNonWorkingDays,
+  saveNonWorkingDays,
   HolidaySetting
 } from "@/lib/settingsStore";
 
@@ -30,6 +32,9 @@ export default function SettingsScreen() {
   const [newYearDays, setNewYearDays] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Weekly non-working days state
+  const [nonWorkingDays, setNonWorkingDays] = useState<number[]>([]);
 
   // Standalone list and holiday states
   const [classifications, setClassificationsState] = useState<string[]>([]);
@@ -83,12 +88,41 @@ export default function SettingsScreen() {
     setClassificationsState(getClassifications());
     setOrderTypesState(getOrderTypes());
     setHolidaysState(getHolidays());
+    setNonWorkingDays(getNonWorkingDays());
     const names = getHolidayNames();
     setHolidayNamesState(names);
     if (names.length) {
       setNewHolidayName(names[0]);
     }
   }, []);
+
+  const toggleNonWorkingDay = (dayIdx: number) => {
+    setNonWorkingDays((prev) => {
+      const next = prev.includes(dayIdx)
+        ? prev.filter((d) => d !== dayIdx)
+        : [...prev, dayIdx];
+      saveNonWorkingDays(next);
+      return next;
+    });
+  };
+
+  const recalculateYearGridFromNonWorkingDays = () => {
+    const y = parseInt(selectedYear, 10);
+    if (!y) return;
+    const newMonths = Array.from({ length: 12 }, (_, m) => {
+      const days = new Date(y, m + 1, 0).getDate();
+      let count = 0;
+      for (let d = 1; d <= days; d++) {
+        const dayOfWeek = new Date(y, m, d).getDay();
+        if (!nonWorkingDays.includes(dayOfWeek)) count++;
+      }
+      return count;
+    });
+    setYears((prev) => ({
+      ...prev,
+      [selectedYear]: newMonths,
+    }));
+  };
 
   // Fetch logged in user email and check biometric support
   useEffect(() => {
@@ -537,6 +571,69 @@ export default function SettingsScreen() {
               {accrual} ימים/חודש
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Weekly Non-Working Days Table Card */}
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+              <ShieldIcon className="h-4 w-4" />
+            </span>
+            <h2 className="text-sm font-bold text-slate-800">ימי מנוחה שבועיים (ימים לא עובדים בשבוע)</h2>
+          </div>
+          <button
+            type="button"
+            onClick={recalculateYearGridFromNonWorkingDays}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50 transition"
+          >
+            חישוב תקן שנתי לפי ימי מנוחה
+          </button>
+        </div>
+        <p className="mb-4 text-xs text-slate-500">
+          סימון הימים בשבוע שאינם ימי עבודה (למשל שישי ושבת). ימים אלו לא יחושבו בימי העבודה החודשיים ויוצגו כעמודה אפורה מלאה בגרף.
+        </p>
+
+        <div className="overflow-hidden rounded-xl border border-slate-100">
+          <table className="w-full text-sm text-right">
+            <thead>
+              <tr className="bg-slate-50/80 text-xs font-semibold text-slate-500 border-b border-slate-100">
+                <th className="px-4 py-2.5">יום בשבוע</th>
+                <th className="px-4 py-2.5 text-center">סטטוס</th>
+                <th className="px-4 py-2.5 text-center">יום לא עובד (מנוחה)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {HEBREW_DAYS.map((dayName, dayIdx) => {
+                const isNonWorking = nonWorkingDays.includes(dayIdx);
+                return (
+                  <tr key={dayName} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="px-4 py-2 font-medium text-slate-700">יום {dayName}</td>
+                    <td className="px-4 py-2 text-center">
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          isNonWorking
+                            ? "bg-slate-100 text-slate-600"
+                            : "bg-emerald-50 text-emerald-700"
+                        }`}
+                      >
+                        {isNonWorking ? "יום מנוחה" : "יום עבודה"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isNonWorking}
+                        onChange={() => toggleNonWorkingDay(dayIdx)}
+                        className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 
