@@ -21,19 +21,33 @@ export function computeMonthSummary(
   );
   const remainingHours = round1(Math.max(targetHours - reportedHours, 0));
 
-  // Calculate fully updated weekdays (only days with clockin and clockout on working days)
-  const updatedFullyDays = records.filter((r) => {
-    const dParts = r.date.split("-");
-    const dateObj = new Date(parseInt(dParts[0], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[2], 10));
-    const dayOfWeek = dateObj.getDay();
-    const isWorkday = !nonWorkingDays.includes(dayOfWeek);
-    if (isWorkday) {
-      return Boolean(r.entry && r.exit);
-    }
-    return false;
-  }).length;
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth() + 1;
+  const curD = now.getDate();
 
-  const remainingWorkdays = Math.max(0, standardWorkDays - updatedFullyDays);
+  let remainingWorkdays = 0;
+
+  if (year < curY || (year === curY && month < curM)) {
+    remainingWorkdays = 0;
+  } else if (year > curY || (year === curY && month > curM)) {
+    const totalDays = new Date(year, month, 0).getDate();
+    for (let d = 1; d <= totalDays; d++) {
+      const dow = new Date(year, month - 1, d).getDay();
+      if (!nonWorkingDays.includes(dow)) remainingWorkdays++;
+    }
+  } else {
+    const totalDays = new Date(year, month, 0).getDate();
+    const todayStr = todayIso();
+    const todayRecord = records.find((r) => r.date === todayStr);
+    const todayCompleted = Boolean(todayRecord && todayRecord.entry && todayRecord.exit);
+    const startD = todayCompleted ? curD + 1 : curD;
+
+    for (let d = startD; d <= totalDays; d++) {
+      const dow = new Date(year, month - 1, d).getDay();
+      if (!nonWorkingDays.includes(dow)) remainingWorkdays++;
+    }
+  }
 
   const forecastHoursPerDay =
     remainingWorkdays > 0 ? round1(remainingHours / remainingWorkdays) : 0;

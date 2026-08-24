@@ -364,7 +364,39 @@ function getDashboardData(monthStr) {
   }
 
   var remainingHours = Math.max(0, calculatedTargetHours - totalReportedHours);
-  var remainingWorkDays = Math.max(0, monthlyStandardDays - updatedFullyDays);
+
+  var now = new Date();
+  var curY = now.getFullYear();
+  var curM = now.getMonth(); // 0-indexed
+  var curD = now.getDate();
+
+  var remainingWorkDays = 0;
+  var totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+
+  if (year < curY || (year === curY && month < curM)) {
+    remainingWorkDays = 0;
+  } else if (year > curY || (year === curY && month > curM)) {
+    for (var d = 1; d <= totalDaysInMonth; d++) {
+      var dow = new Date(year, month, d).getDay();
+      if (nonWorkingDays.indexOf(dow) === -1) remainingWorkDays++;
+    }
+  } else {
+    var todayStr = year + '-' + padZero(month + 1) + '-' + padZero(curD);
+    var todayCompleted = false;
+    for (var j = 1; j < reportsData.length; j++) {
+      var row = reportsData[j];
+      if (row[0] && parseSheetDate(row[0]) === todayStr && String(row[1] || '').trim() && String(row[2] || '').trim()) {
+        todayCompleted = true;
+        break;
+      }
+    }
+    var startDay = todayCompleted ? (curD + 1) : curD;
+    for (var d = startDay; d <= totalDaysInMonth; d++) {
+      var dow = new Date(year, month, d).getDay();
+      if (nonWorkingDays.indexOf(dow) === -1) remainingWorkDays++;
+    }
+  }
+
   var dailyForecast = remainingWorkDays > 0 ? (remainingHours / remainingWorkDays) : 0;
   
   // Find first year and first month with reports data

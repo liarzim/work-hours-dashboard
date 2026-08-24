@@ -2052,22 +2052,31 @@
 
       // Calculate fully updated weekdays (only days with clockin and clockout on working days)
       let updatedFullyDays = 0;
-      monthlyReports.forEach(r => {
-        const startTime = String(r.startTime || '').trim();
-        const endTime = String(r.endTime || '').trim();
-        
-        const dParts = r.date.split('-');
-        const dayOfWeek = new Date(parseInt(dParts[0], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[2], 10)).getDay();
-        const isWorkday = !nonWorkingDays.includes(dayOfWeek);
-        
-        if (isWorkday) {
-          if (startTime && endTime) {
-            updatedFullyDays++;
-          }
-        }
-      });
+      const now = new Date();
+      const curY = now.getFullYear();
+      const curM = now.getMonth(); // 0-indexed
+      const curD = now.getDate();
 
-      const remainingWorkDays = Math.max(0, standardDays - updatedFullyDays);
+      let remainingWorkDays = 0;
+      if (targetYear < curY || (targetYear === curY && targetMonth < curM)) {
+        remainingWorkDays = 0;
+      } else if (targetYear > curY || (targetYear === curY && targetMonth > curM)) {
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dow = new Date(targetYear, targetMonth, d).getDay();
+          if (!nonWorkingDays.includes(dow)) remainingWorkDays++;
+        }
+      } else {
+        const todayStr = `${curY}-${curM + 1 < 10 ? '0' + (curM + 1) : (curM + 1)}-${curD < 10 ? '0' + curD : curD}`;
+        const todayReport = monthlyReports.find(r => r.date === todayStr);
+        const todayCompleted = Boolean(todayReport && String(todayReport.startTime || '').trim() && String(todayReport.endTime || '').trim());
+        const startDay = todayCompleted ? (curD + 1) : curD;
+
+        for (let d = startDay; d <= daysInMonth; d++) {
+          const dow = new Date(targetYear, targetMonth, d).getDay();
+          if (!nonWorkingDays.includes(dow)) remainingWorkDays++;
+        }
+      }
+
       const dailyForecast = remainingWorkDays > 0 ? (remainingHours / remainingWorkDays) : 0;
 
       return {
