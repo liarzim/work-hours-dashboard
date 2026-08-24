@@ -22,6 +22,24 @@ interface Props {
   nonWorkingDays?: number[];
 }
 
+const CustomBarBackground = (props: any) => {
+  const { x, y, width, height, payload } = props;
+  if (!payload || !payload.isNonWorking) {
+    return <rect x={x} y={y} width={width} height={height} fill="#f8fafc" rx={4} ry={4} />;
+  }
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      fill="#cbd5e1"
+      rx={4}
+      ry={4}
+    />
+  );
+};
+
 export default function DailyChart({ records, year, month, nonWorkingDays: customNonWorking }: Props) {
   const nonWorkingDays = useMemo(() => {
     return customNonWorking ?? getNonWorkingDays();
@@ -82,11 +100,12 @@ export default function DailyChart({ records, year, month, nonWorkingDays: custo
               dataKey="hours"
               radius={[4, 4, 0, 0]}
               maxBarSize={26}
+              background={<CustomBarBackground />}
             >
               {data.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={entry.isNonWorking ? (entry.hours > 0 ? "#64748b" : "#cbd5e1") : "#2563eb"}
+                  fill={entry.isNonWorking ? (entry.hours > 0 ? "#475569" : "#cbd5e1") : "#2563eb"}
                 />
               ))}
             </Bar>
