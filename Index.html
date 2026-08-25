@@ -2069,7 +2069,10 @@
         const todayStr = `${curY}-${curM + 1 < 10 ? '0' + (curM + 1) : (curM + 1)}-${curD < 10 ? '0' + curD : curD}`;
         const todayReport = monthlyReports.find(r => r.date === todayStr);
         const todayCompleted = Boolean(todayReport && String(todayReport.startTime || '').trim() && String(todayReport.endTime || '').trim());
-        const startDay = todayCompleted ? (curD + 1) : curD;
+        // Today counts as a remaining workday only before 17:00 and if not yet completed.
+        const isAfter17 = now.getHours() >= 17;
+        const todayStillOpen = !todayCompleted && !isAfter17;
+        const startDay = todayStillOpen ? curD : (curD + 1);
 
         for (let d = startDay; d <= daysInMonth; d++) {
           const dow = new Date(targetYear, targetMonth, d).getDay();

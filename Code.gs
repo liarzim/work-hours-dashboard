@@ -390,7 +390,10 @@ function getDashboardData(monthStr) {
         break;
       }
     }
-    var startDay = todayCompleted ? (curD + 1) : curD;
+    // Today counts as a remaining workday only before 17:00 and if not yet completed.
+    var isAfter17 = now.getHours() >= 17;
+    var todayStillOpen = !todayCompleted && !isAfter17;
+    var startDay = todayStillOpen ? curD : (curD + 1);
     for (var d = startDay; d <= totalDaysInMonth; d++) {
       var dow = new Date(year, month, d).getDay();
       if (nonWorkingDays.indexOf(dow) === -1) remainingWorkDays++;

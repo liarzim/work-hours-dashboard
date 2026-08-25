@@ -41,7 +41,11 @@ export function computeMonthSummary(
     const todayStr = todayIso();
     const todayRecord = records.find((r) => r.date === todayStr);
     const todayCompleted = Boolean(todayRecord && todayRecord.entry && todayRecord.exit);
-    const startD = todayCompleted ? curD + 1 : curD;
+    // Today counts as a remaining workday only if it is not yet completed
+    // AND the current time is before 17:00 (workday cutoff).
+    const isAfter17 = now.getHours() >= 17;
+    const todayStillOpen = !todayCompleted && !isAfter17;
+    const startD = todayStillOpen ? curD : curD + 1;
 
     for (let d = startD; d <= totalDays; d++) {
       const dow = new Date(year, month - 1, d).getDay();
