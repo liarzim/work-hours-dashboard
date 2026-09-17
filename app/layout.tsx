@@ -27,6 +27,34 @@ export default function RootLayout({
     <html lang="he" dir="rtl">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* Suppress third-party browser extension errors (e.g. MetaMask) from popping up in Next.js dev overlay */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                function isExtensionError(msg, src) {
+                  var str = (msg || '') + ' ' + (src || '');
+                  return str.indexOf('chrome-extension://') !== -1 ||
+                         str.indexOf('moz-extension://') !== -1 ||
+                         str.toLowerCase().indexOf('metamask') !== -1;
+                }
+                window.addEventListener('error', function(e) {
+                  if (isExtensionError(e.message, e.filename)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                  }
+                }, true);
+                window.addEventListener('unhandledrejection', function(e) {
+                  var reason = e.reason ? (e.reason.message || String(e.reason)) : '';
+                  if (isExtensionError(reason, '')) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                  }
+                }, true);
+              })();
+            `,
+          }}
+        />
       </head>
       <body className="min-h-screen bg-slate-50 text-slate-800 antialiased">
         {children}
