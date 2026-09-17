@@ -42,8 +42,15 @@ export async function middleware(request: NextRequest) {
 
   const isAuthPage = request.nextUrl.pathname.startsWith("/login");
   const isAuthCallback = request.nextUrl.pathname.startsWith("/auth/callback");
+  const isApiRequest = request.nextUrl.pathname.startsWith("/api/");
 
   if (!user && !isAuthPage && !isAuthCallback) {
+    if (isApiRequest) {
+      return NextResponse.json(
+        { error: "משתמש לא מחובר", code: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

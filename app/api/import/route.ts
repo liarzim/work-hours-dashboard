@@ -46,16 +46,42 @@ export async function POST(req: NextRequest) {
     
     const userId = user.id;
 
+    // Enforce 5MB maximum payload size to prevent DoS/OOM
+    const MAX_CSV_BYTES = 5 * 1024 * 1024;
+    const contentLength = Number(req.headers.get("content-length") || "0");
+    if (contentLength > MAX_CSV_BYTES) {
+      return NextResponse.json(
+        { error: "גודל הקובץ חורג מהמגבלה המותרת (עד 5MB)" },
+        { status: 413 }
+      );
+    }
+
     // Read body text (CSV payload)
     const csvContent = await req.text();
     if (!csvContent || csvContent.trim().length === 0) {
       return NextResponse.json({ error: "קובץ ריק או לא תקין" }, { status: 400 });
     }
 
+    if (csvContent.length > MAX_CSV_BYTES) {
+      return NextResponse.json(
+        { error: "גודל הקובץ חורג מהמגבלה המותרת (עד 5MB)" },
+        { status: 413 }
+      );
+    }
+
     const lines = csvContent.split(/\r?\n/);
     if (lines.length < 2) {
       return NextResponse.json({ error: "קובץ ריק או חסר שורות נתונים" }, { status: 400 });
     }
+
+    // Sanitize string against CSV Formula Injection (=, +, -, @, tab, CR)
+    const sanitizeCsvField = (val: string): string => {
+      let s = val.trim();
+      if (/^[=+\-@\t\r]/.test(s)) {
+        s = "'" + s;
+      }
+      return s;
+    };
 
     // Auto-detect format by scanning header columns
     const headerCols = parseCsvLine(lines[0]);
@@ -127,9 +153,9 @@ export async function POST(req: NextRequest) {
 
       const entryClean = entry ? padTime(entry) : null;
       const exitClean = exit ? padTime(exit) : null;
-      const classificationClean = classification ? classification.trim() : "עבודה";
-      const notesClean = notes ? notes.trim().substring(0, 500) : null;
-      const uniqueNotesClean = uniqueNotes ? uniqueNotes.trim().substring(0, 500) : null;
+      const classificationClean = classification ? sanitizeCsvField(classification) : "עבודה";
+      const notesClean = notes ? sanitizeCsvField(notes.substring(0, 500)) : null;
+      const uniqueNotesClean = uniqueNotes ? sanitizeCsvField(uniqueNotes.substring(0, 500)) : null;
       
       const isReserveImport = classificationClean === "מילואים" || classificationClean === "עבודה במילואים" || reserveDays > 0;
       const orderTypeClean = orderType ? orderType.trim() : (isReserveImport 
