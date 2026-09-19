@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSWRConfig } from "swr";
 import { useSettings, useEmploymentTerms } from "@/lib/client";
 import { HEBREW_MONTHS, HEBREW_DAYS, EmploymentTerm, EmploymentType } from "@/lib/types";
-import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon, BriefcaseIcon, PencilIcon, TrashIcon, PlusIcon, XIcon } from "./Icons";
+import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon, BriefcaseIcon, PencilIcon, TrashIcon, PlusIcon, XIcon, RefreshIcon, CalendarIcon } from "./Icons";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import * as XLSX from "xlsx";
 import {
@@ -18,7 +18,8 @@ import {
   saveHolidayNames,
   getNonWorkingDays,
   saveNonWorkingDays,
-  HolidaySetting
+  HolidaySetting,
+  syncHolidaysFromHebcal
 } from "@/lib/settingsStore";
 
 export default function SettingsScreen() {
@@ -57,6 +58,43 @@ export default function SettingsScreen() {
   const [holidayYear, setHolidayYear] = useState(String(new Date().getFullYear()));
   const [holidayImportMessage, setHolidayImportMessage] = useState<string | null>(null);
   const [holidayImportError, setHolidayImportError] = useState<string | null>(null);
+
+  // Hebcal Auto-Sync State
+  const [syncingHebcal, setSyncingHebcal] = useState(false);
+  const [hebcalMessage, setHebcalMessage] = useState<string | null>(null);
+  const [hebcalError, setHebcalError] = useState<string | null>(null);
+
+  const handleSyncHebcal = async (allYears = false) => {
+    setSyncingHebcal(true);
+    setHebcalMessage(null);
+    setHebcalError(null);
+    try {
+      if (allYears) {
+        const currentY = new Date().getFullYear();
+        const yearsToSync = [currentY - 2, currentY - 1, currentY, currentY + 1, currentY + 2];
+        let totalCount = 0;
+        let totalAdded = 0;
+        let lastMerged: HolidaySetting[] = [];
+        for (const y of yearsToSync) {
+          const res = await syncHolidaysFromHebcal(y);
+          totalCount += res.count;
+          totalAdded += res.added;
+          lastMerged = res.holidays;
+        }
+        setHolidaysState(lastMerged);
+        setHebcalMessage(`סונכרנו בהצלחה ${totalCount} חגים ומועדים לשנים ${currentY - 2}–${currentY + 2} מ-Hebcal (נוספו ${totalAdded} חדשים)!`);
+      } else {
+        const y = parseInt(holidayYear, 10) || new Date().getFullYear();
+        const res = await syncHolidaysFromHebcal(y);
+        setHolidaysState(res.holidays);
+        setHebcalMessage(`סונכרנו בהצלחה ${res.count} חגים לשנת ${y} מ-Hebcal (נוספו ${res.added} חדשים)!`);
+      }
+    } catch (err: any) {
+      setHebcalError(err.message || "שגיאה בסנכרון מ-Hebcal");
+    } finally {
+      setSyncingHebcal(false);
+    }
+  };
 
   // Active Tab for Dropdown settings options
   const [activeTab, setActiveTab] = useState<"classifications" | "orderTypes" | "holidayNames">("classifications");
@@ -983,37 +1021,90 @@ export default function SettingsScreen() {
 
       {/* Holidays Table */}
       <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
               <UmbrellaIcon className="h-4 w-4" />
             </span>
-            <h2 className="text-sm font-bold text-slate-800">תאריכי חגים וסיווגם</h2>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">תאריכי חגים וסיווגם</h2>
+              <p className="text-[11px] text-slate-400">סנכרון אוטומטי מ-Hebcal או ניהול ידני של ימי חג ומועדים</p>
+            </div>
           </div>
 
-          {/* Year Navigator (Forward/Back) */}
-          <div className="flex items-center gap-2">
+          {/* Year Navigator & Hebcal Auto-Sync Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5">
+              <button
+                onClick={() => setHolidayYear(prev => String(parseInt(prev) - 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white text-slate-600 transition shadow-none"
+                title="שנה קודמת"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <span className="text-xs font-extrabold text-slate-800 px-2 min-w-[3rem] text-center">{holidayYear}</span>
+              <button
+                onClick={() => setHolidayYear(prev => String(parseInt(prev) + 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white text-slate-600 transition shadow-none"
+                title="שנה הבאה"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            </div>
+
             <button
-              onClick={() => setHolidayYear(prev => String(parseInt(prev) - 1))}
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 shadow-sm"
-              title="שנה קודמת"
+              onClick={() => handleSyncHebcal(false)}
+              disabled={syncingHebcal}
+              className="flex items-center gap-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 px-3 py-1.5 text-xs font-bold transition disabled:opacity-60"
+              title={`סנכרן חגים ומועדים לשנת ${holidayYear} מ-Hebcal`}
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+              <RefreshIcon className={`h-3.5 w-3.5 ${syncingHebcal ? "animate-spin" : ""}`} />
+              <span>{syncingHebcal ? "מסנכרן..." : `סנכרן מ-Hebcal (${holidayYear})`}</span>
             </button>
-            <span className="text-sm font-extrabold text-slate-800 w-12 text-center">{holidayYear}</span>
+
             <button
-              onClick={() => setHolidayYear(prev => String(parseInt(prev) + 1))}
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 shadow-sm"
-              title="שנה הבאה"
+              onClick={() => handleSyncHebcal(true)}
+              disabled={syncingHebcal}
+              className="flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60"
+              title="סנכרון רב-שנתי מלא מ-Hebcal (5 שנים)"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
+              <CalendarIcon className="h-3.5 w-3.5 text-slate-500" />
+              <span>סנכרון רב-שנתי (5 שנים)</span>
             </button>
           </div>
         </div>
+
+        {/* Status messages for Hebcal */}
+        {hebcalMessage && (
+          <div className="mb-4 flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800 font-medium">
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>{hebcalMessage}</span>
+            </div>
+            <button onClick={() => setHebcalMessage(null)} className="text-emerald-600 hover:text-emerald-800">
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        {hebcalError && (
+          <div className="mb-4 flex items-center justify-between rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-800 font-medium">
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{hebcalError}</span>
+            </div>
+            <button onClick={() => setHebcalError(null)} className="text-red-600 hover:text-red-800">
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
         
         {/* Add holiday form */}
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4 items-end bg-slate-50/50 p-4 rounded-xl border border-slate-100">
