@@ -36,3 +36,9 @@ export function useSettings() {
     revalidateOnFocus: false,
   });
 }
+
+export function useEmploymentTerms() {
+  return useSWR<{ terms: import("./types").EmploymentTerm[] }>("/api/employment-terms", fetcher<{ terms: import("./types").EmploymentTerm[] }>, {
+    revalidateOnFocus: false,
+  });
+}

@@ -41,6 +41,23 @@ export interface MonthSummary {
   vacationBalance: number; // יתרת חופשה לניצול
   standardWorkDays: number; // תקן ימי עבודה לחודש (מהגדרות)
   estimatedVacationBalanceYearEnd?: number; // הערכה לאחר חופשות עתידיות
+  activeEmploymentTerm?: EmploymentTerm; // תנאי העסקה שבתוקף בחודש זה
+}
+
+export type EmploymentType = "monthly_overtime" | "global" | "hourly" | "custom";
+
+export interface EmploymentTerm {
+  id?: string;
+  userId?: string;
+  name: string;
+  employmentType: EmploymentType;
+  startDate: string; // ISO YYYY-MM-DD
+  endDate?: string | null; // ISO YYYY-MM-DD or null for current
+  jobScopePct: number; // 100 = 100%
+  dailyStandardSunWed: number; // e.g. 9.0
+  dailyStandardThu: number; // e.g. 8.5
+  overtimeEligible: boolean;
+  notes?: string;
 }
 
 /** Diagnostics about the whole journal, shown after sync. */

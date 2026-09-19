@@ -1,25 +1,36 @@
-import type { DayRecord, MonthSummary } from "./types";
+import type { DayRecord, MonthSummary, EmploymentTerm } from "./types";
 import { round1, todayIso } from "./date";
 
 const DEFAULT_DAILY_HOURS = 9;
 
 /**
  * Pure KPI computation for one month of records.
- * targetHours = standard work days (from settings) * 9h, as displayed in the
- * "הגדרות" screen (e.g. July: 22 days -> 198.0h).
+ * targetHours = standard work days (from settings) * dailyStandard (from active employment term).
  */
 export function computeMonthSummary(
   year: number,
   month: number,
   records: DayRecord[],
   standardWorkDays: number,
-  nonWorkingDays: number[] = [5, 6]
+  nonWorkingDays: number[] = [5, 6],
+  activeTerm?: EmploymentTerm
 ): MonthSummary {
-  const targetHours = round1(standardWorkDays * DEFAULT_DAILY_HOURS);
+  const isHourlyNoTarget = activeTerm?.employmentType === "hourly" && (activeTerm.dailyStandardSunWed === 0);
+  const baseDailyHours = activeTerm?.dailyStandardSunWed ?? DEFAULT_DAILY_HOURS;
+  const scopeRatio = (activeTerm?.jobScopePct ?? 100) / 100;
+  const effectiveDailyStandard = baseDailyHours * scopeRatio;
+
+  const targetHours = isHourlyNoTarget
+    ? 0
+    : round1(standardWorkDays * effectiveDailyStandard);
+
   const reportedHours = round1(
     records.reduce((s, r) => s + (r.totalHoursDecimal || 0), 0)
   );
-  const remainingHours = round1(Math.max(targetHours - reportedHours, 0));
+
+  const remainingHours = isHourlyNoTarget
+    ? 0
+    : round1(Math.max(targetHours - reportedHours, 0));
 
   const now = new Date();
   const curY = now.getFullYear();
@@ -87,5 +98,6 @@ export function computeMonthSummary(
     reserveDaysThisMonth,
     vacationBalance,
     standardWorkDays,
+    activeEmploymentTerm: activeTerm,
   };
 }
