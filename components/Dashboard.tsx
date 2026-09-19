@@ -61,6 +61,15 @@ export default function Dashboard({ data, loading, year, month }: Props) {
               </span>
             )}
           </span>
+          {summary.activeEmploymentTerm && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-normal">תנאי העסקה לחודש זה:</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/90 px-2 py-0.5 font-medium text-emerald-800 border border-emerald-200">
+                {summary.activeEmploymentTerm.name}
+                <span className="text-emerald-600">({summary.activeEmploymentTerm.jobScopePct}%)</span>
+              </span>
+            </div>
+          )}
         </div>
       )}
 

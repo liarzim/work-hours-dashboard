@@ -1,6 +1,7 @@
 import "server-only";
 import type {
   DayRecord,
+  EmploymentTerm,
   MonthData,
   ReportInput,
   ReserveBucket,
@@ -13,6 +14,54 @@ import { currentMode } from "./config";
 import { createSupabaseServerClient } from "./supabase/server";
 import { deriveDayRecord } from "./derive";
 import { daysInMonth } from "./date";
+
+export const DEFAULT_EMPLOYMENT_TERM: EmploymentTerm = {
+  id: "default",
+  name: "חודשי עם שעות נוספות (ברירת מחדל)",
+  employmentType: "monthly_overtime",
+  startDate: "2019-01-01",
+  endDate: null,
+  jobScopePct: 100,
+  dailyStandardSunWed: 9.0,
+  dailyStandardThu: 8.5,
+  overtimeEligible: true,
+  notes: "",
+};
+
+export function mapDbTermToEmploymentTerm(row: any): EmploymentTerm {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name ?? "תנאי העסקה",
+    employmentType: row.employment_type ?? "monthly_overtime",
+    startDate: row.start_date,
+    endDate: row.end_date || null,
+    jobScopePct: Number(row.job_scope_pct ?? 100),
+    dailyStandardSunWed: Number(row.daily_standard_sun_wed ?? 9.0),
+    dailyStandardThu: Number(row.daily_standard_thu ?? 8.5),
+    overtimeEligible: Boolean(row.overtime_eligible ?? true),
+    notes: row.notes || "",
+  };
+}
+
+export function findActiveTermForDate(terms: EmploymentTerm[], dateIso: string): EmploymentTerm {
+  if (!terms || terms.length === 0) return DEFAULT_EMPLOYMENT_TERM;
+  // Look for term active on this date, matching from most recent startDate
+  for (let i = terms.length - 1; i >= 0; i--) {
+    const t = terms[i];
+    if (t.startDate <= dateIso) {
+      if (!t.endDate || t.endDate >= dateIso) {
+        return t;
+      }
+    }
+  }
+  return terms[0] || DEFAULT_EMPLOYMENT_TERM;
+}
+
+export function findActiveTermForMonth(terms: EmploymentTerm[], year: number, month: number): EmploymentTerm {
+  const monthMidDate = `${year}-${String(month).padStart(2, "0")}-15`;
+  return findActiveTermForDate(terms, monthMidDate);
+}
 
 /**
  * Retrieve the authenticated user from Supabase.
@@ -110,6 +159,16 @@ export async function getMonthData(
     .order("date", { ascending: false })
     .limit(1);
 
+  const termsPromise = Promise.resolve(
+    supabase
+      .from("employment_terms")
+      .select("*")
+      .eq("user_id", userId)
+      .order("start_date", { ascending: true })
+  )
+    .then((res: any) => (res?.error ? { data: [] } : res))
+    .catch(() => ({ data: [] }));
+
   // 2. Fetch all data concurrently in parallel
   const [
     profileRes,
@@ -118,7 +177,8 @@ export async function getMonthData(
     countRes,
     firstReportRes,
     lastReportRes,
-    priorVacationsRes
+    priorVacationsRes,
+    termsRes
   ] = await Promise.all([
     profilePromise,
     standardsPromise,
@@ -126,10 +186,15 @@ export async function getMonthData(
     countPromise,
     firstReportPromise,
     lastReportPromise,
-    priorVacationsPromise
+    priorVacationsPromise,
+    termsPromise
   ]);
 
   if (reportsRes.error) throw new Error("שגיאה בטעינת הדיווחים מהמסד");
+
+  const terms: EmploymentTerm[] = (termsRes?.data && termsRes.data.length > 0)
+    ? termsRes.data.map(mapDbTermToEmploymentTerm)
+    : [DEFAULT_EMPLOYMENT_TERM];
 
   const annualVacationQuota = profileRes.data?.annual_vacation_quota ?? 22.0;
 
@@ -222,9 +287,10 @@ export async function getMonthData(
 
     // Total used since starting of data up to this day
     const totalUsedSinceStart = usedBeforeSelectedYear + ytdUsed;
+    const activeTermForDay = findActiveTermForDate(terms, iso);
 
     if (dbRow) {
-      records.push(deriveDayRecord(dbRow, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month));
+      records.push(deriveDayRecord(dbRow, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month, activeTermForDay));
     } else {
       const defaultRaw = {
         date: iso,
@@ -238,11 +304,12 @@ export async function getMonthData(
         unique_notes: null,
         order_type: null,
       };
-      records.push(deriveDayRecord(defaultRaw, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month));
+      records.push(deriveDayRecord(defaultRaw, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month, activeTermForDay));
     }
   }
 
-  const summary = computeMonthSummary(year, month, records, standardDays);
+  const activeMonthTerm = findActiveTermForMonth(terms, year, month);
+  const summary = computeMonthSummary(year, month, records, standardDays, [5, 6], activeMonthTerm);
 
   // Year-end estimate calculation
   const elapsedMonthsYearEnd = (year - firstYear) * 12 + (12 - firstMonth) + 1;
@@ -597,5 +664,84 @@ export async function saveSettings(s: StandardSettings): Promise<void> {
       );
 
     if (stdError) throw new Error("שגיאה בעדכון ימי תקן");
+  }
+}
+
+export async function getEmploymentTerms(): Promise<EmploymentTerm[]> {
+  const mode = currentMode();
+  if (mode === "mock") return [DEFAULT_EMPLOYMENT_TERM];
+
+  const user = await getAuthenticatedUser();
+  const userId = user.id;
+  const supabase = createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("employment_terms")
+    .select("*")
+    .eq("user_id", userId)
+    .order("start_date", { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    return [DEFAULT_EMPLOYMENT_TERM];
+  }
+
+  return data.map(mapDbTermToEmploymentTerm);
+}
+
+export async function saveEmploymentTerm(term: EmploymentTerm): Promise<EmploymentTerm> {
+  const mode = currentMode();
+  if (mode === "mock") return term;
+
+  const user = await getAuthenticatedUser();
+  const userId = user.id;
+  const supabase = createSupabaseServerClient();
+
+  const payload: any = {
+    user_id: userId,
+    name: term.name || "תנאי העסקה",
+    employment_type: term.employmentType,
+    start_date: term.startDate,
+    end_date: term.endDate || null,
+    job_scope_pct: term.jobScopePct ?? 100,
+    daily_standard_sun_wed: term.dailyStandardSunWed ?? 9.0,
+    daily_standard_thu: term.dailyStandardThu ?? 8.5,
+    overtime_eligible: term.overtimeEligible,
+    notes: term.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (term.id && term.id !== "default") {
+    payload.id = term.id;
+  }
+
+  const { data, error } = await supabase
+    .from("employment_terms")
+    .upsert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message || "שגיאה בשמירת תנאי העסקה");
+  }
+
+  return mapDbTermToEmploymentTerm(data);
+}
+
+export async function deleteEmploymentTerm(termId: string): Promise<void> {
+  const mode = currentMode();
+  if (mode === "mock") return;
+
+  const user = await getAuthenticatedUser();
+  const userId = user.id;
+  const supabase = createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("employment_terms")
+    .delete()
+    .eq("id", termId)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(error.message || "שגיאה במחיקת תנאי העסקה");
   }
 }

@@ -36,4 +36,27 @@ Feature request to exclude custom non-working days from monthly work day calcula
 - **TypeScript Static Verification**: Ran `node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json` with 0 errors.
 - **Data & Calculation Integrity**: Verified that non-working days persist in local storage and Google Sheets settings (`NonWorkingDaysOfWeek`), dynamically updating target hours, remaining forecast, and chart display.
 
+## Addendum — 2026-09-19
 
+### 1. What Changed
+Implemented custom Employment Terms with History (effective date ranges) and database-level Row Level Security (RLS) data isolation:
+- **Database & Security**: Added `scripts/migration_employment_terms_and_rls.sql` to create the `employment_terms` table and enforce PostgreSQL Row Level Security (RLS) policies on `profiles`, `workday_standards`, `reports`, and `employment_terms` ensuring strict `auth.uid() = user_id` multi-tenant isolation.
+- **Data & Calculation Engine (`lib/types.ts`, `lib/derive.ts`, `lib/calc.ts`, `lib/data.ts`)**:
+  - Added `EmploymentTerm` and `EmploymentType` types.
+  - Updated `deriveDayRecord` and `calculateDailyStandard` to derive daily standard hours, overtime eligibility, and job scope percentages based on the term active for each specific calendar date.
+  - Updated `computeMonthSummary` to dynamically calculate monthly targets, remaining hours, and pace forecast based on the active term.
+  - Added CRUD functions `getEmploymentTerms`, `saveEmploymentTerm`, `deleteEmploymentTerm` with graceful fallback to default 100% monthly term.
+- **Server API (`app/api/employment-terms/route.ts`)**: Created secure Next.js route handler supporting GET, POST, and DELETE with payload validation.
+- **Client & UI (`components/SettingsScreen.tsx`, `components/Dashboard.tsx`, `lib/client.ts`)**:
+  - Added `useEmploymentTerms` SWR hook.
+  - Added "תנאי העסקה והיסטוריית חוזים" card in `SettingsScreen` with history table and interactive modal with presets (Monthly Overtime, Global, Hourly, Parent/Reduced, Half-time, Custom).
+  - Added active employment term badge in `Dashboard` header banner.
+- **Documentation**: Generated `docs/APP_SUMMARY.md` as reference point and updated `docs/CODE.md`.
+
+### 2. Root Cause
+Feature request to allow users to configure diverse employment models with history (e.g. hourly, global, monthly with overtime, part-time) and verify that user records are strictly isolated and not exposed to other users.
+
+### 3. Verification Details
+- **TypeScript Static Verification**: Ran `node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json` — 0 errors.
+- **Documentation Generation**: Ran `npm run docs` — generated 48 files, 269 KB in `docs/CODE.md`.
+- **Security & Multi-Tenancy**: RLS policies and server-side authentication guarantee zero cross-tenant data access.

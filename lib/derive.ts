@@ -1,5 +1,5 @@
 import { HEBREW_DAYS } from "./types";
-import type { DayRecord } from "./types";
+import type { DayRecord, EmploymentTerm } from "./types";
 
 /** Convert YYYY-MM-DD to DD/MM/YYYY */
 export function isoToDdmmyyyy(iso: string): string {
@@ -24,16 +24,30 @@ export function decimalToHhmm(dec: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-/** Derive standard work hours based on Hebrew day of week and classification */
-export function calculateDailyStandard(dateIso: string, classification: string): number {
+/** Derive standard work hours based on Hebrew day of week, classification, and active employment term */
+export function calculateDailyStandard(
+  dateIso: string,
+  classification: string,
+  term?: EmploymentTerm
+): number {
   const nonWorking = ["חופש", "חג", "שבת", "סופ\"ש", "סופשבוע"].includes(classification);
   if (nonWorking) return 0;
   
   const date = new Date(`${dateIso}T00:00:00`);
   const dow = date.getDay(); // 0 = Sunday, 4 = Thursday, 5 = Friday, 6 = Saturday
-  
   if (dow === 5 || dow === 6) return 0; // Friday / Saturday
-  return dow === 4 ? 8.5 : 9.0; // Thursday = 8.5, Sun-Wed = 9.0
+
+  // If term is hourly with 0 standard hours, daily standard is 0
+  if (term?.employmentType === "hourly" && term.dailyStandardSunWed === 0) {
+    return 0;
+  }
+
+  const baseSunWed = term?.dailyStandardSunWed ?? 9.0;
+  const baseThu = term?.dailyStandardThu ?? 8.5;
+  const scopeRatio = (term?.jobScopePct ?? 100) / 100;
+
+  const rawStandard = dow === 4 ? baseThu : baseSunWed;
+  return Math.round(rawStandard * scopeRatio * 100) / 100;
 }
 
 interface RawReport {
@@ -54,7 +68,8 @@ export function deriveDayRecord(
   raw: RawReport,
   annualVacationQuota: number,
   ytdVacationUsedUpToDate: number,
-  monthIndex: number // 1-12
+  monthIndex: number, // 1-12
+  term?: EmploymentTerm
 ): DayRecord {
   const entry = raw.entry ?? "";
   const exit = raw.exit ?? "";
@@ -64,8 +79,13 @@ export function deriveDayRecord(
   const totalHoursDecimal = Math.max(0, Math.round((exitDec - entryDec) * 100) / 100);
   const totalHours = totalHoursDecimal > 0 ? decimalToHhmm(totalHoursDecimal) : "";
   
-  const dailyStandard = calculateDailyStandard(raw.date, raw.classification);
-  const overtimeDecimal = Math.max(0, Math.round((totalHoursDecimal - dailyStandard) * 100) / 100);
+  const dailyStandard = calculateDailyStandard(raw.date, raw.classification, term);
+  
+  // Overtime eligibility: if false (e.g. global contract with no daily overtime), overtime is 0
+  const isOvertimeEligible = term ? term.overtimeEligible : true;
+  const overtimeDecimal = isOvertimeEligible
+    ? Math.max(0, Math.round((totalHoursDecimal - dailyStandard) * 100) / 100)
+    : 0;
   
   const date = new Date(`${raw.date}T00:00:00`);
   const dayName = HEBREW_DAYS[date.getDay()];

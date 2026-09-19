@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSWRConfig } from "swr";
-import { useSettings } from "@/lib/client";
-import { HEBREW_MONTHS, HEBREW_DAYS } from "@/lib/types";
-import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon } from "./Icons";
+import { useSettings, useEmploymentTerms } from "@/lib/client";
+import { HEBREW_MONTHS, HEBREW_DAYS, EmploymentTerm, EmploymentType } from "@/lib/types";
+import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon, BriefcaseIcon, PencilIcon, TrashIcon, PlusIcon, XIcon } from "./Icons";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import * as XLSX from "xlsx";
 import {
@@ -71,6 +71,147 @@ export default function SettingsScreen() {
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // Employment Terms State
+  const { data: termsResponse, mutate: mutateTerms } = useEmploymentTerms();
+  const termsList = termsResponse?.terms ?? [];
+  const [termModalOpen, setTermModalOpen] = useState(false);
+  const [editingTermId, setEditingTermId] = useState<string | undefined>(undefined);
+  const [termName, setTermName] = useState("חודשי עם שעות נוספות");
+  const [termType, setTermType] = useState<EmploymentType>("monthly_overtime");
+  const [termStartDate, setTermStartDate] = useState("");
+  const [termEndDate, setTermEndDate] = useState("");
+  const [termJobScope, setTermJobScope] = useState("100");
+  const [termSunWed, setTermSunWed] = useState("9.0");
+  const [termThu, setTermThu] = useState("8.5");
+  const [termOvertime, setTermOvertime] = useState(true);
+  const [termNotes, setTermNotes] = useState("");
+  const [termSaving, setTermSaving] = useState(false);
+  const [termError, setTermError] = useState<string | null>(null);
+
+  const applyPreset = (preset: "monthly" | "global" | "hourly" | "parent" | "half") => {
+    if (preset === "monthly") {
+      setTermName("חודשי עם שעות נוספות");
+      setTermType("monthly_overtime");
+      setTermJobScope("100");
+      setTermSunWed("9.0");
+      setTermThu("8.5");
+      setTermOvertime(true);
+    } else if (preset === "global") {
+      setTermName("שכר גלובלי (ללא שעות נוספות יומיות)");
+      setTermType("global");
+      setTermJobScope("100");
+      setTermSunWed("9.0");
+      setTermThu("8.5");
+      setTermOvertime(false);
+    } else if (preset === "hourly") {
+      setTermName("עובד שעתי (שכר לפי ביצוע בפועל)");
+      setTermType("hourly");
+      setTermJobScope("100");
+      setTermSunWed("0");
+      setTermThu("0");
+      setTermOvertime(true);
+    } else if (preset === "parent") {
+      setTermName("משרת הורה / מקוצרת");
+      setTermType("monthly_overtime");
+      setTermJobScope("100");
+      setTermSunWed("8.0");
+      setTermThu("7.5");
+      setTermOvertime(true);
+    } else if (preset === "half") {
+      setTermName("חצי משרה (50%)");
+      setTermType("monthly_overtime");
+      setTermJobScope("50");
+      setTermSunWed("4.5");
+      setTermThu("4.25");
+      setTermOvertime(true);
+    }
+  };
+
+  const openNewTermModal = () => {
+    setEditingTermId(undefined);
+    applyPreset("monthly");
+    const today = new Date().toISOString().slice(0, 10);
+    setTermStartDate(today);
+    setTermEndDate("");
+    setTermNotes("");
+    setTermError(null);
+    setTermModalOpen(true);
+  };
+
+  const openEditTermModal = (term: EmploymentTerm) => {
+    setEditingTermId(term.id);
+    setTermName(term.name);
+    setTermType(term.employmentType);
+    setTermStartDate(term.startDate);
+    setTermEndDate(term.endDate || "");
+    setTermJobScope(String(term.jobScopePct));
+    setTermSunWed(String(term.dailyStandardSunWed));
+    setTermThu(String(term.dailyStandardThu));
+    setTermOvertime(term.overtimeEligible);
+    setTermNotes(term.notes || "");
+    setTermError(null);
+    setTermModalOpen(true);
+  };
+
+  const handleSaveTerm = async () => {
+    if (!termStartDate) {
+      setTermError("נא להזין תאריך תחילה לתקופת ההעסקה");
+      return;
+    }
+    if (termEndDate && termEndDate < termStartDate) {
+      setTermError("תאריך הסיום אינו יכול להיות לפני תאריך ההתחלה");
+      return;
+    }
+    setTermSaving(true);
+    setTermError(null);
+    try {
+      const res = await fetch("/api/employment-terms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingTermId,
+          name: termName,
+          employmentType: termType,
+          startDate: termStartDate,
+          endDate: termEndDate || null,
+          jobScopePct: parseFloat(termJobScope) || 100,
+          dailyStandardSunWed: parseFloat(termSunWed) || 9.0,
+          dailyStandardThu: parseFloat(termThu) || 8.5,
+          overtimeEligible: termOvertime,
+          notes: termNotes,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "שגיאה בשמירת תנאי ההעסקה");
+      await mutateTerms();
+      await mutate((k) => typeof k === "string" && k.startsWith("/api/reports"));
+      setTermModalOpen(false);
+    } catch (e: any) {
+      setTermError(e.message || "שגיאה בשמירה");
+    } finally {
+      setTermSaving(false);
+    }
+  };
+
+  const handleDeleteTerm = async (id?: string) => {
+    if (!id || id === "default") {
+      alert("לא ניתן למחוק את תנאי ברירת המחדל הבסיסיים");
+      return;
+    }
+    if (!confirm("האם אתה בטוח שברצונך למחוק תקופת העסקה זו?")) return;
+    try {
+      const res = await fetch(`/api/employment-terms?id=${id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "שגיאה במחיקה");
+      await mutateTerms();
+      await mutate((k) => typeof k === "string" && k.startsWith("/api/reports"));
+    } catch (e: any) {
+      alert(e.message || "שגיאה במחיקת התקופה");
+    }
+  };
 
   useEffect(() => {
     if (data) {
@@ -541,6 +682,128 @@ export default function SettingsScreen() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-12">
+      {/* Employment Terms & History Card */}
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+              <BriefcaseIcon className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">תנאי העסקה והיסטוריית חוזים</h2>
+              <p className="text-xs text-slate-500">
+                הגדרת תקופות שונות (חודשי, גלובלי, שעתי, משרה חלקית). כל תקופה קובעת את התקן של חודשיה.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={openNewTermModal}
+            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
+          >
+            <PlusIcon className="h-3.5 w-3.5" />
+            הוספת תקופת העסקה
+          </button>
+        </div>
+
+        {/* List / Table of Terms */}
+        <div className="overflow-hidden rounded-xl border border-slate-100">
+          <table className="w-full text-sm text-right">
+            <thead>
+              <tr className="bg-slate-50/80 text-xs font-semibold text-slate-500 border-b border-slate-100">
+                <th className="px-3 py-2.5">תקופה ותנאים</th>
+                <th className="px-3 py-2.5">תוקף</th>
+                <th className="px-3 py-2.5 text-center">היקף משרה</th>
+                <th className="px-3 py-2.5 text-center">תקן יומי (א'-ד' / ה')</th>
+                <th className="px-3 py-2.5 text-center">ש"נ</th>
+                <th className="px-3 py-2.5 text-center">פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {termsList.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-xs text-slate-400">
+                    לא הוגדרו תקופות. המערכת משתמשת בתנאי ברירת מחדל (חודשי עם שעות נוספות).
+                  </td>
+                </tr>
+              ) : (
+                termsList.map((t, idx) => {
+                  const typeLabel =
+                    t.employmentType === "global"
+                      ? "גלובלי"
+                      : t.employmentType === "hourly"
+                      ? "שעתי"
+                      : t.employmentType === "custom"
+                      ? "מותאם אישית"
+                      : "חודשי (עם נוספות)";
+                  const typeBadgeCls =
+                    t.employmentType === "global"
+                      ? "bg-purple-50 text-purple-700 border-purple-200"
+                      : t.employmentType === "hourly"
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : "bg-indigo-50 text-indigo-700 border-indigo-200";
+
+                  const formatDisplayDate = (d?: string | null) => {
+                    if (!d) return "ההווה";
+                    const [y, m, day] = d.split("-");
+                    return `${day}/${m}/${y}`;
+                  };
+
+                  return (
+                    <tr key={t.id || idx} className="border-b border-slate-50 hover:bg-slate-50/50">
+                      <td className="px-3 py-2.5">
+                        <div className="font-semibold text-slate-800">{t.name}</div>
+                        <span className={`inline-block mt-0.5 rounded border px-1.5 py-0.2 text-[10px] font-medium ${typeBadgeCls}`}>
+                          {typeLabel}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-slate-600">
+                        {formatDisplayDate(t.startDate)} — {formatDisplayDate(t.endDate)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-xs font-semibold text-slate-700">
+                        {t.jobScopePct}%
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-xs text-slate-700">
+                        {t.dailyStandardSunWed}ש' / {t.dailyStandardThu}ש'
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-xs">
+                        {t.overtimeEligible ? (
+                          <span className="text-emerald-600 font-medium">כן</span>
+                        ) : (
+                          <span className="text-slate-400">לא</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditTermModal(t)}
+                            title="עריכת תקופה"
+                            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-brand-600 transition"
+                          >
+                            <PencilIcon className="h-3.5 w-3.5" />
+                          </button>
+                          {termsList.length > 1 && t.id && t.id !== "default" && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTerm(t.id)}
+                              title="מחיקת תקופה"
+                              className="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                            >
+                              <TrashIcon className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {/* Vacation settings */}
       <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
         <div className="mb-4 flex items-center gap-2">
@@ -1160,6 +1423,209 @@ export default function SettingsScreen() {
             )}
           </div>
         </section>
+      )}
+
+      {/* Employment Term Add / Edit Modal */}
+      {termModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-right">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <h3 className="text-base font-bold text-slate-800">
+                {editingTermId ? "עריכת תקופת העסקה" : "הוספת תקופת העסקה חדשה"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setTermModalOpen(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {termError && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {termError}
+              </div>
+            )}
+
+            {/* Presets buttons */}
+            <div className="mb-4">
+              <label className="mb-1.5 block text-xs font-medium text-slate-500">תבניות מוכנות מראש:</label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => applyPreset("monthly")}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                >
+                  💼 חודשי (עם שעות נוספות)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("global")}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                >
+                  🌐 גלובלי
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("hourly")}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                >
+                  ⏱️ שעתי
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("parent")}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                >
+                  👶 משרת הורה (8 שעות)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("half")}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                >
+                  ½ חצי משרה (50%)
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3.5">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">שם התקופה / תיאור</label>
+                <input
+                  type="text"
+                  value={termName}
+                  onChange={(e) => setTermName(e.target.value)}
+                  placeholder="למשל: משרה מלאה, שכר גלובלי"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">מתאריך (תחילת תוקף)</label>
+                  <input
+                    type="date"
+                    value={termStartDate}
+                    onChange={(e) => setTermStartDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                    עד תאריך <span className="text-slate-400 font-normal">(השאר ריק להווה)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={termEndDate}
+                    onChange={(e) => setTermEndDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">סוג העסקה</label>
+                  <select
+                    value={termType}
+                    onChange={(e) => setTermType(e.target.value as EmploymentType)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold outline-none focus:border-brand-500"
+                  >
+                    <option value="monthly_overtime">חודשי (עם נוספות)</option>
+                    <option value="global">גלובלי</option>
+                    <option value="hourly">שעתי</option>
+                    <option value="custom">מותאם אישית</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">היקף משרה (%)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    step={1}
+                    value={termJobScope}
+                    onChange={(e) => setTermJobScope(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">שעות א'-ד'</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={24}
+                    step={0.5}
+                    value={termSunWed}
+                    onChange={(e) => setTermSunWed(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 items-center pt-1">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">שעות יום ה'</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={24}
+                    step={0.5}
+                    value={termThu}
+                    onChange={(e) => setTermThu(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-4">
+                  <input
+                    type="checkbox"
+                    id="termOvertimeEligible"
+                    checked={termOvertime}
+                    onChange={(e) => setTermOvertime(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                  />
+                  <label htmlFor="termOvertimeEligible" className="text-xs font-medium text-slate-700 cursor-pointer">
+                    זכאי לשעות נוספות יומיות
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">הערות</label>
+                <input
+                  type="text"
+                  value={termNotes}
+                  onChange={(e) => setTermNotes(e.target.value)}
+                  placeholder="הערות או פירוט לחוזה זה"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setTermModalOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                disabled={termSaving}
+                onClick={handleSaveTerm}
+                className="rounded-xl bg-brand-600 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-brand-700 transition disabled:opacity-50"
+              >
+                {termSaving ? "שומר..." : "שמור תנאי העסקה"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
