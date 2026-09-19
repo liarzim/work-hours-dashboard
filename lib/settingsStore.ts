@@ -83,6 +83,45 @@ export function saveHolidays(list: HolidaySetting[]): void {
   localStorage.setItem("work-hours-holidays", JSON.stringify(list));
 }
 
+export function getHolidayForDate(dateIso: string): HolidaySetting | undefined {
+  const holidays = getHolidays();
+  return holidays.find((h) => h.date === dateIso);
+}
+
+export async function syncHolidaysFromHebcal(
+  year: number,
+  mode: "work" | "all" = "work"
+): Promise<{ count: number; added: number; holidays: HolidaySetting[] }> {
+  const res = await fetch(`/api/holidays?year=${year}&mode=${mode}`);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "שגיאה בסנכרון חגים מ-Hebcal");
+
+  const fetched: HolidaySetting[] = json.holidays || [];
+  const current = getHolidays();
+  const dateMap = new Map<string, HolidaySetting>();
+
+  for (const h of current) {
+    dateMap.set(h.date, h);
+  }
+
+  let added = 0;
+  for (const h of fetched) {
+    if (!dateMap.has(h.date)) {
+      added++;
+    }
+    dateMap.set(h.date, h);
+  }
+
+  const merged = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  saveHolidays(merged);
+
+  return {
+    count: fetched.length,
+    added,
+    holidays: merged,
+  };
+}
+
 export const DEFAULT_HOLIDAY_NAMES = [
   "ערב פסח",
   "פסח א'",

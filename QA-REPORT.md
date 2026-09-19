@@ -60,3 +60,31 @@ Feature request to allow users to configure diverse employment models with histo
 - **TypeScript Static Verification**: Ran `node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json` — 0 errors.
 - **Documentation Generation**: Ran `npm run docs` — generated 48 files, 269 KB in `docs/CODE.md`.
 - **Security & Multi-Tenancy**: RLS policies and server-side authentication guarantee zero cross-tenant data access.
+
+## Addendum — 2026-09-19 (Hebcal Israeli Holidays Integration)
+
+### 1. What Changed
+Implemented automatic integration with Israeli Jewish holidays via the Hebcal API to sync holidays, Erev Chag, and Chol HaMoed directly into the application without manual entry:
+- **API Endpoint (`app/api/holidays/route.ts`)**:
+  - Integrated Hebcal Jewish Calendar API (`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&year=${year}&i=on&lg=he`).
+  - Added support for query params `?year=YYYY`, `?startYear=YYYY&endYear=YYYY`, and `?mode=work|all`.
+  - Added clean Hebrew text sanitization (removing Gregorian/Hebrew year suffixes like "תשפ״ו", replacing straight quotes with Hebrew gershayim, mapping Erev Chag, Chag, and Chol HaMoed accurately).
+  - Added 24-hour server-side in-memory caching to eliminate redundant external calls.
+- **Client Storage & Sync (`lib/settingsStore.ts`)**:
+  - Added `getHolidayForDate(dateIso: string): HolidaySetting | undefined`.
+  - Added `syncHolidaysFromHebcal(year: number, mode?: "work" | "all")` which merges fetched holidays with local entries by date, preserves custom user entries, saves to `localStorage`, and reports the number of added holidays.
+- **Settings Screen (`components/SettingsScreen.tsx`)**:
+  - Added interactive sync toolbar with **"סנכרן מ-Hebcal (YYYY)"** and **"סנכרון רב-שנתי (5 שנים)"** buttons.
+  - Added live spinner and visual feedback messages for successful sync or errors.
+- **Report Modal (`components/ReportModal.tsx`)**:
+  - Enhanced report modal to automatically look up `getHolidayForDate(date)`.
+  - Displays a dedicated badge banner showing the holiday name and category (e.g. `🗓️ מועד מוגדר: ערב פסח (ערב חג)`).
+  - Automatically prefills classification (`ערב חג` / `חג`) and notes with the holiday name for new reports.
+
+### 2. Root Cause
+Feature request for automatic Israeli holidays integration via Hebcal API: "אינטגרציה אוטומטית לחגי ישראל (Hebcal API): סנכרון אוטומטי של ערבי חג וחגים ישירות ללוח השנה ללא צורך בהזנה ידנית."
+
+### 3. Verification Details
+- **Hebcal API Live Verification**: Verified API returns accurate Israeli schedule dates (e.g. 2026 Pesach 7 days, Shavuot 1 day, Yom HaAtzmaut, Rosh Hashana).
+- **TypeScript Static Verification**: `node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json` passed with 0 errors.
+- **Documentation**: Generated `docs/CODE.md` with `npm run docs`.

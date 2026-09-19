@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState, useMemo } from "react";
 import { DayRecord, ReportInput } from "@/lib/types";
 import { SaveIcon, XIcon } from "./Icons";
-import { getClassifications, getOrderTypes, getHolidays } from "@/lib/settingsStore";
+import { getClassifications, getOrderTypes, getHolidays, getHolidayForDate, HolidaySetting } from "@/lib/settingsStore";
 import { isoToDdmmyyyy } from "@/lib/date";
 
 interface Props {
@@ -99,16 +99,16 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
   const classificationsList = useMemo(() => getClassifications(), []);
   const orderTypesList = useMemo(() => getOrderTypes(), []);
 
+  // Auto-detect holiday for current date
+  const holidayInfo = useMemo(() => (date ? getHolidayForDate(date) : undefined), [date]);
+
   // Auto-detect holiday dates when date changes (for new reports only)
   useEffect(() => {
-    if (!record && date) {
-      const holidaysList = getHolidays();
-      const match = holidaysList.find((h) => h.date === date);
-      if (match) {
-        setClassification(match.category);
-      }
+    if (!record && holidayInfo) {
+      setClassification(holidayInfo.category);
+      setNotes((prev) => (prev ? prev : holidayInfo.name));
     }
-  }, [date, record]);
+  }, [date, record, holidayInfo]);
 
   // Close on Escape.
   useEffect(() => {
@@ -168,6 +168,21 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
+          {holidayInfo && (
+            <div className="flex items-center gap-2 rounded-xl bg-purple-50 border border-purple-200 px-3.5 py-2.5 text-xs text-purple-900">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-purple-200/70 text-[11px]">
+                🗓️
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-bold">מועד מוגדר:</span>
+                <span className="font-semibold text-purple-800">{holidayInfo.name}</span>
+                <span className="rounded-md bg-purple-200/60 px-1.5 py-0.5 text-[10px] font-bold text-purple-800">
+                  {holidayInfo.category}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Date + classification */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
