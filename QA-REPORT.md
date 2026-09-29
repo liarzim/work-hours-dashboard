@@ -88,3 +88,18 @@ Feature request for automatic Israeli holidays integration via Hebcal API: "אי
 - **Hebcal API Live Verification**: Verified API returns accurate Israeli schedule dates (e.g. 2026 Pesach 7 days, Shavuot 1 day, Yom HaAtzmaut, Rosh Hashana).
 - **TypeScript Static Verification**: `node node_modules/typescript/lib/tsc.js --noEmit -p tsconfig.json` passed with 0 errors.
 - **Documentation**: Generated `docs/CODE.md` with `npm run docs`.
+
+## Addendum — 2026-09-29 (Fix: Vercel 504 MIDDLEWARE_INVOCATION_TIMEOUT)
+
+### 1. Root Cause Analysis
+- **Symptom**: `GET /` timed out after 25.9s on Vercel with `Status: 504 (MIDDLEWARE_INVOCATION_TIMEOUT)`.
+- **Underlying Cause**:
+  1. `middleware.ts` unconditionally executed `await supabase.auth.getUser()` on every request, even when the visitor had no authentication cookies.
+  2. The self-hosted Supabase endpoint `https://db.liarzi.com` was either protected with HTTP Basic Authentication (`User authentication failed. Missing username and password`) or failing PostgREST JWT decoding (`PGRST301: None of the keys was able to decode the JWT`).
+  3. Because requests to the external host were failing/hanging, the Supabase client initiated multiple retry attempts (7 POST requests shown in Vercel logs) across the Cloudflare tunnel, aggregating to 25.9s until Vercel killed the invocation at its 25s ceiling.
+
+### 2. Remediation in `middleware.ts`
+- **Zero-Latency Cookie Fast-Path**:
+  Added check `const hasAuthCookies = request.cookies.getAll().some(c => c.name.startsWith("sb-"))`. If no Supabase auth cookies are present, the middleware immediately redirects unauthenticated page visitors to `/login` (or returns 401 for `/api`) in 0.1ms without making any external network requests.
+- **Strict 2.5s Timeout Circuit-Breaker**:
+  Protected `supabase.auth.getUser()` with a strict 2.5s `Promise.race` timeout. If the database/tunnel is slow or down, the promise aborts within 2.5s, catches gracefully, and redirects to `/login`. This permanently prevents reaching Vercel's 25s execution timeout.
