@@ -49,17 +49,30 @@ function parseCellTime(val: any): string {
   return padTime(String(val));
 }
 
+function cleanQuotes(val: any): string {
+  if (val === null || val === undefined) return "";
+  let s = String(val).trim();
+  s = s.replace(/""/g, '"');
+  s = s.replace(/^["']|["']$/g, "").trim();
+  return s;
+}
+
 function parseCellDate(val: any): string {
   if (val === null || val === undefined || val === "") return "";
   if (typeof val === "number" && val > 1000) {
-    // Excel serial date (days since 1900-01-01, with leap year offset)
-    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
-    if (!isNaN(d.getTime())) {
-      return d.toISOString().slice(0, 10);
-    }
+    // Excel serial date (days since 1899-12-30) - compute using UTC day slots to prevent timezone slippage
+    const utcDays = Math.floor(val - 25569);
+    const d = new Date(utcDays * 86400 * 1000);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
   }
   if (val instanceof Date && !isNaN(val.getTime())) {
-    return val.toISOString().slice(0, 10);
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, "0");
+    const d = String(val.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
   const s = String(val).trim();
   if (isValidIsoDate(s)) return s;
@@ -69,14 +82,14 @@ function parseCellDate(val: any): string {
 }
 
 function sanitizeCsvField(val: string): string {
-  let s = val.trim();
+  let s = cleanQuotes(val);
   if (/^[=+\-@\t\r]/.test(s)) {
     s = "'" + s;
   }
   return s;
 }
 
-const norm = (s: any) => String(s || "").trim().toLowerCase().replace(/["'_ \t\r\n]/g, "");
+const norm = (s: any) => String(s || "").trim().toLowerCase().replace(/["'_ \t\r\n\ufeff]/g, "");
 
 /**
  * POST /api/import — upload historic CSV or Excel data
@@ -125,10 +138,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fallback: CSV text splitting
+    // Fallback: CSV text splitting with XLSX
     if (rawRows.length === 0) {
-      const lines = rawBody.split(/\r?\n/);
-      rawRows = lines.map((l) => parseCsvLine(l));
+      try {
+        const XLSX = require("xlsx");
+        const workbook = XLSX.read(rawBody, { type: "string", raw: true });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+      } catch {
+        const lines = rawBody.split(/\r?\n/);
+        rawRows = lines.map((l) => parseCsvLine(l));
+      }
     }
 
     // Filter out completely blank lines
@@ -239,11 +259,46 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      const dateObj = new Date(`${date}T00:00:00`);
+      const dow = dateObj.getDay();
+
       const entryClean = parseCellTime(entryRaw);
       const exitClean = parseCellTime(exitRaw);
-      const classificationClean = classificationRaw ? sanitizeCsvField(String(classificationRaw)) : "עבודה";
-      const notesClean = notesRaw ? sanitizeCsvField(String(notesRaw).substring(0, 500)) : null;
-      const uniqueNotesClean = uniqueNotesRaw ? sanitizeCsvField(String(uniqueNotesRaw).substring(0, 500)) : null;
+
+      let classificationClean = cleanQuotes(classificationRaw);
+      if (!classificationClean) {
+        if (dow === 5 || dow === 6) {
+          classificationClean = 'סופ"ש';
+        } else {
+          classificationClean = "עבודה";
+        }
+      } else if (classificationClean === "חופשה" || classificationClean === "חופש") {
+        classificationClean = "חופש";
+      } else if (
+        classificationClean === 'סופ"ש' ||
+        classificationClean === 'סופ""ש' ||
+        classificationClean === "סופש" ||
+        classificationClean === "סופשבוע" ||
+        classificationClean.includes("סופ")
+      ) {
+        classificationClean = 'סופ"ש';
+      } else if (classificationClean.includes("עבודה במילואים")) {
+        classificationClean = "עבודה במילואים";
+      } else if (classificationClean.includes("מילואים")) {
+        classificationClean = "מילואים";
+      } else if (classificationClean.includes("מחלה")) {
+        classificationClean = "מחלה";
+      } else if (classificationClean === "ערב חג" || classificationClean.includes("ערב חג")) {
+        classificationClean = "ערב חג";
+      } else if (classificationClean === "חג" || classificationClean.includes("חג")) {
+        classificationClean = "חג";
+      } else if (classificationClean.includes("חול המועד")) {
+        classificationClean = "חול המועד";
+      }
+
+      classificationClean = sanitizeCsvField(classificationClean);
+      const notesClean = notesRaw ? sanitizeCsvField(cleanQuotes(notesRaw).substring(0, 500)) : null;
+      const uniqueNotesClean = uniqueNotesRaw ? sanitizeCsvField(cleanQuotes(uniqueNotesRaw).substring(0, 500)) : null;
 
       const isReserveImport =
         classificationClean === "מילואים" ||
@@ -251,7 +306,7 @@ export async function POST(req: NextRequest) {
         reserveDays > 0;
 
       const orderTypeClean = orderTypeRaw
-        ? String(orderTypeRaw).trim()
+        ? cleanQuotes(orderTypeRaw)
         : isReserveImport
         ? /צו\s*8/.test(notesClean ?? "")
           ? "צו 8"

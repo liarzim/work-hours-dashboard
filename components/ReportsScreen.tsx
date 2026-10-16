@@ -28,7 +28,10 @@ const CLASS_STYLES: Record<string, string> = {
 };
 
 function classChip(c: string) {
-  return CLASS_STYLES[c] ?? "bg-slate-100 text-slate-600";
+  const normC = (c || "").replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+  if (normC === "חופשה") return CLASS_STYLES["חופש"];
+  if (normC === 'סופ"ש' || normC === "סופש" || normC.includes("סופ")) return CLASS_STYLES['סופ"ש'];
+  return CLASS_STYLES[normC] ?? "bg-slate-100 text-slate-600";
 }
 
 export default function ReportsScreen({ data, year, month, onYear, onMonth, onEdit, onBulkUpdate }: Props) {
@@ -197,7 +200,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                     <td className="px-4 py-2.5 text-center">
                       {r.classification && (
                         <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${classChip(r.classification)}`}>
-                          {r.classification}
+                          {r.classification.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim()}
                         </span>
                       )}
                     </td>
