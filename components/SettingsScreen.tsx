@@ -784,7 +784,7 @@ export default function SettingsScreen() {
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error ?? "ייבוא נכשל");
 
-        setImportMessage(`הייבוא הושלם בהצלחה! נקלטו ${json.count} רשומות.`);
+        setImportMessage(`הייבוא הושלם בהצלחה! נקלטו ${json.count || json.imported} רשומות (כולל הערות ייחודיות).`);
         await mutate((key) => typeof key === "string" && key.startsWith("/api/reports"));
       } catch (err) {
         setImportError(err instanceof Error ? err.message : "שגיאה בייבוא הנתונים");
@@ -806,10 +806,10 @@ export default function SettingsScreen() {
   }
 
   // CSV template generation (\uFEFF adds BOM so Excel opens Hebrew correctly)
-  const csvTemplate = "תאריך,כניסה,יציאה,סיווג,חופש,מחלה,מילואים,הערות\n" +
-    "01/07/2026,07:30,16:30,עבודה,0,0,0,יום עבודה רגיל\n" +
-    "02/07/2026,,,חופש,1,0,0,יום חופש שנתי\n" +
-    "03/07/2026,,,מילואים,0,0,1,צו 8 פעילות מבצעית\n";
+  const csvTemplate = "תאריך,כניסה,יציאה,סיווג,חופש,מחלה,מילואים,הערות,הערות ייחודיות\n" +
+    "01/07/2026,07:30,16:30,עבודה,0,0,0,יום עבודה רגיל,משרד ראשי\n" +
+    "02/07/2026,,,חופש,1,0,0,יום חופש שנתי,חופשה משפחתית\n" +
+    "03/07/2026,,,מילואים,0,0,1,צו 8 פעילות מבצעית,אימון גדודי\n";
   const csvTemplateUrl = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(csvTemplate);
 
   if (isLoading && !data) {
@@ -1539,7 +1539,7 @@ export default function SettingsScreen() {
           <h2 className="text-sm font-bold text-slate-800">ייבוא היסטוריית דיווחים (Excel / CSV)</h2>
         </div>
         <p className="mb-4 text-xs text-slate-500 leading-relaxed">
-          תוכל להעלות קובץ CSV כדי לייבא את כל דיווח השעות ההיסטורי שלך. המערכת מזהה אוטומטית הן את תבנית הייבוא הרגילה והן את הגיליון הישן בעל 31 העמודות.
+          תוכל להעלות קובץ CSV או Excel כדי לייבא את כל דיווח השעות ההיסטורי שלך. המערכת מזהה אוטומטית כותרות עמודות (תאריך, כניסה, יציאה, סיווג, חופש, מחלה, מילואים, הערות, הערות ייחודיות) וכן את הגיליון הישן.
         </p>
         
         <div className="flex flex-col gap-4">
