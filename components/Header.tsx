@@ -65,12 +65,12 @@ export default function Header({
 
         {/* Tabs (center) */}
         <nav className="order-3 mx-auto flex w-full justify-center sm:order-none sm:w-auto">
-          <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+          <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 w-full sm:w-auto justify-around sm:justify-start">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 onClick={() => onTab(t.id)}
-                className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition ${
+                className={`flex items-center justify-center gap-1.5 rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition flex-1 sm:flex-initial ${
                   tab === t.id
                     ? "bg-white text-brand-700 shadow-sm ring-1 ring-slate-200"
                     : "text-slate-500 hover:text-slate-700"
@@ -84,12 +84,12 @@ export default function Header({
         </nav>
 
         {/* Month nav + action (left side in RTL) */}
-        <div className="ms-auto flex items-center gap-2">
+        <div className="ms-auto flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap justify-end">
           <div className="flex items-center rounded-xl border border-slate-200 bg-white">
             <button
               onClick={onNextMonth}
               aria-label="חודש הבא"
-              className="p-2 text-slate-500 hover:text-slate-800"
+              className="p-1.5 sm:p-2 text-slate-500 hover:text-slate-800"
             >
               <ChevronRight />
             </button>
@@ -97,7 +97,7 @@ export default function Header({
             <button
               onClick={onPrevMonth}
               aria-label="חודש קודם"
-              className="p-2 text-slate-500 hover:text-slate-800"
+              className="p-1.5 sm:p-2 text-slate-500 hover:text-slate-800"
             >
               <ChevronLeft />
             </button>
@@ -107,7 +107,7 @@ export default function Header({
             disabled={syncing}
             title="רענן נתונים"
             aria-label="רענן נתונים"
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:text-brand-600 disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 text-slate-500 transition hover:text-brand-600 disabled:opacity-60"
           >
             <RefreshIcon className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
           </button>
@@ -120,17 +120,17 @@ export default function Header({
             }}
             title="התנתק"
             aria-label="התנתק"
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:text-red-600"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 text-slate-500 transition hover:text-red-600"
           >
             <LogOutIcon className="h-4 w-4" />
           </button>
 
           <button
             onClick={onNewReport}
-            className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+            className="flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 whitespace-nowrap"
           >
             <PlusIcon className="h-4 w-4" />
-            דיווח חדש
+            <span>דיווח חדש</span>
           </button>
         </div>
       </div>

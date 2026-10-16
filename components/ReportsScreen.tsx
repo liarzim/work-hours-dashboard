@@ -92,18 +92,18 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
   return (
     <div className="space-y-4">
       {/* Filters bar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-card">
-        <select value={year} onChange={(e) => onYear(parseInt(e.target.value, 10))} className={selectCls} aria-label="שנה">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-4 shadow-card">
+        <select value={year} onChange={(e) => onYear(parseInt(e.target.value, 10))} className={`${selectCls} flex-1 sm:flex-initial min-w-[85px]`} aria-label="שנה">
           {yearOptions.map((y) => (
             <option key={y} value={y}>{y}</option>
           ))}
         </select>
-        <select value={month} onChange={(e) => onMonth(parseInt(e.target.value, 10))} className={selectCls} aria-label="חודש">
+        <select value={month} onChange={(e) => onMonth(parseInt(e.target.value, 10))} className={`${selectCls} flex-1 sm:flex-initial min-w-[95px]`} aria-label="חודש">
           {HEBREW_MONTHS.map((name, i) => (
             <option key={name} value={i + 1}>{name}</option>
           ))}
         </select>
-        <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className={selectCls} aria-label="סיווג">
+        <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className={`${selectCls} flex-1 sm:flex-initial min-w-[95px]`} aria-label="סיווג">
           {classifications.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
@@ -112,7 +112,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="חיפוש בהערות / תאריך..."
-          className="ms-auto w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          className="w-full sm:w-auto sm:max-w-xs sm:ms-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />
       </div>
 

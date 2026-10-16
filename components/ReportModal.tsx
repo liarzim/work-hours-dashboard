@@ -156,9 +156,9 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 sm:px-6 py-4 shrink-0">
           <h2 className="text-base font-bold text-slate-900">
             {record ? "עריכת דיווח" : "דיווח חדש"}
           </h2>
@@ -167,7 +167,7 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
+        <form onSubmit={handleSubmit} className="space-y-5 px-4 sm:px-6 py-5 overflow-y-auto flex-1">
           {holidayInfo && (
             <div className="flex items-center gap-2 rounded-xl bg-purple-50 border border-purple-200 px-3.5 py-2.5 text-xs text-purple-900">
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-purple-200/70 text-[11px]">

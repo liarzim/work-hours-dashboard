@@ -846,9 +846,97 @@ export default function SettingsScreen() {
           </button>
         </div>
 
-        {/* List / Table of Terms */}
-        <div className="overflow-hidden rounded-xl border border-slate-100">
-          <table className="w-full text-sm text-right">
+        {/* Mobile Cards View for Employment Terms */}
+        <div className="block md:hidden space-y-3">
+          {termsList.length === 0 ? (
+            <div className="px-4 py-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+              לא הוגדרו תקופות. המערכת משתמשת בתנאי ברירת מחדל (חודשי עם שעות נוספות).
+            </div>
+          ) : (
+            termsList.map((t, idx) => {
+              const typeLabel =
+                t.employmentType === "global"
+                  ? "גלובלי"
+                  : t.employmentType === "hourly"
+                  ? "שעתי"
+                  : t.employmentType === "custom"
+                  ? "מותאם אישית"
+                  : "חודשי (עם נוספות)";
+              const typeBadgeCls =
+                t.employmentType === "global"
+                  ? "bg-purple-50 text-purple-700 border-purple-200"
+                  : t.employmentType === "hourly"
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : "bg-indigo-50 text-indigo-700 border-indigo-200";
+
+              const formatDisplayDate = (d?: string | null) => {
+                if (!d) return "ההווה";
+                const [y, m, day] = d.split("-");
+                return `${day}/${m}/${y}`;
+              };
+
+              return (
+                <div key={t.id || idx} className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-slate-800 text-sm">{t.name}</div>
+                      <span className={`inline-block mt-1 rounded border px-2 py-0.5 text-[10px] font-semibold ${typeBadgeCls}`}>
+                        {typeLabel}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditTermModal(t)}
+                        title="עריכת תקופה"
+                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-brand-600 transition"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      {termsList.length > 1 && t.id && t.id !== "default" && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTerm(t.id)}
+                          title="מחיקת תקופה"
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 transition"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">תוקף:</span>
+                      <span className="font-medium text-slate-700">
+                        {formatDisplayDate(t.startDate)} — {formatDisplayDate(t.endDate)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">היקף משרה:</span>
+                      <span className="font-bold text-indigo-700">{t.jobScopePct}%</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">תקן יומי:</span>
+                      <span className="font-medium text-slate-700">{t.dailyStandardSunWed}ש' (א'-ד') / {t.dailyStandardThu}ש' (ה')</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">שעות נוספות:</span>
+                      <span className={t.overtimeEligible ? "text-emerald-600 font-bold" : "text-slate-400"}>
+                        {t.overtimeEligible ? "זכאי" : "לא זכאי"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* List / Table of Terms (Desktop & Tablet) */}
+        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-100">
+          <table className="w-full min-w-[600px] text-sm text-right">
             <thead>
               <tr className="bg-slate-50/80 text-xs font-semibold text-slate-500 border-b border-slate-100">
                 <th className="px-3 py-2.5">תקופה ותנאים</th>
@@ -998,8 +1086,8 @@ export default function SettingsScreen() {
           סימון הימים בשבוע שאינם ימי עבודה (למשל שישי ושבת). ימים אלו לא יחושבו בימי העבודה החודשיים ויוצגו כעמודה אפורה מלאה בגרף.
         </p>
 
-        <div className="overflow-hidden rounded-xl border border-slate-100">
-          <table className="w-full text-sm text-right">
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
+          <table className="w-full min-w-[320px] text-sm text-right">
             <thead>
               <tr className="bg-slate-50/80 text-xs font-semibold text-slate-500 border-b border-slate-100">
                 <th className="px-4 py-2.5">יום בשבוע</th>
@@ -1252,8 +1340,8 @@ export default function SettingsScreen() {
         </div>
 
         {/* Holidays list table */}
-        <div className="overflow-hidden rounded-xl border border-slate-100 mb-4 max-h-60 overflow-y-auto">
-          <table className="w-full text-sm text-right">
+        <div className="overflow-x-auto rounded-xl border border-slate-100 mb-4 max-h-60 overflow-y-auto">
+          <table className="w-full min-w-[380px] text-sm text-right">
             <thead>
               <tr className="bg-slate-50/80 text-xs font-semibold text-slate-500 border-b border-slate-100">
                 <th className="px-4 py-2.5">תאריך</th>
@@ -1343,7 +1431,7 @@ export default function SettingsScreen() {
           </div>
 
           {/* Premium Tab Selector */}
-          <div className="flex bg-slate-100/80 p-1 rounded-xl gap-1 self-start sm:self-auto">
+          <div className="flex bg-slate-100/80 p-1 rounded-xl gap-1 self-start sm:self-auto overflow-x-auto max-w-full">
             <button
               onClick={() => setActiveTab("classifications")}
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -1620,10 +1708,10 @@ export default function SettingsScreen() {
 
       {/* Admin User Management & Data Deletion */}
       {userEmail && userEmail.toLowerCase() === "michael.liarzi@gmail.com" && (
-        <section className="rounded-2xl border border-red-100 bg-white p-5 shadow-card">
-          <div className="mb-4 flex items-center justify-between">
+        <section className="rounded-2xl border border-red-100 bg-white p-4 sm:p-5 shadow-card">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 shrink-0">
                 <TrashIcon className="h-4 w-4" />
               </span>
               <div>
@@ -1635,7 +1723,7 @@ export default function SettingsScreen() {
               type="button"
               onClick={fetchAdminUsers}
               disabled={adminLoading}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition self-start sm:self-auto"
             >
               {adminLoading ? "מרענן..." : "רענן רשימה ⟳"}
             </button>
@@ -1652,19 +1740,19 @@ export default function SettingsScreen() {
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               מחיקת משתמש מהירה לפי כתובת אימייל:
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="email"
                 placeholder="user@example.com"
                 value={adminManualEmail}
                 onChange={(e) => setAdminManualEmail(e.target.value)}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400"
+                className="w-full flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400"
               />
               <button
                 type="button"
                 onClick={() => handleDeleteUser(adminManualEmail.trim())}
                 disabled={!adminManualEmail.trim() || adminDeleteLoading !== null}
-                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-1.5"
+                className="w-full sm:w-auto justify-center rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-1.5 shrink-0"
               >
                 <TrashIcon className="h-3.5 w-3.5" />
                 {adminDeleteLoading === adminManualEmail.trim() ? "מוחק..." : "מחק משתמש ודאטה"}
@@ -1672,9 +1760,119 @@ export default function SettingsScreen() {
             </div>
           </div>
 
-          {/* טבלת כל המשתמשים הרשומים במערכת */}
-          <div className="overflow-hidden rounded-xl border border-slate-100">
-            <table className="w-full text-sm text-right">
+          {/* תצוגת כרטיסים למובייל */}
+          <div className="block md:hidden space-y-3">
+            {adminUsers.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+                {adminLoading ? "טוען משתמשים..." : "לא נמצאו משתמשים נוספים"}
+              </div>
+            ) : (
+              adminUsers.map((u) => {
+                const isSelf = u.email?.toLowerCase() === userEmail.toLowerCase();
+                return (
+                  <div
+                    key={u.id}
+                    className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm space-y-3"
+                  >
+                    {/* שורת כותרת: אימייל ותגיות סטטוס */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-slate-800 text-sm truncate" dir="ltr">
+                          {u.email || u.id}
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {u.is_current_auth_user && (
+                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                              (החשבון המחובר כעת)
+                            </span>
+                          )}
+                          {!u.is_current_auth_user && isSelf && (
+                            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                              (חשבון כפול)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* גריד פרטים: תאריך, דיווחים, גיבוי ב-NAS, מכסת חופשה */}
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">תאריך הצטרפות:</span>
+                        <span className="font-medium text-slate-700">
+                          {u.created_at ? new Date(u.created_at).toLocaleDateString("he-IL") : "-"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">דיווחי שעות:</span>
+                        <span className={u.reports_count && u.reports_count > 0 ? "font-bold text-slate-800" : "text-slate-400 italic"}>
+                          {typeof u.reports_count === "number"
+                            ? u.reports_count > 0
+                              ? `${u.reports_count.toLocaleString("he-IL")} דיווחים`
+                              : "0 (ריק)"
+                            : "-"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">גיבוי אחרון ב-NAS:</span>
+                        {u.last_backup_at ? (
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-emerald-700">
+                              {new Date(u.last_backup_at).toLocaleDateString("he-IL")}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(u.last_backup_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic">טרם בוצע</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">מכסת חופשה:</span>
+                        <span className="font-medium text-slate-700">{u.annual_vacation_quota || 22} ימים</span>
+                      </div>
+                    </div>
+
+                    {/* כפתורי פעולות */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleBackupUser(u.id, u.email)}
+                        disabled={adminBackupLoading === u.id}
+                        title="גבה את נתוני המשתמש (שעות, פרופיל, תקנים) לקובץ SQL"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition border border-emerald-200/60 disabled:opacity-50"
+                      >
+                        <DownloadIcon className="h-3.5 w-3.5" />
+                        {adminBackupLoading === u.id ? "מגבה..." : "גבה נתונים"}
+                      </button>
+
+                      {u.is_current_auth_user ? (
+                        <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-500 italic text-center">
+                          מחובר
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(u.email || "", u.id)}
+                          disabled={adminDeleteLoading !== null}
+                          title="מחק משתמש זה (יבוצע גיבוי אוטומטי שיישמר לחצי שנה)"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-50 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition border border-red-200/60 disabled:opacity-50"
+                        >
+                          <TrashIcon className="h-3.5 w-3.5" />
+                          {adminDeleteLoading === (u.email || u.id) ? "מוחק..." : "מחק"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* טבלת כל המשתמשים הרשומים במערכת (דסקטופ וטאבלט) */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-100">
+            <table className="w-full min-w-[680px] text-sm text-right">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/75 text-xs font-semibold text-slate-500">
                   <th className="px-3.5 py-2.5">אימייל משתמש</th>
@@ -1784,9 +1982,9 @@ export default function SettingsScreen() {
 
       {/* Employment Term Add / Edit Modal */}
       {termModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-right">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-right max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3 shrink-0">
               <h3 className="text-base font-bold text-slate-800">
                 {editingTermId ? "עריכת תקופת העסקה" : "הוספת תקופת העסקה חדשה"}
               </h3>
@@ -1799,172 +1997,174 @@ export default function SettingsScreen() {
               </button>
             </div>
 
-            {termError && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {termError}
-              </div>
-            )}
+            <div className="overflow-y-auto flex-1 pr-0.5 pl-0.5 space-y-4">
+              {termError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {termError}
+                </div>
+              )}
 
-            {/* Presets buttons */}
-            <div className="mb-4">
-              <label className="mb-1.5 block text-xs font-medium text-slate-500">תבניות מוכנות מראש:</label>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => applyPreset("monthly")}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
-                >
-                  💼 חודשי (עם שעות נוספות)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset("global")}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
-                >
-                  🌐 גלובלי
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset("hourly")}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
-                >
-                  ⏱️ שעתי
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset("parent")}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
-                >
-                  👶 משרת הורה (8 שעות)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset("half")}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
-                >
-                  ½ חצי משרה (50%)
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3.5">
+              {/* Presets buttons */}
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">שם התקופה / תיאור</label>
-                <input
-                  type="text"
-                  value={termName}
-                  onChange={(e) => setTermName(e.target.value)}
-                  placeholder="למשל: משרה מלאה, שכר גלובלי"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">מתאריך (תחילת תוקף)</label>
-                  <input
-                    type="date"
-                    value={termStartDate}
-                    onChange={(e) => setTermStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
-                    עד תאריך <span className="text-slate-400 font-normal">(השאר ריק להווה)</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={termEndDate}
-                    onChange={(e) => setTermEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">סוג העסקה</label>
-                  <select
-                    value={termType}
-                    onChange={(e) => setTermType(e.target.value as EmploymentType)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold outline-none focus:border-brand-500"
+                <label className="mb-1.5 block text-xs font-medium text-slate-500">תבניות מוכנות מראש:</label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => applyPreset("monthly")}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
                   >
-                    <option value="monthly_overtime">חודשי (עם נוספות)</option>
-                    <option value="global">גלובלי</option>
-                    <option value="hourly">שעתי</option>
-                    <option value="custom">מותאם אישית</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">היקף משרה (%)</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={200}
-                    step={1}
-                    value={termJobScope}
-                    onChange={(e) => setTermJobScope(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">שעות א'-ד'</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={24}
-                    step={0.5}
-                    value={termSunWed}
-                    onChange={(e) => setTermSunWed(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 items-center pt-1">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">שעות יום ה'</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={24}
-                    step={0.5}
-                    value={termThu}
-                    onChange={(e) => setTermThu(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 pt-4">
-                  <input
-                    type="checkbox"
-                    id="termOvertimeEligible"
-                    checked={termOvertime}
-                    onChange={(e) => setTermOvertime(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                  />
-                  <label htmlFor="termOvertimeEligible" className="text-xs font-medium text-slate-700 cursor-pointer">
-                    זכאי לשעות נוספות יומיות
-                  </label>
+                    💼 חודשי (עם שעות נוספות)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset("global")}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    🌐 גלובלי
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset("hourly")}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    ⏱️ שעתי
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset("parent")}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    👶 משרת הורה (8 שעות)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset("half")}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    ½ חצי משרה (50%)
+                  </button>
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">הערות</label>
-                <input
-                  type="text"
-                  value={termNotes}
-                  onChange={(e) => setTermNotes(e.target.value)}
-                  placeholder="הערות או פירוט לחוזה זה"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
-                />
+              <div className="space-y-3.5">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">שם התקופה / תיאור</label>
+                  <input
+                    type="text"
+                    value={termName}
+                    onChange={(e) => setTermName(e.target.value)}
+                    placeholder="למשל: משרה מלאה, שכר גלובלי"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">מתאריך (תחילת תוקף)</label>
+                    <input
+                      type="date"
+                      value={termStartDate}
+                      onChange={(e) => setTermStartDate(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
+                      עד תאריך <span className="text-slate-400 font-normal">(השאר ריק להווה)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={termEndDate}
+                      onChange={(e) => setTermEndDate(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">סוג העסקה</label>
+                    <select
+                      value={termType}
+                      onChange={(e) => setTermType(e.target.value as EmploymentType)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold outline-none focus:border-brand-500"
+                    >
+                      <option value="monthly_overtime">חודשי (עם נוספות)</option>
+                      <option value="global">גלובלי</option>
+                      <option value="hourly">שעתי</option>
+                      <option value="custom">מותאם אישית</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">היקף משרה (%)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={termJobScope}
+                      onChange={(e) => setTermJobScope(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">שעות א'-ד'</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={24}
+                      step={0.5}
+                      value={termSunWed}
+                      onChange={(e) => setTermSunWed(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center pt-1">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">שעות יום ה'</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={24}
+                      step={0.5}
+                      value={termThu}
+                      onChange={(e) => setTermThu(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 sm:pt-4">
+                    <input
+                      type="checkbox"
+                      id="termOvertimeEligible"
+                      checked={termOvertime}
+                      onChange={(e) => setTermOvertime(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                    />
+                    <label htmlFor="termOvertimeEligible" className="text-xs font-medium text-slate-700 cursor-pointer">
+                      זכאי לשעות נוספות יומיות
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">הערות</label>
+                  <input
+                    type="text"
+                    value={termNotes}
+                    onChange={(e) => setTermNotes(e.target.value)}
+                    placeholder="הערות או פירוט לחוזה זה"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3 shrink-0">
               <button
                 type="button"
                 onClick={() => setTermModalOpen(false)}
