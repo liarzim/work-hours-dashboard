@@ -106,7 +106,7 @@ export default function SettingsScreen() {
   const [passkeySupported, setPasskeySupported] = useState(false);
 
   // Admin User Management State
-  const [adminUsers, setAdminUsers] = useState<{ id: string; email: string | null; annual_vacation_quota: number; created_at: string; reports_count?: number | null; is_current_auth_user?: boolean }[]>([]);
+  const [adminUsers, setAdminUsers] = useState<{ id: string; email: string | null; annual_vacation_quota: number; created_at: string; reports_count?: number | null; last_backup_at?: string | null; is_current_auth_user?: boolean }[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminDeleteLoading, setAdminDeleteLoading] = useState<string | null>(null);
   const [adminBackupLoading, setAdminBackupLoading] = useState<string | null>(null);
@@ -706,6 +706,7 @@ export default function SettingsScreen() {
       setAdminMessage(
         `גיבוי הושלם בהצלחה עבור ${displayName}! נשמרו ${data.reportsCount?.toLocaleString("he-IL") || 0} דיווחים וקובץ הגיבוי ירד למחשב.`
       );
+      await fetchAdminUsers();
     } catch (err: any) {
       alert(err.message || "שגיאה ביצירת גיבוי למשתמש");
     } finally {
@@ -1679,6 +1680,7 @@ export default function SettingsScreen() {
                   <th className="px-3.5 py-2.5">אימייל משתמש</th>
                   <th className="px-3.5 py-2.5">תאריך הצטרפות</th>
                   <th className="px-3.5 py-2.5">דיווחי שעות</th>
+                  <th className="px-3.5 py-2.5">גיבוי אחרון ב-NAS</th>
                   <th className="px-3.5 py-2.5">מכסת חופשה</th>
                   <th className="px-3.5 py-2.5 text-center">פעולות</th>
                 </tr>
@@ -1686,7 +1688,7 @@ export default function SettingsScreen() {
               <tbody className="divide-y divide-slate-100">
                 {adminUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-xs text-slate-400">
+                    <td colSpan={6} className="py-6 text-center text-xs text-slate-400">
                       {adminLoading ? "טוען משתמשים..." : "לא נמצאו משתמשים נוספים"}
                     </td>
                   </tr>
@@ -1718,6 +1720,20 @@ export default function SettingsScreen() {
                             </span>
                           ) : (
                             <span className="text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-xs">
+                          {u.last_backup_at ? (
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-emerald-700">
+                                {new Date(u.last_backup_at).toLocaleDateString("he-IL")}
+                              </span>
+                              <span className="text-[10.5px] text-slate-400">
+                                {new Date(u.last_backup_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 italic">טרם בוצע</span>
                           )}
                         </td>
                         <td className="px-3.5 py-2.5 text-xs text-slate-600">

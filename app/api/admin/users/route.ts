@@ -78,6 +78,25 @@ export async function GET() {
       .select("id, email, annual_vacation_quota, created_at, reports(count)")
       .order("created_at", { ascending: false });
 
+    // Fetch latest backup for each user from user_backups table
+    const lastBackupMap = new Map<string, string>();
+    try {
+      const { data: latestBackups } = await supabase
+        .from("user_backups")
+        .select("user_id, created_at")
+        .order("created_at", { ascending: false });
+
+      if (latestBackups) {
+        for (const b of latestBackups) {
+          if (!lastBackupMap.has(b.user_id)) {
+            lastBackupMap.set(b.user_id, b.created_at);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not fetch user_backups:", e);
+    }
+
     if (dbError) {
       // Fallback without reports join if relation issue occurs
       const { data: fallbackProfiles, error: fallbackError } = await supabase
@@ -95,6 +114,7 @@ export async function GET() {
         annual_vacation_quota: p.annual_vacation_quota,
         created_at: p.created_at,
         reports_count: null,
+        last_backup_at: lastBackupMap.get(p.id) || null,
         is_current_auth_user: p.id === user.id,
       }));
       return NextResponse.json({ users: mapped });
@@ -106,6 +126,7 @@ export async function GET() {
       annual_vacation_quota: p.annual_vacation_quota,
       created_at: p.created_at,
       reports_count: p.reports?.[0]?.count ?? 0,
+      last_backup_at: lastBackupMap.get(p.id) || null,
       is_current_auth_user: p.id === user.id,
     }));
 
