@@ -17,6 +17,29 @@ function escapeSqlValue(val: any): string {
   return `'${String(val).replace(/'/g, "''")}'`;
 }
 
+async function fetchAllUserReports(supabase: any, userId: string): Promise<any[]> {
+  const allReports: any[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw new Error("שגיאה בשליפת דיווחי השעות: " + error.message);
+    }
+    if (!data || data.length === 0) break;
+    allReports.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return allReports;
+}
+
 /** POST /api/admin/backup-user - Backup data for a specific user */
 export async function POST(req: NextRequest) {
   try {
@@ -54,16 +77,8 @@ export async function POST(req: NextRequest) {
     const resolvedUserId = profile.id;
     targetEmail = profile.email || targetEmail || resolvedUserId;
 
-    // Fetch reports
-    const { data: reports, error: reportsErr } = await supabase
-      .from("reports")
-      .select("*")
-      .eq("user_id", resolvedUserId)
-      .order("date", { ascending: true });
-
-    if (reportsErr) {
-      return NextResponse.json({ error: "שגיאה בשליפת דיווחי השעות: " + reportsErr.message }, { status: 500 });
-    }
+    // Fetch all reports using pagination to prevent 1000 limit
+    const userReports = await fetchAllUserReports(supabase, resolvedUserId);
 
     // Fetch workday standards
     const { data: standards, error: standardsErr } = await supabase
@@ -75,7 +90,6 @@ export async function POST(req: NextRequest) {
       console.warn("Could not fetch workday standards for user:", standardsErr.message);
     }
 
-    const userReports = reports || [];
     const userStandards = standards || [];
 
     const now = new Date();

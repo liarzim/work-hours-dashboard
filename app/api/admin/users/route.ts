@@ -18,6 +18,29 @@ function escapeSqlValue(val: any): string {
   return `'${String(val).replace(/'/g, "''")}'`;
 }
 
+async function fetchAllUserReports(supabase: any, userId: string): Promise<any[]> {
+  const allReports: any[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw new Error("שגיאה בשליפת דיווחי השעות: " + error.message);
+    }
+    if (!data || data.length === 0) break;
+    allReports.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return allReports;
+}
+
 /** Clean up physical files in deleted-users older than 6 months */
 function cleanupExpiredDeletedFiles() {
   try {
@@ -146,11 +169,7 @@ export async function DELETE(req: NextRequest) {
     let userReports: any[] = [];
     let userStandards: any[] = [];
     if (resolvedUserId) {
-      const { data: reps } = await supabase
-        .from("reports")
-        .select("*")
-        .eq("user_id", resolvedUserId);
-      userReports = reps || [];
+      userReports = await fetchAllUserReports(supabase, resolvedUserId);
 
       const { data: stds } = await supabase
         .from("workday_standards")
