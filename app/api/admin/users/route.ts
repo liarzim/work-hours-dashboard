@@ -166,12 +166,7 @@ export async function DELETE(req: NextRequest) {
     const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "");
     const safeEmail = resolvedEmail.replace(/[^a-zA-Z0-9_-]/g, "_");
 
-    if (!fs.existsSync(DELETED_BACKUPS_DIR)) {
-      fs.mkdirSync(DELETED_BACKUPS_DIR, { recursive: true });
-    }
-
     const backupFileName = `deleted-user-${safeEmail}-${dateStr}-${timeStr}.sql`;
-    const backupFilePath = path.join(DELETED_BACKUPS_DIR, backupFileName);
 
     const sqlLines = [
       `-- ============================================================`,
@@ -218,8 +213,16 @@ export async function DELETE(req: NextRequest) {
     sqlLines.push(`COMMIT;`);
     const backupSql = sqlLines.join("\n");
 
-    // Write file to disk
-    fs.writeFileSync(backupFilePath, backupSql, "utf8");
+    // Optional write file to disk (non-blocking for serverless/read-only environments)
+    try {
+      const targetDir = process.env.VERCEL ? "/tmp" : DELETED_BACKUPS_DIR;
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(targetDir, backupFileName), backupSql, "utf8");
+    } catch (diskErr) {
+      console.warn("[Pre-deletion Backup] Could not write to disk (safe to ignore on serverless):", diskErr);
+    }
 
     // Save to PostgreSQL deleted_user_backups table for 6 months
     try {
