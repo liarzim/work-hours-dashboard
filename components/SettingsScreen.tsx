@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSWRConfig } from "swr";
 import { useSettings, useEmploymentTerms } from "@/lib/client";
 import { HEBREW_MONTHS, HEBREW_DAYS, EmploymentTerm, EmploymentType } from "@/lib/types";
@@ -104,6 +104,13 @@ export default function SettingsScreen() {
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeyMessage, setPasskeyMessage] = useState<string | null>(null);
   const [passkeySupported, setPasskeySupported] = useState(false);
+
+  // Admin User Management State
+  const [adminUsers, setAdminUsers] = useState<{ id: string; email: string | null; annual_vacation_quota: number; created_at: string }[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminDeleteLoading, setAdminDeleteLoading] = useState<string | null>(null);
+  const [adminMessage, setAdminMessage] = useState<string | null>(null);
+  const [adminManualEmail, setAdminManualEmail] = useState("");
 
   // Import State
   const [importing, setImporting] = useState(false);
@@ -642,6 +649,60 @@ export default function SettingsScreen() {
       setPasskeyLoading(false);
     }
   }
+
+  // Admin: Fetch all users
+  const fetchAdminUsers = useCallback(async () => {
+    if (!userEmail || userEmail.toLowerCase() !== "michael.liarzi@gmail.com") return;
+    setAdminLoading(true);
+    try {
+      const res = await fetch("/api/admin/users");
+      if (res.ok) {
+        const data = await res.json();
+        setAdminUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin users", err);
+    } finally {
+      setAdminLoading(false);
+    }
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (userEmail && userEmail.toLowerCase() === "michael.liarzi@gmail.com") {
+      fetchAdminUsers();
+    }
+  }, [userEmail, fetchAdminUsers]);
+
+  // Admin: Delete user and cascade wipe data
+  const handleDeleteUser = async (targetEmail: string, targetId?: string) => {
+    if (!targetEmail && !targetId) return;
+    const displayName = targetEmail || targetId;
+    const confirmed = window.confirm(
+      `אזהרה חמורה!\nהאם אתה בטוח שברצונך למחוק לצמיתות את המשתמש ${displayName}?\n\nכל הנתונים שלו (דיווחים, שעות עבודה, תקנים ופרופיל) יימחקו לחלוטין וללא יכולת שחזור!`
+    );
+    if (!confirmed) return;
+
+    setAdminDeleteLoading(targetEmail || targetId || "manual");
+    setAdminMessage(null);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail, userId: targetId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "מחיקת המשתמש נכשלה");
+      }
+      setAdminMessage(data.message || `המשתמש ${displayName} נמחק בהצלחה`);
+      setAdminManualEmail("");
+      await fetchAdminUsers();
+    } catch (err: any) {
+      alert(err.message || "שגיאה בעת מחיקת המשתמש");
+    } finally {
+      setAdminDeleteLoading(null);
+    }
+  };
 
   // Historic Data Importer
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1512,6 +1573,119 @@ export default function SettingsScreen() {
             {passkeyMessage && (
               <p className="text-xs text-slate-500 mt-3 text-center leading-normal">{passkeyMessage}</p>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* Admin User Management & Data Deletion */}
+      {userEmail && userEmail.toLowerCase() === "michael.liarzi@gmail.com" && (
+        <section className="rounded-2xl border border-red-100 bg-white p-5 shadow-card">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600">
+                <TrashIcon className="h-4 w-4" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-slate-800">ניהול ומחיקת משתמשים (אדמין)</h2>
+                <p className="text-xs text-slate-400">מחיקת משתמש מסירה לצמיתות את החשבון, הדיווחים, השעות והתקנים שלו</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={fetchAdminUsers}
+              disabled={adminLoading}
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
+            >
+              {adminLoading ? "מרענן..." : "רענן רשימה ⟳"}
+            </button>
+          </div>
+
+          {adminMessage && (
+            <div className="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800">
+              {adminMessage}
+            </div>
+          )}
+
+          {/* מחיקה לפי אימייל חופשי */}
+          <div className="mb-5 rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              מחיקת משתמש מהירה לפי כתובת אימייל:
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                placeholder="user@example.com"
+                value={adminManualEmail}
+                onChange={(e) => setAdminManualEmail(e.target.value)}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400"
+              />
+              <button
+                type="button"
+                onClick={() => handleDeleteUser(adminManualEmail.trim())}
+                disabled={!adminManualEmail.trim() || adminDeleteLoading !== null}
+                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+                {adminDeleteLoading === adminManualEmail.trim() ? "מוחק..." : "מחק משתמש ודאטה"}
+              </button>
+            </div>
+          </div>
+
+          {/* טבלת כל המשתמשים הרשומים במערכת */}
+          <div className="overflow-hidden rounded-xl border border-slate-100">
+            <table className="w-full text-sm text-right">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/75 text-xs font-semibold text-slate-500">
+                  <th className="px-3.5 py-2.5">אימייל משתמש</th>
+                  <th className="px-3.5 py-2.5">תאריך הצטרפות</th>
+                  <th className="px-3.5 py-2.5">מכסת חופשה</th>
+                  <th className="px-3.5 py-2.5 text-center">פעולות</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {adminUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-6 text-center text-xs text-slate-400">
+                      {adminLoading ? "טוען משתמשים..." : "לא נמצאו משתמשים נוספים"}
+                    </td>
+                  </tr>
+                ) : (
+                  adminUsers.map((u) => {
+                    const isSelf = u.email?.toLowerCase() === userEmail.toLowerCase();
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-50/50 transition">
+                        <td className="px-3.5 py-2.5 font-medium text-slate-800">
+                          {u.email || u.id}
+                          {isSelf && (
+                            <span className="mr-2 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600">
+                              (החשבון שלך)
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-xs text-slate-500">
+                          {u.created_at ? new Date(u.created_at).toLocaleDateString("he-IL") : "-"}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-xs text-slate-600">
+                          {u.annual_vacation_quota || 22} ימים
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(u.email || "", u.id)}
+                            disabled={adminDeleteLoading !== null}
+                            title="מחק משתמש זה וכל הנתונים שלו לצמיתות"
+                            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+                          >
+                            <TrashIcon className="h-3.5 w-3.5" />
+                            {adminDeleteLoading === (u.email || u.id) ? "מוחק..." : "מחק"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </section>
       )}
