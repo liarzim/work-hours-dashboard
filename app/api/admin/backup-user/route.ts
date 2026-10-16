@@ -78,17 +78,11 @@ export async function POST(req: NextRequest) {
     const userReports = reports || [];
     const userStandards = standards || [];
 
-    // Ensure directory exists
-    if (!fs.existsSync(BACKUP_USER_DIR)) {
-      fs.mkdirSync(BACKUP_USER_DIR, { recursive: true });
-    }
-
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10);
     const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "");
     const safeEmail = targetEmail.replace(/[^a-zA-Z0-9_-]/g, "_");
     const fileName = `backup-user-${safeEmail}-${dateStr}-${timeStr}.sql`;
-    const filePath = path.join(BACKUP_USER_DIR, fileName);
 
     // Build SQL Dump
     const lines = [
@@ -131,7 +125,31 @@ export async function POST(req: NextRequest) {
     lines.push(`-- Backup completed for user ${targetEmail}.`);
 
     const sqlContent = lines.join("\n");
-    fs.writeFileSync(filePath, sqlContent, "utf8");
+
+    // 1. Save backup permanently to PostgreSQL public.user_backups table
+    try {
+      await supabase.from("user_backups").insert({
+        user_id: resolvedUserId,
+        email: targetEmail,
+        filename: fileName,
+        reports_count: userReports.length,
+        standards_count: userStandards.length,
+        backup_sql: sqlContent,
+      });
+    } catch (dbErr) {
+      console.warn("[User Backup] Could not save to DB table:", dbErr);
+    }
+
+    // 2. Optional disk write (non-blocking for serverless/read-only environments like Vercel)
+    try {
+      const targetDir = process.env.VERCEL ? "/tmp" : BACKUP_USER_DIR;
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(targetDir, fileName), sqlContent, "utf8");
+    } catch (diskErr) {
+      console.warn("[User Backup] Could not write to disk (safe to ignore on serverless):", diskErr);
+    }
 
     return NextResponse.json({
       ok: true,
