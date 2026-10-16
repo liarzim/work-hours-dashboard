@@ -5,6 +5,33 @@ import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { GoogleIcon, ShieldIcon, FingerprintIcon, ArrowLeftIcon } from "@/components/Icons";
 
+function getAuthErrorMessage(err: any): string {
+  if (!err) return "שגיאה בביצוע הפעולה";
+  let msg = typeof err === "string" ? err : err.message || err.error_description;
+  if (!msg || msg === "{}" || msg === "[object Object]") {
+    if (err.status === 500) {
+      return "שגיאת שרת ברישום משתמש חדש (Database error). יש לוודא הגדרות שרת או פנה למנהל המערכת.";
+    }
+    return "שגיאה בביצוע הפעולה. אנא נסה שוב.";
+  }
+  if (msg.includes("Database error saving new user")) {
+    return "שגיאת מסד נתונים בשמירת משתמש חדש (Database error saving new user). יש לבדוק מדיניות RLS בטבלת profiles או הגדרות אימות מייל.";
+  }
+  if (msg.includes("User already registered") || msg.includes("already registered")) {
+    return "משתמש עם כתובת אימייל זו כבר רשום במערכת. אנא עבור למסך התחברות.";
+  }
+  if (msg.includes("Password should be")) {
+    return "הסיסמה חייבת להכיל לפחות 6 תווים.";
+  }
+  if (msg.includes("Invalid login credentials") || msg.includes("invalid_grant")) {
+    return "כתובת אימייל או סיסמה שגויים.";
+  }
+  if (msg.includes("Email not confirmed")) {
+    return "כתובת האימייל טרם אומתה. יש לבדוק את תיבת המייל או לאשר את החשבון.";
+  }
+  return msg;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createSupabaseClient();
@@ -43,7 +70,7 @@ export default function LoginPage() {
       });
       if (error) throw error;
     } catch (err: any) {
-      setError(err.message || "שגיאה בחיבור ל-Google");
+      setError(getAuthErrorMessage(err));
       setLoading(false);
     }
   }
@@ -72,7 +99,7 @@ export default function LoginPage() {
         router.refresh();
       } else {
         // Sign Up
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -80,11 +107,18 @@ export default function LoginPage() {
           },
         });
         if (error) throw error;
-        setMessage("הרשמה בוצעה בהצלחה! יש לבדוק את תיבת המייל לאימות החשבון.");
+        
+        if (data?.session) {
+          router.push("/");
+          router.refresh();
+          return;
+        }
+
+        setMessage("הרשמה בוצעה בהצלחה! יש לבדוק את תיבת המייל לאימות החשבון (או להתחבר).");
         setIsLogin(true);
       }
     } catch (err: any) {
-      setError(err.message || "שגיאה בביצוע הפעולה");
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
