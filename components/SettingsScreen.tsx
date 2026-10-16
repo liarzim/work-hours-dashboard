@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSWRConfig } from "swr";
 import { useSettings, useEmploymentTerms } from "@/lib/client";
 import { HEBREW_MONTHS, HEBREW_DAYS, EmploymentTerm, EmploymentType } from "@/lib/types";
-import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon, BriefcaseIcon, PencilIcon, TrashIcon, PlusIcon, XIcon, RefreshIcon, CalendarIcon } from "./Icons";
+import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon, BriefcaseIcon, PencilIcon, TrashIcon, PlusIcon, XIcon, RefreshIcon, CalendarIcon, DownloadIcon } from "./Icons";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import * as XLSX from "xlsx";
 import {
@@ -109,6 +109,7 @@ export default function SettingsScreen() {
   const [adminUsers, setAdminUsers] = useState<{ id: string; email: string | null; annual_vacation_quota: number; created_at: string; reports_count?: number | null; is_current_auth_user?: boolean }[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminDeleteLoading, setAdminDeleteLoading] = useState<string | null>(null);
+  const [adminBackupLoading, setAdminBackupLoading] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [adminManualEmail, setAdminManualEmail] = useState("");
 
@@ -673,12 +674,51 @@ export default function SettingsScreen() {
     }
   }, [userEmail, fetchAdminUsers]);
 
-  // Admin: Delete user and cascade wipe data
+  // Admin: Backup single user data and download SQL file
+  const handleBackupUser = async (targetId: string, targetEmail?: string | null) => {
+    const displayName = targetEmail || targetId;
+    setAdminBackupLoading(targetId);
+    setAdminMessage(null);
+    try {
+      const res = await fetch("/api/admin/backup-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: targetId, email: targetEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "יצירת הגיבוי נכשלה");
+      }
+
+      // Automatically trigger file download in browser
+      if (data.sqlContent) {
+        const blob = new Blob([data.sqlContent], { type: "application/sql;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.filename || `backup-user-${displayName}.sql`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      setAdminMessage(
+        `גיבוי הושלם בהצלחה עבור ${displayName}! נשמרו ${data.reportsCount?.toLocaleString("he-IL") || 0} דיווחים וקובץ הגיבוי ירד למחשב.`
+      );
+    } catch (err: any) {
+      alert(err.message || "שגיאה ביצירת גיבוי למשתמש");
+    } finally {
+      setAdminBackupLoading(null);
+    }
+  };
+
+  // Admin: Delete user (with automatic 6-month pre-deletion backup)
   const handleDeleteUser = async (targetEmail: string, targetId?: string) => {
     if (!targetEmail && !targetId) return;
     const displayName = targetEmail || targetId;
     const confirmed = window.confirm(
-      `אזהרה חמורה!\nהאם אתה בטוח שברצונך למחוק לצמיתות את המשתמש ${displayName}?\n\nכל הנתונים שלו (דיווחים, שעות עבודה, תקנים ופרופיל) יימחקו לחלוטין וללא יכולת שחזור!`
+      `שים לב!\nהאם אתה בטוח שברצונך למחוק את המשתמש ${displayName}?\n\nלפני המחיקה, המערכת תיצור אוטומטית גיבוי מלא של כל הדיווחים והנתונים שלו, והגיבוי יישמר במערכת למשך חצי שנה (6 חודשים).`
     );
     if (!confirmed) return;
 
@@ -694,7 +734,7 @@ export default function SettingsScreen() {
       if (!res.ok) {
         throw new Error(data.error || "מחיקת המשתמש נכשלה");
       }
-      setAdminMessage(data.message || `המשתמש ${displayName} נמחק בהצלחה`);
+      setAdminMessage(data.message || `המשתמש ${displayName} נמחק בהצלחה (נוצר גיבוי ל-6 חודשים)`);
       setAdminManualEmail("");
       await fetchAdminUsers();
     } catch (err: any) {
@@ -1684,22 +1724,37 @@ export default function SettingsScreen() {
                           {u.annual_vacation_quota || 22} ימים
                         </td>
                         <td className="px-3.5 py-2.5 text-center">
-                          {u.is_current_auth_user ? (
-                            <span className="text-[11px] text-slate-400 font-medium italic">
-                              מחובר
-                            </span>
-                          ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            {/* כפתור גיבוי נתוני משתמש */}
                             <button
                               type="button"
-                              onClick={() => handleDeleteUser(u.email || "", u.id)}
-                              disabled={adminDeleteLoading !== null}
-                              title="מחק משתמש זה וכל הנתונים שלו לצמיתות"
-                              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+                              onClick={() => handleBackupUser(u.id, u.email)}
+                              disabled={adminBackupLoading === u.id}
+                              title="גבה את נתוני המשתמש (שעות, פרופיל, תקנים) לקובץ SQL"
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50"
                             >
-                              <TrashIcon className="h-3.5 w-3.5" />
-                              {adminDeleteLoading === (u.email || u.id) ? "מוחק..." : "מחק"}
+                              <DownloadIcon className="h-3.5 w-3.5" />
+                              {adminBackupLoading === u.id ? "מגבה..." : "גבה נתונים"}
                             </button>
-                          )}
+
+                            {/* כפתור מחיקה או תגית משתמש מחובר */}
+                            {u.is_current_auth_user ? (
+                              <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 italic">
+                                מחובר
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(u.email || "", u.id)}
+                                disabled={adminDeleteLoading !== null}
+                                title="מחק משתמש זה (יבוצע גיבוי אוטומטי שיישמר לחצי שנה)"
+                                className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+                              >
+                                <TrashIcon className="h-3.5 w-3.5" />
+                                {adminDeleteLoading === (u.email || u.id) ? "מוחק..." : "מחק"}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
