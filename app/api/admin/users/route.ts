@@ -20,14 +20,41 @@ export async function GET() {
 
     const { data: profiles, error: dbError } = await supabase
       .from("profiles")
-      .select("id, email, annual_vacation_quota, created_at")
+      .select("id, email, annual_vacation_quota, created_at, reports(count)")
       .order("created_at", { ascending: false });
 
     if (dbError) {
-      return NextResponse.json({ error: dbError.message }, { status: 500 });
+      // Fallback without reports join if relation issue occurs
+      const { data: fallbackProfiles, error: fallbackError } = await supabase
+        .from("profiles")
+        .select("id, email, annual_vacation_quota, created_at")
+        .order("created_at", { ascending: false });
+
+      if (fallbackError) {
+        return NextResponse.json({ error: fallbackError.message }, { status: 500 });
+      }
+
+      const mapped = (fallbackProfiles || []).map((p: any) => ({
+        id: p.id,
+        email: p.email,
+        annual_vacation_quota: p.annual_vacation_quota,
+        created_at: p.created_at,
+        reports_count: null,
+        is_current_auth_user: p.id === user.id,
+      }));
+      return NextResponse.json({ users: mapped });
     }
 
-    return NextResponse.json({ users: profiles || [] });
+    const mapped = (profiles || []).map((p: any) => ({
+      id: p.id,
+      email: p.email,
+      annual_vacation_quota: p.annual_vacation_quota,
+      created_at: p.created_at,
+      reports_count: p.reports?.[0]?.count ?? 0,
+      is_current_auth_user: p.id === user.id,
+    }));
+
+    return NextResponse.json({ users: mapped });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "שגיאה בטעינת משתמשים" },
