@@ -758,19 +758,19 @@ export default function SettingsScreen() {
 
     reader.onload = async (e) => {
       try {
-        const dataBytes = e.target?.result;
         let rows: any[] = [];
 
         if (isExcel) {
-          const workbook = XLSX.read(dataBytes, { type: "array" });
+          const dataBytes = e.target?.result;
+          const workbook = XLSX.read(dataBytes, { type: "array", cellDates: false, raw: false, dateNF: "dd/mm/yyyy" });
           const firstSheet = workbook.SheetNames[0];
-          rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1 });
+          rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, raw: false, dateNF: "dd/mm/yyyy" });
         } else {
-          // Parse CSV
+          // Parse CSV using XLSX to preserve quotes, commas, and explicit raw DD/MM/YYYY text
           const text = e.target?.result as string;
-          rows = text.split("\n").map((line) => {
-            return line.split(",").map((cell) => cell.replace(/^["']|["']$/g, "").trim());
-          });
+          const workbook = XLSX.read(text, { type: "string", raw: true });
+          const firstSheet = workbook.SheetNames[0];
+          rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, raw: true });
         }
 
         if (!rows.length) throw new Error("הקובץ ריק");

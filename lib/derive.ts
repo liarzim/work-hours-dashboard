@@ -24,14 +24,29 @@ export function decimalToHhmm(dec: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+export function isNonWorkingClassification(classification: string): boolean {
+  if (!classification) return false;
+  const c = classification.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+  return (
+    [
+      "חופש",
+      "חופשה",
+      "חג",
+      "שבת",
+      'סופ"ש',
+      "סופש",
+      "סופשבוע",
+    ].includes(c) || c.includes("סופ")
+  );
+}
+
 /** Derive standard work hours based on Hebrew day of week, classification, and active employment term */
 export function calculateDailyStandard(
   dateIso: string,
   classification: string,
   term?: EmploymentTerm
 ): number {
-  const nonWorking = ["חופש", "חג", "שבת", "סופ\"ש", "סופשבוע"].includes(classification);
-  if (nonWorking) return 0;
+  if (isNonWorkingClassification(classification)) return 0;
   
   const date = new Date(`${dateIso}T00:00:00`);
   const dow = date.getDay(); // 0 = Sunday, 4 = Thursday, 5 = Friday, 6 = Saturday

@@ -292,6 +292,9 @@ export async function getMonthData(
     if (dbRow) {
       records.push(deriveDayRecord(dbRow, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month, activeTermForDay));
     } else {
+      const dateObj = new Date(`${iso}T00:00:00`);
+      const dow = dateObj.getDay();
+      const isWeekend = dow === 5 || dow === 6;
       const defaultRaw = {
         date: iso,
         entry: null,
@@ -299,7 +302,7 @@ export async function getMonthData(
         vacation_days: 0,
         sick_days: 0,
         reserve_days: 0,
-        classification: "",
+        classification: isWeekend ? 'סופ"ש' : "",
         notes: null,
         unique_notes: null,
         order_type: null,
