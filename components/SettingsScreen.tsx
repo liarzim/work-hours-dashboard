@@ -688,7 +688,7 @@ export default function SettingsScreen() {
       const res = await fetch("/api/admin/users", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: targetEmail, userId: targetId }),
+        body: JSON.stringify({ email: targetId ? undefined : targetEmail, userId: targetId }),
       });
       const data = await res.json();
       if (!res.ok) {

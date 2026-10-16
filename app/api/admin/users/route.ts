@@ -84,12 +84,23 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "נא לספק מזהה משתמש או כתובת אימייל למחיקה." }, { status: 400 });
     }
 
+    // Safety guard: Never allow deleting the currently logged-in active user!
+    if (userId && userId === user.id) {
+      return NextResponse.json({ error: "פעולה חסומה: לא ניתן למחוק את החשבון הפעיל המחובר כעת." }, { status: 400 });
+    }
+
     // Call RPC function in DB with SECURITY DEFINER
     let rpcResponse: any;
-    if (email) {
-      rpcResponse = await supabase.rpc("delete_user_by_email", { target_email: email });
-    } else if (userId) {
+    if (userId) {
       rpcResponse = await supabase.rpc("delete_user_by_id", { target_user_id: userId });
+    } else if (email) {
+      if (email.toLowerCase() === user.email.toLowerCase()) {
+        return NextResponse.json(
+          { error: "לא ניתן למחוק את החשבון המחובר לפי כתובת אימייל. בחר משתמש אחר." },
+          { status: 400 }
+        );
+      }
+      rpcResponse = await supabase.rpc("delete_user_by_email", { target_email: email });
     }
 
     if (rpcResponse.error) {
