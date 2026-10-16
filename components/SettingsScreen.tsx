@@ -106,7 +106,7 @@ export default function SettingsScreen() {
   const [passkeySupported, setPasskeySupported] = useState(false);
 
   // Admin User Management State
-  const [adminUsers, setAdminUsers] = useState<{ id: string; email: string | null; annual_vacation_quota: number; created_at: string }[]>([]);
+  const [adminUsers, setAdminUsers] = useState<{ id: string; email: string | null; annual_vacation_quota: number; created_at: string; reports_count?: number | null; is_current_auth_user?: boolean }[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminDeleteLoading, setAdminDeleteLoading] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
@@ -1638,6 +1638,7 @@ export default function SettingsScreen() {
                 <tr className="border-b border-slate-100 bg-slate-50/75 text-xs font-semibold text-slate-500">
                   <th className="px-3.5 py-2.5">אימייל משתמש</th>
                   <th className="px-3.5 py-2.5">תאריך הצטרפות</th>
+                  <th className="px-3.5 py-2.5">דיווחי שעות</th>
                   <th className="px-3.5 py-2.5">מכסת חופשה</th>
                   <th className="px-3.5 py-2.5 text-center">פעולות</th>
                 </tr>
@@ -1645,7 +1646,7 @@ export default function SettingsScreen() {
               <tbody className="divide-y divide-slate-100">
                 {adminUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-6 text-center text-xs text-slate-400">
+                    <td colSpan={5} className="py-6 text-center text-xs text-slate-400">
                       {adminLoading ? "טוען משתמשים..." : "לא נמצאו משתמשים נוספים"}
                     </td>
                   </tr>
@@ -1656,29 +1657,49 @@ export default function SettingsScreen() {
                       <tr key={u.id} className="hover:bg-slate-50/50 transition">
                         <td className="px-3.5 py-2.5 font-medium text-slate-800">
                           {u.email || u.id}
-                          {isSelf && (
-                            <span className="mr-2 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600">
-                              (החשבון שלך)
+                          {u.is_current_auth_user && (
+                            <span className="mr-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                              (החשבון המחובר כעת)
+                            </span>
+                          )}
+                          {!u.is_current_auth_user && isSelf && (
+                            <span className="mr-2 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                              (חשבון כפול)
                             </span>
                           )}
                         </td>
                         <td className="px-3.5 py-2.5 text-xs text-slate-500">
                           {u.created_at ? new Date(u.created_at).toLocaleDateString("he-IL") : "-"}
                         </td>
+                        <td className="px-3.5 py-2.5 text-xs">
+                          {typeof u.reports_count === "number" ? (
+                            <span className={u.reports_count > 0 ? "font-bold text-slate-800" : "text-slate-400 italic"}>
+                              {u.reports_count > 0 ? `${u.reports_count.toLocaleString("he-IL")} דיווחים` : "0 דיווחים (ריק)"}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </td>
                         <td className="px-3.5 py-2.5 text-xs text-slate-600">
                           {u.annual_vacation_quota || 22} ימים
                         </td>
                         <td className="px-3.5 py-2.5 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteUser(u.email || "", u.id)}
-                            disabled={adminDeleteLoading !== null}
-                            title="מחק משתמש זה וכל הנתונים שלו לצמיתות"
-                            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 transition disabled:opacity-50"
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" />
-                            {adminDeleteLoading === (u.email || u.id) ? "מוחק..." : "מחק"}
-                          </button>
+                          {u.is_current_auth_user ? (
+                            <span className="text-[11px] text-slate-400 font-medium italic">
+                              מחובר
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(u.email || "", u.id)}
+                              disabled={adminDeleteLoading !== null}
+                              title="מחק משתמש זה וכל הנתונים שלו לצמיתות"
+                              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+                            >
+                              <TrashIcon className="h-3.5 w-3.5" />
+                              {adminDeleteLoading === (u.email || u.id) ? "מוחק..." : "מחק"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
