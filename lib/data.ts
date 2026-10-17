@@ -7,13 +7,16 @@ import type {
   ReserveBucket,
   ReserveSummary,
   StandardSettings,
+  MissingReportItem,
+  MissingReportsResponse,
 } from "./types";
+import { HEBREW_DAYS } from "./types";
 import { computeMonthSummary } from "./calc";
 import * as mock from "./mock";
 import { currentMode } from "./config";
 import { createSupabaseServerClient } from "./supabase/server";
 import { deriveDayRecord } from "./derive";
-import { daysInMonth } from "./date";
+import { daysInMonth, isoToDdmmyyyy } from "./date";
 
 export const DEFAULT_EMPLOYMENT_TERM: EmploymentTerm = {
   id: "default",
@@ -747,4 +750,187 @@ export async function deleteEmploymentTerm(termId: string): Promise<void> {
   if (error) {
     throw new Error(error.message || "שגיאה במחיקת תנאי העסקה");
   }
+}
+
+export const DEFAULT_HOLIDAY_DATES = [
+  "2026-04-02",
+  "2026-04-03",
+  "2026-04-09",
+  "2026-05-21",
+  "2026-05-22",
+  "2026-09-11",
+  "2026-09-12",
+  "2026-09-13",
+  "2026-09-20",
+  "2026-09-21",
+  "2026-09-25",
+  "2026-09-26",
+  "2026-10-02",
+];
+
+export async function getMissingReportsList(options?: {
+  from?: string;
+  to?: string;
+  customHolidayDates?: string[];
+  customNonWorkingDays?: number[];
+}): Promise<MissingReportsResponse> {
+  const mode = currentMode();
+
+  // "to" is yesterday (inclusive)
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const defaultTo = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+  const to = options?.to || defaultTo;
+
+  const holidaySet = new Set<string>([
+    ...DEFAULT_HOLIDAY_DATES,
+    ...(options?.customHolidayDates ?? []),
+  ]);
+  const nonWorkingDays = options?.customNonWorkingDays ?? [5, 6];
+
+  let from = options?.from;
+  let terms: EmploymentTerm[] = [DEFAULT_EMPLOYMENT_TERM];
+  const reportsMap = new Map<string, any>();
+
+  if (mode === "mock") {
+    if (!from) {
+      from = `${yesterday.getFullYear() - 1}-01-01`;
+    }
+    const all = mock.mockAllRecords();
+    for (const r of all) {
+      if (r.date >= from && r.date <= to) {
+        reportsMap.set(r.date, {
+          date: r.date,
+          entry: r.entry,
+          exit: r.exit,
+          total_hours_decimal: r.totalHoursDecimal,
+          vacation_days: r.vacationDays,
+          sick_days: r.sickDays,
+          reserve_days: r.reserveDays,
+          classification: r.classification,
+          notes: r.notes,
+          unique_notes: r.uniqueNotes,
+        });
+      }
+    }
+  } else {
+    const user = await getAuthenticatedUser();
+    const userId = user.id;
+    const supabase = createSupabaseServerClient();
+
+    // Determine starting date if not provided
+    if (!from) {
+      const firstReportRes = await supabase
+        .from("reports")
+        .select("date")
+        .eq("user_id", userId)
+        .order("date", { ascending: true })
+        .limit(1);
+
+      const dbFirstDate = firstReportRes.data?.[0]?.date;
+      const minCapDate = `${yesterday.getFullYear() - 1}-01-01`; // Look up to 1-2 years back
+      if (dbFirstDate) {
+        from = dbFirstDate < minCapDate ? minCapDate : dbFirstDate;
+      } else {
+        from = minCapDate;
+      }
+    }
+
+    const [reportsRes, termsRes] = await Promise.all([
+      supabase
+        .from("reports")
+        .select("date, entry, exit, total_hours_decimal, vacation_days, sick_days, reserve_days, classification, notes, unique_notes, order_type")
+        .eq("user_id", userId)
+        .gte("date", from)
+        .lte("date", to)
+        .order("date", { ascending: true }),
+      supabase
+        .from("employment_terms")
+        .select("*")
+        .eq("user_id", userId)
+        .order("start_date", { ascending: true }),
+    ]);
+
+    if (termsRes?.data && termsRes.data.length > 0) {
+      terms = termsRes.data.map(mapDbTermToEmploymentTerm);
+    }
+
+    if (reportsRes.data) {
+      for (const row of reportsRes.data) {
+        reportsMap.set(row.date, row);
+      }
+    }
+  }
+
+  const missing: MissingReportItem[] = [];
+  const curDate = new Date(`${from}T00:00:00`);
+  const endDate = new Date(`${to}T00:00:00`);
+
+  while (curDate <= endDate) {
+    const y = curDate.getFullYear();
+    const m = curDate.getMonth() + 1;
+    const d = curDate.getDate();
+    const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const dow = curDate.getDay();
+
+    curDate.setDate(curDate.getDate() + 1);
+
+    // Skip weekend / non-working days
+    if (nonWorkingDays.includes(dow)) continue;
+
+    // Skip holidays
+    if (holidaySet.has(iso)) continue;
+
+    const row = reportsMap.get(iso);
+    if (row) {
+      const hasHours = Boolean(
+        (row.entry && String(row.entry).trim() !== "") ||
+        (row.exit && String(row.exit).trim() !== "") ||
+        (Number(row.total_hours_decimal || 0) > 0)
+      );
+      const hasAbsence = Boolean(
+        Number(row.vacation_days || 0) > 0 ||
+        Number(row.sick_days || 0) > 0 ||
+        Number(row.reserve_days || 0) > 0
+      );
+      const normC = (row.classification || "").replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+      const isExcused =
+        normC === "חופש" ||
+        normC === "חופשה" ||
+        normC === "מחלה" ||
+        normC === "מילואים" ||
+        normC === "עבודה במילואים" ||
+        normC === "חג" ||
+        normC === "ערב חג" ||
+        normC === "חול המועד" ||
+        normC.includes("סופ");
+
+      if (hasHours || hasAbsence || isExcused) {
+        continue;
+      }
+    }
+
+    const activeTerm = findActiveTermForDate(terms, iso);
+    const dailyStandard = dow === 4 ? activeTerm.dailyStandardThu : activeTerm.dailyStandardSunWed;
+
+    missing.push({
+      date: iso,
+      dateDisplay: isoToDdmmyyyy(iso),
+      dayName: HEBREW_DAYS[dow],
+      year: y,
+      month: m,
+      dailyStandard,
+      classification: row?.classification || "",
+      notes: row?.notes || "",
+      uniqueNotes: row?.unique_notes || "",
+    });
+  }
+
+  // Sort descending: most recent missing days first
+  missing.sort((a, b) => b.date.localeCompare(a.date));
+
+  return {
+    count: missing.length,
+    missing,
+  };
 }

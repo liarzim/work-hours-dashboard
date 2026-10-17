@@ -19,9 +19,10 @@ interface Props {
   loading: boolean;
   year: number;
   month: number;
+  onOpenMissingModal?: () => void;
 }
 
-export default function Dashboard({ data, loading, year, month }: Props) {
+export default function Dashboard({ data, loading, year, month, onOpenMissingModal }: Props) {
   if (loading && !data) {
     return (
       <div className="grid animate-pulse gap-4">
@@ -73,7 +74,7 @@ export default function Dashboard({ data, loading, year, month }: Props) {
         </div>
       )}
 
-      <KpiCards summary={summary} />
+      <KpiCards summary={summary} onOpenMissingModal={onOpenMissingModal} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <MonthlySummary summary={summary} />

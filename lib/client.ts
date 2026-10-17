@@ -42,3 +42,9 @@ export function useEmploymentTerms() {
     revalidateOnFocus: false,
   });
 }
+
+export function useMissingReports() {
+  return useSWR<import("./types").MissingReportsResponse>("/api/reports/missing", fetcher<import("./types").MissingReportsResponse>, {
+    revalidateOnFocus: true,
+  });
+}
