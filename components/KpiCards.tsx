@@ -47,15 +47,18 @@ function Card({
 interface Props {
   summary: MonthSummary;
   onOpenMissingModal?: () => void;
+  onOpenOvertimeModal?: () => void;
 }
 
-export default function KpiCards({ summary, onOpenMissingModal }: Props) {
+export default function KpiCards({ summary, onOpenMissingModal, onOpenOvertimeModal }: Props) {
   const { data: missingData, isLoading } = useMissingReports();
   const missingCount = missingData?.count ?? 0;
 
   const showEstimation =
     summary.estimatedVacationBalanceYearEnd !== undefined &&
     summary.estimatedVacationBalanceYearEnd !== summary.vacationBalance;
+
+  const otHours = summary.overtimeHoursThisMonth || 0;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -69,23 +72,29 @@ export default function KpiCards({ summary, onOpenMissingModal }: Props) {
                 ? `מתוך יעד של ${summary.targetHours.toFixed(1)}`
                 : "עובד שעתי (ללא יעד)"}
             </div>
-            {summary.activeEmploymentTerm?.hourlyRate ? (
-              <div className="text-[11px] font-semibold text-emerald-600">
-                {summary.activeEmploymentTerm.employmentType === "hourly"
-                  ? `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate} • שכר משוער: ₪${(summary.totalEstimatedPay || 0).toLocaleString()}`
-                  : summary.activeEmploymentTerm.employmentType === "monthly_overtime"
-                  ? `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate}${
-                      (summary.overtimeHoursThisMonth || 0) > 0
-                        ? ` • תוספת ש"נ לתלוש: ₪${(summary.overtimeAdditionPay || 0).toLocaleString()} (${summary.overtimeHoursThisMonth}ש')`
-                        : " • אין שעות נוספות"
-                    }`
-                  : `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate}`}
+            {otHours > 0 ? (
+              <div className="text-[11px] font-semibold text-indigo-600">
+                <span>⏱️ {otHours.toFixed(1)} שעות נוספות</span>
+                {summary.activeEmploymentTerm?.hourlyRate ? (
+                  <span className="text-emerald-600 mr-1">
+                    {summary.activeEmploymentTerm.employmentType === "hourly"
+                      ? `(שווי ₪${(summary.overtimeFullPay || 0).toLocaleString()})`
+                      : `(תוספת ₪${(summary.overtimeAdditionPay || 0).toLocaleString()})`}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-normal mr-1">• לא הוגדר ערך שעה</span>
+                )}
+              </div>
+            ) : summary.activeEmploymentTerm?.hourlyRate ? (
+              <div className="text-[11px] font-medium text-slate-500">
+                ערך שעה: ₪{summary.activeEmploymentTerm.hourlyRate}
               </div>
             ) : null}
           </div>
         }
         icon={<ClockIcon className="h-5 w-5 text-brand-600" />}
         iconBg="bg-brand-50"
+        onClick={otHours > 0 ? onOpenOvertimeModal : undefined}
       />
       <Card
         title="שעות שנותרו"
