@@ -84,6 +84,21 @@ export function computeMonthSummary(
   }
   vacationBalance = round1(vacationBalance);
 
+  const overtimeHoursThisMonth = round1(
+    records.reduce((s, r) => s + (r.overtimeDecimal || 0), 0)
+  );
+
+  let estimatedEarnings: number | undefined = undefined;
+  if (activeTerm?.hourlyRate && activeTerm.hourlyRate > 0) {
+    if (activeTerm.employmentType === "hourly") {
+      // Hourly worker: reported hours * hourly rate
+      estimatedEarnings = round1(reportedHours * activeTerm.hourlyRate);
+    } else if (activeTerm.employmentType === "monthly_overtime") {
+      // Monthly with overtime: estimated earnings from overtime (base 125%)
+      estimatedEarnings = round1(overtimeHoursThisMonth * activeTerm.hourlyRate * 1.25);
+    }
+  }
+
   return {
     year,
     month,
@@ -99,5 +114,7 @@ export function computeMonthSummary(
     vacationBalance,
     standardWorkDays,
     activeEmploymentTerm: activeTerm,
+    overtimeHoursThisMonth,
+    estimatedEarnings,
   };
 }

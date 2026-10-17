@@ -30,6 +30,7 @@ export const DEFAULT_EMPLOYMENT_TERM: EmploymentTerm = {
   dailyStandardSunWed: 9.0,
   dailyStandardThu: 8.5,
   overtimeEligible: true,
+  hourlyRate: null,
   notes: "",
 };
 
@@ -45,6 +46,7 @@ export function mapDbTermToEmploymentTerm(row: any): EmploymentTerm {
     dailyStandardSunWed: Number(row.daily_standard_sun_wed ?? 9.0),
     dailyStandardThu: Number(row.daily_standard_thu ?? 8.5),
     overtimeEligible: Boolean(row.overtime_eligible ?? true),
+    hourlyRate: row.hourly_rate != null ? Number(row.hourly_rate) : null,
     notes: row.notes || "",
   };
 }
@@ -752,6 +754,7 @@ export async function saveEmploymentTerm(term: EmploymentTerm): Promise<Employme
     daily_standard_sun_wed: term.dailyStandardSunWed ?? 9.0,
     daily_standard_thu: term.dailyStandardThu ?? 8.5,
     overtime_eligible: term.overtimeEligible,
+    hourly_rate: term.hourlyRate != null && !isNaN(Number(term.hourlyRate)) ? Number(term.hourlyRate) : null,
     notes: term.notes || null,
     updated_at: new Date().toISOString(),
   };

@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       dailyStandardSunWed,
       dailyStandardThu,
       overtimeEligible,
+      hourlyRate,
       notes,
     } = body;
 
@@ -62,6 +63,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "שעות תקן יומיות אינן תקינות (0-24)" }, { status: 400 });
     }
 
+    const parsedHourlyRate =
+      hourlyRate !== undefined && hourlyRate !== null && String(hourlyRate).trim() !== ""
+        ? Number(hourlyRate)
+        : null;
+    if (parsedHourlyRate !== null && (isNaN(parsedHourlyRate) || parsedHourlyRate < 0)) {
+      return NextResponse.json({ error: "ערך שעה אינו תקין" }, { status: 400 });
+    }
+
     const termInput: EmploymentTerm = {
       id: id || undefined,
       name: String(name || "תנאי העסקה").trim().slice(0, 100),
@@ -72,6 +81,7 @@ export async function POST(req: NextRequest) {
       dailyStandardSunWed: Math.round(parsedSunWed * 100) / 100,
       dailyStandardThu: Math.round(parsedThu * 100) / 100,
       overtimeEligible: Boolean(overtimeEligible),
+      hourlyRate: parsedHourlyRate !== null ? Math.round(parsedHourlyRate * 100) / 100 : null,
       notes: notes ? String(notes).slice(0, 500) : "",
     };
 
