@@ -16,7 +16,7 @@ import * as mock from "./mock";
 import { currentMode } from "./config";
 import { createSupabaseServerClient } from "./supabase/server";
 import { deriveDayRecord } from "./derive";
-import { daysInMonth, isoToDdmmyyyy } from "./date";
+import { daysInMonth, isoToDdmmyyyy, todayIso } from "./date";
 
 export const DEFAULT_EMPLOYMENT_TERM: EmploymentTerm = {
   id: "default",
@@ -283,16 +283,39 @@ export async function getMonthData(
 
   // 4. Generate fully populated list of DayRecord for the selected month
   const records: DayRecord[] = [];
+  const currentTodayIso = todayIso();
+
   for (let d = 1; d <= lastDay; d++) {
     const iso = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const dbRow = reportsMap.get(iso);
+    let dbRow = reportsMap.get(iso);
     const ytdUsed = ytdUsedMap.get(iso) ?? 0;
+    const isFuture = iso > currentTodayIso;
 
     // Total used since starting of data up to this day
     const totalUsedSinceStart = usedBeforeSelectedYear + ytdUsed;
     const activeTermForDay = findActiveTermForDate(terms, iso);
 
     if (dbRow) {
+      // In future dates, if user didn't enter anything, don't enter classification (leave empty)
+      if (isFuture) {
+        const hasEnteredData = Boolean(
+          (dbRow.entry && String(dbRow.entry).trim() !== "") ||
+          (dbRow.exit && String(dbRow.exit).trim() !== "") ||
+          Number(dbRow.total_hours_decimal || 0) > 0 ||
+          Number(dbRow.vacation_days || 0) > 0 ||
+          Number(dbRow.sick_days || 0) > 0 ||
+          Number(dbRow.reserve_days || 0) > 0 ||
+          (dbRow.notes && String(dbRow.notes).trim() !== "") ||
+          (dbRow.unique_notes && String(dbRow.unique_notes).trim() !== "") ||
+          (dbRow.order_type && String(dbRow.order_type).trim() !== "")
+        );
+        if (!hasEnteredData) {
+          const normC = (dbRow.classification || "").replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+          if (normC === 'סופ"ש' || normC === "סופש" || normC === "סופשבוע" || normC === "עבודה") {
+            dbRow = { ...dbRow, classification: "" };
+          }
+        }
+      }
       records.push(deriveDayRecord(dbRow, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month, activeTermForDay));
     } else {
       const dateObj = new Date(`${iso}T00:00:00`);
@@ -305,7 +328,7 @@ export async function getMonthData(
         vacation_days: 0,
         sick_days: 0,
         reserve_days: 0,
-        classification: isWeekend ? 'סופ"ש' : "",
+        classification: isFuture ? "" : (isWeekend ? 'סופ"ש' : ""),
         notes: null,
         unique_notes: null,
         order_type: null,
