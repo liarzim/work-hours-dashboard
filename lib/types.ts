@@ -14,6 +14,9 @@ export interface DayRecord {
   totalHoursDecimal: number; // תרגום שעות לעשרוני
   dailyStandard: number; // תקן יומי (עשרוני)
   overtimeDecimal: number; // שעות נוספות עשרוני
+  regularHoursDecimal?: number; // שעות רגילות (עד תקן)
+  overtime125Decimal?: number; // ש"נ 125% (שעתיים ראשונות)
+  overtime150Decimal?: number; // ש"נ 150% (מעבר לשעתיים / סופ"ש)
   vacationDays: number; // ימי חופש
   reserveDays: number; // ימי מילואים
   sickDays: number; // ימי מחלה
@@ -42,8 +45,14 @@ export interface MonthSummary {
   standardWorkDays: number; // תקן ימי עבודה לחודש (מהגדרות)
   estimatedVacationBalanceYearEnd?: number; // הערכה לאחר חופשות עתידיות
   activeEmploymentTerm?: EmploymentTerm; // תנאי העסקה שבתוקף בחודש זה
-  overtimeHoursThisMonth?: number; // שעות נוספות שבוצעו החודש
-  estimatedEarnings?: number; // הערכת שכר / תשלום משעות נוספות או שעות בפועל
+  regularHoursThisMonth?: number; // סה"כ שעות רגילות
+  overtimeHoursThisMonth?: number; // סה"כ שעות נוספות שבוצעו החודש
+  ot125HoursThisMonth?: number; // סה"כ שעות נוספות 125%
+  ot150HoursThisMonth?: number; // סה"כ שעות נוספות 150%
+  overtimeAdditionPay?: number; // תוספת שעות נוספות נטו לתלוש (תוספת 25% ו-50% לעובד חודשי)
+  overtimeFullPay?: number; // שווי שעות נוספות מלא (125% ו-150%)
+  totalEstimatedPay?: number; // שכר כולל משוער לחודש (שעות רגילות + ש"נ)
+  estimatedEarnings?: number; // תאימות לאחור
 }
 
 export type EmploymentType = "monthly_overtime" | "global" | "hourly" | "custom";

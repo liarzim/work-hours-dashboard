@@ -84,18 +84,64 @@ export function computeMonthSummary(
   }
   vacationBalance = round1(vacationBalance);
 
-  const overtimeHoursThisMonth = round1(
-    records.reduce((s, r) => s + (r.overtimeDecimal || 0), 0)
+  const regularHoursThisMonth = round1(
+    records.reduce((s, r) => s + (r.regularHoursDecimal ?? Math.min(r.totalHoursDecimal || 0, r.dailyStandard || 0)), 0)
   );
 
+  const ot125HoursThisMonth = round1(
+    records.reduce((s, r) => s + (r.overtime125Decimal ?? 0), 0)
+  );
+
+  const ot150HoursThisMonth = round1(
+    records.reduce((s, r) => s + (r.overtime150Decimal ?? 0), 0)
+  );
+
+  const overtimeHoursThisMonth = round1(ot125HoursThisMonth + ot150HoursThisMonth);
+
+  let overtimeAdditionPay: number | undefined = undefined;
+  let overtimeFullPay: number | undefined = undefined;
+  let totalEstimatedPay: number | undefined = undefined;
   let estimatedEarnings: number | undefined = undefined;
-  if (activeTerm?.hourlyRate && activeTerm.hourlyRate > 0) {
+
+  const rate = activeTerm?.hourlyRate && activeTerm.hourlyRate > 0 ? activeTerm.hourlyRate : 0;
+
+  if (rate > 0 && activeTerm) {
     if (activeTerm.employmentType === "hourly") {
-      // Hourly worker: reported hours * hourly rate
-      estimatedEarnings = round1(reportedHours * activeTerm.hourlyRate);
+      // Hourly worker: paid for each hour worked (regular 100%, OT 125%, OT 150%)
+      const regularPay = regularHoursThisMonth * rate;
+      const ot125Pay = ot125HoursThisMonth * (rate * 1.25);
+      const ot150Pay = ot150HoursThisMonth * (rate * 1.50);
+      
+      overtimeFullPay = round1(ot125Pay + ot150Pay);
+      overtimeAdditionPay = overtimeFullPay;
+      totalEstimatedPay = round1(regularPay + overtimeFullPay);
+      estimatedEarnings = totalEstimatedPay;
     } else if (activeTerm.employmentType === "monthly_overtime") {
-      // Monthly with overtime: estimated earnings from overtime (base 125%)
-      estimatedEarnings = round1(overtimeHoursThisMonth * activeTerm.hourlyRate * 1.25);
+      // Monthly contract with overtime:
+      // Base monthly salary covers regular standard hours (100%).
+      // Overtime addition: 25% extra on first 2 hours, 50% extra on 3rd hour+
+      const addition25 = ot125HoursThisMonth * (rate * 0.25);
+      const addition50 = ot150HoursThisMonth * (rate * 0.50);
+      overtimeAdditionPay = round1(addition25 + addition50);
+
+      // Full value of the overtime component (125% and 150%)
+      const full125 = ot125HoursThisMonth * (rate * 1.25);
+      const full150 = ot150HoursThisMonth * (rate * 1.50);
+      overtimeFullPay = round1(full125 + full150);
+
+      estimatedEarnings = overtimeAdditionPay;
+    } else if (activeTerm.employmentType === "global") {
+      // Global contract: no daily overtime increments
+      overtimeAdditionPay = 0;
+      overtimeFullPay = 0;
+      estimatedEarnings = 0;
+    } else {
+      // Custom
+      const addition25 = ot125HoursThisMonth * (rate * 0.25);
+      const addition50 = ot150HoursThisMonth * (rate * 0.50);
+      overtimeAdditionPay = round1(addition25 + addition50);
+      overtimeFullPay = round1(ot125HoursThisMonth * (rate * 1.25) + ot150HoursThisMonth * (rate * 1.50));
+      estimatedEarnings = overtimeAdditionPay;
     }
   }
 
@@ -114,7 +160,13 @@ export function computeMonthSummary(
     vacationBalance,
     standardWorkDays,
     activeEmploymentTerm: activeTerm,
+    regularHoursThisMonth,
     overtimeHoursThisMonth,
+    ot125HoursThisMonth,
+    ot150HoursThisMonth,
+    overtimeAdditionPay,
+    overtimeFullPay,
+    totalEstimatedPay,
     estimatedEarnings,
   };
 }
