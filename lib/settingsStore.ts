@@ -156,3 +156,39 @@ export function saveNonWorkingDays(days: number[]): void {
   localStorage.setItem("work-hours-non-working-days", JSON.stringify(days));
 }
 
+export interface ChartPalette {
+  work: string;
+  vacation: string;
+  reserve: string;
+  sick: string;
+  holiday: string;
+  missing: string;
+  weekend: string;
+}
+
+export const DEFAULT_CHART_PALETTE: ChartPalette = {
+  work: "#2563eb",
+  vacation: "#a855f7",
+  reserve: "#10b981",
+  sick: "#f59e0b",
+  holiday: "#06b6d4",
+  missing: "#eab308",
+  weekend: "#cbd5e1",
+};
+
+export function getChartPalette(): ChartPalette {
+  if (typeof window === "undefined") return DEFAULT_CHART_PALETTE;
+  try {
+    const val = localStorage.getItem("work-hours-chart-palette");
+    return val ? { ...DEFAULT_CHART_PALETTE, ...JSON.parse(val) } : DEFAULT_CHART_PALETTE;
+  } catch {
+    return DEFAULT_CHART_PALETTE;
+  }
+}
+
+export function saveChartPalette(palette: ChartPalette): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("work-hours-chart-palette", JSON.stringify(palette));
+  window.dispatchEvent(new Event("storage"));
+}
+
