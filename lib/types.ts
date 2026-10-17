@@ -42,6 +42,8 @@ export interface MonthSummary {
   standardWorkDays: number; // תקן ימי עבודה לחודש (מהגדרות)
   estimatedVacationBalanceYearEnd?: number; // הערכה לאחר חופשות עתידיות
   activeEmploymentTerm?: EmploymentTerm; // תנאי העסקה שבתוקף בחודש זה
+  overtimeHoursThisMonth?: number; // שעות נוספות שבוצעו החודש
+  estimatedEarnings?: number; // הערכת שכר / תשלום משעות נוספות או שעות בפועל
 }
 
 export type EmploymentType = "monthly_overtime" | "global" | "hourly" | "custom";
@@ -57,6 +59,7 @@ export interface EmploymentTerm {
   dailyStandardSunWed: number; // e.g. 9.0
   dailyStandardThu: number; // e.g. 8.5
   overtimeEligible: boolean;
+  hourlyRate?: number | null; // ערך שעה ב-₪ (לשעתיים או לחודשיים עם שעות נוספות)
   notes?: string;
 }
 

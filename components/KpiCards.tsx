@@ -62,7 +62,26 @@ export default function KpiCards({ summary, onOpenMissingModal }: Props) {
       <Card
         title="שעות שדווחו"
         value={`${summary.reportedHours.toFixed(1)} שעות`}
-        sub={`מתוך יעד של ${summary.targetHours.toFixed(1)}`}
+        sub={
+          <div className="space-y-0.5">
+            <div>
+              {summary.targetHours > 0
+                ? `מתוך יעד של ${summary.targetHours.toFixed(1)}`
+                : "עובד שעתי (ללא יעד)"}
+            </div>
+            {summary.activeEmploymentTerm?.hourlyRate ? (
+              <div className="text-[11px] font-semibold text-emerald-600">
+                {summary.activeEmploymentTerm.employmentType === "hourly"
+                  ? `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate} (סה"כ כ-₪${(summary.estimatedEarnings || 0).toLocaleString()})`
+                  : `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate}${
+                      (summary.overtimeHoursThisMonth || 0) > 0
+                        ? ` • ש"נ: ${summary.overtimeHoursThisMonth}ש' (כ-₪${(summary.estimatedEarnings || 0).toLocaleString()})`
+                        : ""
+                    }`}
+              </div>
+            ) : null}
+          </div>
+        }
         icon={<ClockIcon className="h-5 w-5 text-brand-600" />}
         iconBg="bg-brand-50"
       />

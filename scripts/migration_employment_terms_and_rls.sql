@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.employment_terms (
   daily_standard_sun_wed NUMERIC(4,2) NOT NULL DEFAULT 9.00,
   daily_standard_thu NUMERIC(4,2) NOT NULL DEFAULT 8.50,
   overtime_eligible BOOLEAN NOT NULL DEFAULT true,
+  hourly_rate NUMERIC(10,2),
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

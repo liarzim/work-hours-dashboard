@@ -131,6 +131,7 @@ export default function SettingsScreen() {
   const [termSunWed, setTermSunWed] = useState("9.0");
   const [termThu, setTermThu] = useState("8.5");
   const [termOvertime, setTermOvertime] = useState(true);
+  const [termHourlyRate, setTermHourlyRate] = useState<string>("");
   const [termNotes, setTermNotes] = useState("");
   const [termSaving, setTermSaving] = useState(false);
   const [termError, setTermError] = useState<string | null>(null);
@@ -143,6 +144,7 @@ export default function SettingsScreen() {
       setTermSunWed("9.0");
       setTermThu("8.5");
       setTermOvertime(true);
+      setTermHourlyRate("");
     } else if (preset === "global") {
       setTermName("שכר גלובלי (ללא שעות נוספות יומיות)");
       setTermType("global");
@@ -150,6 +152,7 @@ export default function SettingsScreen() {
       setTermSunWed("9.0");
       setTermThu("8.5");
       setTermOvertime(false);
+      setTermHourlyRate("");
     } else if (preset === "hourly") {
       setTermName("עובד שעתי (שכר לפי ביצוע בפועל)");
       setTermType("hourly");
@@ -157,6 +160,7 @@ export default function SettingsScreen() {
       setTermSunWed("0");
       setTermThu("0");
       setTermOvertime(true);
+      setTermHourlyRate("50");
     } else if (preset === "parent") {
       setTermName("משרת הורה / מקוצרת");
       setTermType("monthly_overtime");
@@ -164,6 +168,7 @@ export default function SettingsScreen() {
       setTermSunWed("8.0");
       setTermThu("7.5");
       setTermOvertime(true);
+      setTermHourlyRate("");
     } else if (preset === "half") {
       setTermName("חצי משרה (50%)");
       setTermType("monthly_overtime");
@@ -171,6 +176,7 @@ export default function SettingsScreen() {
       setTermSunWed("4.5");
       setTermThu("4.25");
       setTermOvertime(true);
+      setTermHourlyRate("");
     }
   };
 
@@ -180,6 +186,7 @@ export default function SettingsScreen() {
     const today = new Date().toISOString().slice(0, 10);
     setTermStartDate(today);
     setTermEndDate("");
+    setTermHourlyRate("");
     setTermNotes("");
     setTermError(null);
     setTermModalOpen(true);
@@ -195,6 +202,7 @@ export default function SettingsScreen() {
     setTermSunWed(String(term.dailyStandardSunWed));
     setTermThu(String(term.dailyStandardThu));
     setTermOvertime(term.overtimeEligible);
+    setTermHourlyRate(term.hourlyRate != null ? String(term.hourlyRate) : "");
     setTermNotes(term.notes || "");
     setTermError(null);
     setTermModalOpen(true);
@@ -225,6 +233,7 @@ export default function SettingsScreen() {
           dailyStandardSunWed: parseFloat(termSunWed) || 9.0,
           dailyStandardThu: parseFloat(termThu) || 8.5,
           overtimeEligible: termOvertime,
+          hourlyRate: termHourlyRate.trim() ? parseFloat(termHourlyRate) : null,
           notes: termNotes,
         }),
       });
@@ -927,6 +936,16 @@ export default function SettingsScreen() {
                         {t.overtimeEligible ? "זכאי" : "לא זכאי"}
                       </span>
                     </div>
+                    <div className="col-span-2 pt-1 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-slate-500 text-[11px] font-medium">ערך שעה:</span>
+                      <span className="font-bold text-xs text-slate-800">
+                        {t.hourlyRate ? (
+                          <span className="text-emerald-700 font-bold">₪{t.hourlyRate.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">/שעה</span></span>
+                        ) : (
+                          <span className="text-slate-300 font-normal">—</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
@@ -936,7 +955,7 @@ export default function SettingsScreen() {
 
         {/* List / Table of Terms (Desktop & Tablet) */}
         <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-100">
-          <table className="w-full min-w-[600px] text-sm text-right">
+          <table className="w-full min-w-[650px] text-sm text-right">
             <thead>
               <tr className="bg-slate-50/80 text-xs font-semibold text-slate-500 border-b border-slate-100">
                 <th className="px-3 py-2.5">תקופה ותנאים</th>
@@ -944,13 +963,14 @@ export default function SettingsScreen() {
                 <th className="px-3 py-2.5 text-center">היקף משרה</th>
                 <th className="px-3 py-2.5 text-center">תקן יומי (א'-ד' / ה')</th>
                 <th className="px-3 py-2.5 text-center">ש"נ</th>
+                <th className="px-3 py-2.5 text-center">ערך שעה</th>
                 <th className="px-3 py-2.5 text-center">פעולות</th>
               </tr>
             </thead>
             <tbody>
               {termsList.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-xs text-slate-400">
+                  <td colSpan={7} className="px-4 py-6 text-center text-xs text-slate-400">
                     לא הוגדרו תקופות. המערכת משתמשת בתנאי ברירת מחדל (חודשי עם שעות נוספות).
                   </td>
                 </tr>
@@ -999,6 +1019,13 @@ export default function SettingsScreen() {
                           <span className="text-emerald-600 font-medium">כן</span>
                         ) : (
                           <span className="text-slate-400">לא</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-xs font-semibold">
+                        {t.hourlyRate ? (
+                          <span className="text-emerald-700 font-bold">₪{t.hourlyRate.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">/שעה</span></span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-center">
@@ -2149,6 +2176,41 @@ export default function SettingsScreen() {
                       זכאי לשעות נוספות יומיות
                     </label>
                   </div>
+                </div>
+
+                {/* Hourly Rate (ערך שעה) */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700">
+                      💰 ערך שעה (₪)
+                    </label>
+                    <span className="text-[11px] font-semibold text-brand-600">
+                      {termType === "hourly"
+                        ? "שכר לשעת עבודה בפועל"
+                        : termType === "monthly_overtime"
+                        ? "בסיס שעות נוספות (125% / 150%)"
+                        : "חישוב שכר/שעות"}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={termHourlyRate}
+                      onChange={(e) => setTermHourlyRate(e.target.value)}
+                      placeholder="למשל: 50.00"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 pl-8 font-semibold text-slate-800"
+                    />
+                    <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">₪</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    {termType === "hourly"
+                      ? "השכר השעתי שישמש לחישוב השכר החודשי בהתאם לשעות שדווחו בפועל."
+                      : termType === "monthly_overtime"
+                      ? "ערך שעה המשמש לחישוב תעריף שעות נוספות (125% עבור 2 השעות הראשונות, 150% מעבר לכך)."
+                      : "ערך שעה בש\"ח (אופציונלי)."}
+                  </p>
                 </div>
 
                 <div>

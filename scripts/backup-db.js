@@ -13,7 +13,7 @@ const DB_CONFIG = {
   database: process.env.PGDATABASE || 'postgres',
 };
 
-const TABLES = ['profiles', 'workday_standards', 'reports'];
+const TABLES = ['profiles', 'workday_standards', 'reports', 'employment_terms'];
 
 function escapeSqlValue(val) {
   if (val === null || val === undefined) {
