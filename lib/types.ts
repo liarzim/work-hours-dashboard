@@ -75,6 +75,23 @@ export interface MonthData {
   info: JournalInfo;
 }
 
+export interface MissingReportItem {
+  date: string; // ISO yyyy-mm-dd
+  dateDisplay: string; // dd/mm/yyyy
+  dayName: string; // יום חמישי...
+  year: number;
+  month: number;
+  dailyStandard: number;
+  notes?: string;
+  uniqueNotes?: string;
+  classification?: string;
+}
+
+export interface MissingReportsResponse {
+  count: number;
+  missing: MissingReportItem[];
+}
+
 /** Reserve-duty aggregation for the drill-down chart. */
 export interface ReserveBucket {
   /** Year (years view) or month 1-12 (months view). */

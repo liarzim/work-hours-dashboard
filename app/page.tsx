@@ -8,6 +8,7 @@ import ReportsScreen from "@/components/ReportsScreen";
 import SettingsScreen from "@/components/SettingsScreen";
 import ReportModal from "@/components/ReportModal";
 import BulkUpdateModal from "@/components/BulkUpdateModal";
+import MissingReportsModal from "@/components/MissingReportsModal";
 import { monthKey, useMonthData } from "@/lib/client";
 import { DayRecord, MonthData, ReportInput } from "@/lib/types";
 
@@ -17,9 +18,11 @@ export default function Home() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalDate, setModalDate] = useState<string | null>(null);
   const [editRecord, setEditRecord] = useState<DayRecord | null>(null);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [bulkDates, setBulkDates] = useState<string[]>([]);
+  const [missingModalOpen, setMissingModalOpen] = useState(false);
 
   const { data, isLoading, error } = useMonthData(year, month);
   const { mutate } = useSWRConfig();
@@ -45,6 +48,7 @@ export default function Home() {
       await mutate(monthKey(year, month));
       await mutate("/api/settings");
       await mutate("/api/reserve");
+      await mutate("/api/reports/missing");
     } finally {
       setSyncing(false);
     }
@@ -52,13 +56,53 @@ export default function Home() {
 
   const openNewReport = useCallback(() => {
     setEditRecord(null);
+    setModalDate(null);
     setModalOpen(true);
   }, []);
 
   const openEdit = useCallback((rec: DayRecord) => {
     setEditRecord(rec);
+    setModalDate(rec.date);
     setModalOpen(true);
   }, []);
+
+  const openEditForDate = useCallback(
+    (date: string) => {
+      const rec = data?.records.find((r) => r.date === date);
+      if (rec) {
+        setEditRecord(rec);
+      } else {
+        setEditRecord(null);
+      }
+      setModalDate(date);
+      setModalOpen(true);
+    },
+    [data]
+  );
+
+  const handleQuickSaveMissing = useCallback(
+    async (updates: {
+      date: string;
+      entry?: string;
+      exit?: string;
+      classification: string;
+      vacationDays?: number;
+      sickDays?: number;
+      reserveDays?: number;
+    }) => {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? "שגיאה בשמירה");
+      const [y, m] = updates.date.split("-").map(Number);
+      await mutate(monthKey(y, m));
+      await mutate("/api/reports/missing");
+    },
+    [mutate]
+  );
 
   /** Optimistic save: patch the SWR cache instantly, then POST, then revalidate. */
   const saveReport = useCallback(
@@ -112,6 +156,7 @@ export default function Home() {
           revalidate: true,
         }
       );
+      await mutate("/api/reports/missing");
     },
     [mutate]
   );
@@ -242,6 +287,7 @@ export default function Home() {
           revalidate: true,
         }
       );
+      await mutate("/api/reports/missing");
     },
     [bulkDates, mutate]
   );
@@ -282,6 +328,7 @@ export default function Home() {
             loading={isLoading}
             year={year}
             month={month}
+            onOpenMissingModal={() => setMissingModalOpen(true)}
           />
         )}
         {tab === "reports" && (
@@ -301,13 +348,20 @@ export default function Home() {
       {modalOpen && (
         <ReportModal
           record={editRecord}
-          defaultDate={`${year}-${String(month).padStart(2, "0")}-${String(
-            Math.min(new Date().getDate(), 28)
-          ).padStart(2, "0")}`}
-          onClose={() => setModalOpen(false)}
+          defaultDate={
+            modalDate ||
+            `${year}-${String(month).padStart(2, "0")}-${String(
+              Math.min(new Date().getDate(), 28)
+            ).padStart(2, "0")}`
+          }
+          onClose={() => {
+            setModalOpen(false);
+            setModalDate(null);
+          }}
           onSave={async (input) => {
             await saveReport(input);
             setModalOpen(false);
+            setModalDate(null);
           }}
         />
       )}
@@ -318,6 +372,18 @@ export default function Home() {
           existingRecords={data?.records ?? []}
           onClose={() => setBulkModalOpen(false)}
           onSaveBatch={saveReportsBatch}
+        />
+      )}
+
+      {missingModalOpen && (
+        <MissingReportsModal
+          onClose={() => setMissingModalOpen(false)}
+          onEditDate={openEditForDate}
+          onBulkUpdate={(dates) => {
+            setBulkDates(dates);
+            setBulkModalOpen(true);
+          }}
+          onQuickSave={handleQuickSaveMissing}
         />
       )}
     </div>
