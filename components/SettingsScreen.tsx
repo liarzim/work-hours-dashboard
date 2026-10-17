@@ -19,7 +19,11 @@ import {
   getNonWorkingDays,
   saveNonWorkingDays,
   HolidaySetting,
-  syncHolidaysFromHebcal
+  syncHolidaysFromHebcal,
+  getChartPalette,
+  saveChartPalette,
+  DEFAULT_CHART_PALETTE,
+  ChartPalette,
 } from "@/lib/settingsStore";
 
 export default function SettingsScreen() {
@@ -63,6 +67,25 @@ export default function SettingsScreen() {
   const [syncingHebcal, setSyncingHebcal] = useState(false);
   const [hebcalMessage, setHebcalMessage] = useState<string | null>(null);
   const [hebcalError, setHebcalError] = useState<string | null>(null);
+
+  // Chart Palette State
+  const [chartPalette, setChartPalette] = useState<ChartPalette>(DEFAULT_CHART_PALETTE);
+  const [paletteSavedMsg, setPaletteSavedMsg] = useState<string | null>(null);
+
+  const handleColorChange = (key: keyof ChartPalette, value: string) => {
+    const updated = { ...chartPalette, [key]: value };
+    setChartPalette(updated);
+    saveChartPalette(updated);
+    setPaletteSavedMsg("צבעי הגרף נשמרו ועודכנו!");
+    setTimeout(() => setPaletteSavedMsg(null), 3000);
+  };
+
+  const handleResetPalette = () => {
+    setChartPalette(DEFAULT_CHART_PALETTE);
+    saveChartPalette(DEFAULT_CHART_PALETTE);
+    setPaletteSavedMsg("פלטת הצבעים שוחזרה לברירת המחדל!");
+    setTimeout(() => setPaletteSavedMsg(null), 3000);
+  };
 
   const handleSyncHebcal = async (allYears = false) => {
     setSyncingHebcal(true);
@@ -285,6 +308,7 @@ export default function SettingsScreen() {
     setOrderTypesState(getOrderTypes());
     setHolidaysState(getHolidays());
     setNonWorkingDays(getNonWorkingDays());
+    setChartPalette(getChartPalette());
     const names = getHolidayNames();
     setHolidayNamesState(names);
     if (names.length) {
@@ -1644,6 +1668,78 @@ export default function SettingsScreen() {
             </div>
           )}
         </div>
+      </section>
+
+      {/* Chart Color Palette Customization */}
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-50 text-pink-600">
+              <span className="text-base">🎨</span>
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">התאמת צבעי גרף שעות עבודה יומי</h2>
+              <p className="text-xs text-slate-400">בחר את הצבע הרצוי לכל סוג דיווח בגרף העמודות</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetPalette}
+            className="flex items-center gap-1.5 self-start sm:self-auto rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition shadow-sm"
+          >
+            <RefreshIcon className="h-3.5 w-3.5" />
+            שחזר ברירת מחדל
+          </button>
+        </div>
+
+        {paletteSavedMsg && (
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-800 text-center">
+            {paletteSavedMsg}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {[
+            { key: "work", label: "יום עבודה רגיל", desc: "שעות שדווחו בפועל" },
+            { key: "vacation", label: "חופשה (12 ש')", desc: "יום חופש מלא" },
+            { key: "reserve", label: "מילואים (12 ש')", desc: "שירות מילואים פעיל" },
+            { key: "sick", label: "מחלה (12 ש')", desc: "יום מחלה מלא" },
+            { key: "holiday", label: "חג / ערב חג (12 ש')", desc: "חג או מועד רשמי" },
+            { key: "missing", label: "דיווח חסר ⚠️", desc: "יום עבודה בעבר ללא שעות" },
+            { key: "weekend", label: "סופ\"ש / יום מנוחה", desc: "שישי / שבת ללא שעות" },
+          ].map((item) => {
+            const colorVal = chartPalette[item.key as keyof ChartPalette] || "#2563eb";
+            return (
+              <div
+                key={item.key}
+                className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 hover:bg-slate-50 transition"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="relative">
+                    <input
+                      type="color"
+                      value={colorVal}
+                      onChange={(e) => handleColorChange(item.key as keyof ChartPalette, e.target.value)}
+                      className="h-8 w-8 cursor-pointer rounded-lg border-0 bg-transparent p-0 shadow-sm"
+                      title={`בחר צבע עבור ${item.label}`}
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-800">{item.label}</span>
+                    <span className="block text-[11px] text-slate-400">{item.desc}</span>
+                  </div>
+                </div>
+                <span className="font-mono text-[11px] font-bold text-slate-500 uppercase bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {colorVal}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="mt-4 text-[11px] text-slate-400 leading-normal border-t border-slate-100 pt-3">
+          💡 <strong>לתשומת לבך:</strong> ימי חג, ערב חג, חופשה, מחלה ומילואים מוצגים בגרף בגובה של 12 שעות לצורך ויזואליות ברורה בלבד. שעות אלו <u>אינן</u> נספרות כשעות עבודה שבוצעו בפועל ו<u>אינן</u> מחושבות לצורך שעות נוספות.
+        </p>
       </section>
 
       {/* Historic Data Importer */}

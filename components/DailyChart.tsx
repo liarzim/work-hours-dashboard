@@ -13,7 +13,14 @@ import {
 } from "recharts";
 import { DayRecord } from "@/lib/types";
 import { daysInMonth } from "@/lib/date";
-import { getNonWorkingDays, getHolidays, HolidaySetting } from "@/lib/settingsStore";
+import {
+  getNonWorkingDays,
+  getHolidays,
+  HolidaySetting,
+  getChartPalette,
+  DEFAULT_CHART_PALETTE,
+  ChartPalette,
+} from "@/lib/settingsStore";
 
 interface Props {
   records: DayRecord[];
@@ -60,7 +67,7 @@ const CustomBarBackground = (props: any) => {
       y={y}
       width={width}
       height={height}
-      fill="#cbd5e1"
+      fill={payload.weekendColor || "#cbd5e1"}
       rx={4}
       ry={4}
     />
@@ -69,15 +76,22 @@ const CustomBarBackground = (props: any) => {
 
 export default function DailyChart({ records, year, month, nonWorkingDays: customNonWorking }: Props) {
   const [holidays, setHolidays] = useState<HolidaySetting[]>([]);
+  const [palette, setPalette] = useState<ChartPalette>(DEFAULT_CHART_PALETTE);
 
   useEffect(() => {
     setHolidays(getHolidays());
-    const handleStorage = () => setHolidays(getHolidays());
+    setPalette(getChartPalette());
+
+    const handleStorage = () => {
+      setHolidays(getHolidays());
+      setPalette(getChartPalette());
+    };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   const holidayDatesSet = useMemo(() => new Set(holidays.map((h) => h.date)), [holidays]);
+  const holidayMap = useMemo(() => new Map(holidays.map((h) => [h.date, h])), [holidays]);
 
   const nonWorkingDays = useMemo(() => {
     return customNonWorking ?? getNonWorkingDays();
@@ -109,38 +123,98 @@ export default function DailyChart({ records, year, month, nonWorkingDays: custo
       const isHoliday = holidayDatesSet.has(iso);
 
       const r = recordMap.get(day);
-      const hours = Math.round(((r?.totalHoursDecimal) ?? 0) * 10) / 10;
+      const actualHours = Math.round(((r?.totalHoursDecimal) ?? 0) * 10) / 10;
       const classification = r?.classification ?? "";
-      const isVacation = classification === "Vacation" || classification === "חופשה" || classification === "חופש" || (r?.vacationDays ?? 0) > 0;
-      const isReserve = classification === "Reserve" || classification === "ReserveDuty" || classification === "מילואים" || classification === "עבודה במילואים" || (r?.reserveDays ?? 0) > 0;
-      const isSick = classification === "Sick" || classification === "מחלה" || (r?.sickDays ?? 0) > 0;
 
-      // Check if missing report (past workday, no holiday, no absence, no hours)
-      const isMissing = isPast && !isNonWorking && !isHoliday && !isVacation && !isReserve && !isSick && hours === 0 && (!classification || classification === "עבודה") && (!r?.vacationDays) && (!r?.sickDays) && (!r?.reserveDays);
+      const isVacation =
+        classification === "Vacation" ||
+        classification === "חופשה" ||
+        classification === "חופש" ||
+        classification === "חול המועד" ||
+        (r?.vacationDays ?? 0) > 0;
 
-      let catLabel = "";
-      if (isMissing) catLabel = " (⚠️ דיווח חסר)";
-      else if (isNonWorking) catLabel = " (יום מנוחה)";
-      else if (isVacation) catLabel = " (חופשה)";
-      else if (isReserve) catLabel = " (מילואים)";
-      else if (isSick) catLabel = " (מחלה)";
+      const isReserve =
+        classification === "Reserve" ||
+        classification === "ReserveDuty" ||
+        classification === "מילואים" ||
+        classification === "עבודה במילואים" ||
+        (r?.reserveDays ?? 0) > 0;
 
-      let color = "#2563eb";
-      if (isMissing) {
-        color = "#eab308"; // Amber / Yellow
-      } else if (isNonWorking) {
-        color = hours > 0 ? "#475569" : "#cbd5e1";
-      } else if (isVacation) {
-        color = "#a855f7"; // Purple
-      } else if (isReserve) {
-        color = "#10b981"; // Green
-      } else if (isSick) {
-        color = "#f59e0b"; // Amber/Orange
+      const isSick =
+        classification === "Sick" ||
+        classification === "מחלה" ||
+        (r?.sickDays ?? 0) > 0;
+
+      const isHolidayDay =
+        isHoliday ||
+        classification === "חג" ||
+        classification === "ערב חג";
+
+      // If actual hours were reported, show them.
+      // Otherwise, if holiday, reserve, vacation, or sick, display as 12 hours!
+      let hours = actualHours;
+      let isFullDayAbsence = false;
+
+      if (actualHours === 0) {
+        if (isHolidayDay || isReserve || isVacation || isSick) {
+          hours = 12;
+          isFullDayAbsence = true;
+        }
       }
 
-      return { day, hours, isNonWorking, isMissing, catLabel, color };
+      // Check if missing report (past workday, no holiday, no absence, no hours)
+      const isMissing =
+        isPast &&
+        !isNonWorking &&
+        !isHolidayDay &&
+        !isVacation &&
+        !isReserve &&
+        !isSick &&
+        actualHours === 0 &&
+        (!classification || classification === "עבודה") &&
+        !r?.vacationDays &&
+        !r?.sickDays &&
+        !r?.reserveDays;
+
+      let catLabel = "";
+      let color = palette.work;
+
+      if (isMissing) {
+        catLabel = " (⚠️ דיווח חסר)";
+        color = palette.missing;
+      } else if (isNonWorking) {
+        catLabel = actualHours > 0 ? " (יום מנוחה · שעות בפועל)" : " (סופ\"ש)";
+        color = actualHours > 0 ? "#475569" : palette.weekend;
+      } else if (isHolidayDay) {
+        const holName = holidayMap.get(iso)?.name || classification || "חג";
+        catLabel = isFullDayAbsence ? ` (${holName} · 12 שעות)` : ` (${holName} · ${actualHours} שעות בפועל)`;
+        color = palette.holiday;
+      } else if (isVacation) {
+        catLabel = isFullDayAbsence ? " (חופשה · 12 שעות)" : ` (חופשה · ${actualHours} שעות בפועל)`;
+        color = palette.vacation;
+      } else if (isReserve) {
+        catLabel = isFullDayAbsence ? " (מילואים · 12 שעות)" : ` (מילואים · ${actualHours} שעות בפועל)`;
+        color = palette.reserve;
+      } else if (isSick) {
+        catLabel = isFullDayAbsence ? " (מחלה · 12 שעות)" : ` (מחלה · ${actualHours} שעות בפועל)`;
+        color = palette.sick;
+      } else {
+        catLabel = actualHours > 0 ? " (עבודה)" : "";
+        color = palette.work;
+      }
+
+      return {
+        day,
+        hours,
+        actualHours,
+        isNonWorking,
+        isMissing,
+        catLabel,
+        color,
+        weekendColor: palette.weekend,
+      };
     });
-  }, [records, year, month, nonWorkingDays, todayIso, holidayDatesSet]);
+  }, [records, year, month, nonWorkingDays, todayIso, holidayDatesSet, holidayMap, palette]);
 
   return (
     <section className="h-full rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
@@ -157,6 +231,7 @@ export default function DailyChart({ records, year, month, nonWorkingDays: custo
               interval={0}
             />
             <YAxis
+              domain={[0, 14]}
               tick={{ fontSize: 11, fill: "#94a3b8" }}
               tickLine={false}
               axisLine={false}
@@ -197,23 +272,27 @@ export default function DailyChart({ records, year, month, nonWorkingDays: custo
       {/* Chart Legend */}
       <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-blue-600" />
+          <span className="h-3 w-3 rounded" style={{ backgroundColor: palette.work }} />
           <span>עבודה</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-purple-500" />
-          <span>חופשה</span>
+          <span className="h-3 w-3 rounded" style={{ backgroundColor: palette.vacation }} />
+          <span>חופשה (12 ש')</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-emerald-500" />
-          <span>מילואים</span>
+          <span className="h-3 w-3 rounded" style={{ backgroundColor: palette.reserve }} />
+          <span>מילואים (12 ש')</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-amber-500" />
-          <span>מחלה</span>
+          <span className="h-3 w-3 rounded" style={{ backgroundColor: palette.sick }} />
+          <span>מחלה (12 ש')</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded" style={{ backgroundColor: palette.holiday }} />
+          <span>חג / ערב חג (12 ש')</span>
         </span>
         <span className="flex items-center gap-1.5 font-semibold text-amber-700">
-          <span className="h-3 w-3 rounded bg-yellow-400 border border-amber-400" />
+          <span className="h-3 w-3 rounded border" style={{ backgroundColor: palette.missing, borderColor: "#ca8a04" }} />
           <span>דיווח חסר ⚠️</span>
         </span>
       </div>
