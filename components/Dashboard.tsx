@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { MonthData } from "@/lib/types";
 import KpiCards from "./KpiCards";
 import MonthlySummary from "./MonthlySummary";
 import DailyChart from "./DailyChart";
 import ReserveChart from "./ReserveChart";
 import AlertToast from "./AlertToast";
+import OvertimeModal from "./OvertimeModal";
 
 /** yyyy-mm-dd -> dd/mm/yyyy for the info banner. */
 function formatIso(iso: string): string {
@@ -23,6 +25,7 @@ interface Props {
 }
 
 export default function Dashboard({ data, loading, year, month, onOpenMissingModal }: Props) {
+  const [overtimeModalOpen, setOvertimeModalOpen] = useState(false);
   if (loading && !data) {
     return (
       <div className="grid animate-pulse gap-4">
@@ -74,10 +77,17 @@ export default function Dashboard({ data, loading, year, month, onOpenMissingMod
         </div>
       )}
 
-      <KpiCards summary={summary} onOpenMissingModal={onOpenMissingModal} />
+      <KpiCards
+        summary={summary}
+        onOpenMissingModal={onOpenMissingModal}
+        onOpenOvertimeModal={() => setOvertimeModalOpen(true)}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <MonthlySummary summary={summary} />
+        <MonthlySummary
+          summary={summary}
+          onOpenOvertimeModal={() => setOvertimeModalOpen(true)}
+        />
         <div className="lg:col-span-2">
           <DailyChart records={records} year={year} month={month} />
         </div>
@@ -86,6 +96,15 @@ export default function Dashboard({ data, loading, year, month, onOpenMissingMod
       <ReserveChart />
 
       <AlertToast summary={summary} />
+
+      <OvertimeModal
+        isOpen={overtimeModalOpen}
+        onClose={() => setOvertimeModalOpen(false)}
+        summary={summary}
+        records={records}
+        year={year}
+        month={month}
+      />
     </div>
   );
 }

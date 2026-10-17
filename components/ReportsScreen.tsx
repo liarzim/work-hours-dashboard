@@ -369,7 +369,14 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                       {isMissing ? (
                         <span className="font-semibold text-amber-600 text-xs">0.0</span>
                       ) : (
-                        (r.totalHoursDecimal || 0).toFixed(1)
+                        <div>
+                          <div>{(r.totalHoursDecimal || 0).toFixed(1)}</div>
+                          {(r.overtimeDecimal || 0) > 0 && (
+                            <div className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-1.5 py-0.2 mt-0.5 inline-block">
+                              +{(r.overtimeDecimal || 0).toFixed(1)} ש"נ
+                            </div>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-center">
