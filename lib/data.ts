@@ -17,6 +17,8 @@ import { currentMode } from "./config";
 import { createSupabaseServerClient } from "./supabase/server";
 import { deriveDayRecord } from "./derive";
 import { daysInMonth, isoToDdmmyyyy, todayIso } from "./date";
+import { DEFAULT_HOLIDAYS_LIST, DEFAULT_HOLIDAY_DATES } from "./holidays";
+export { DEFAULT_HOLIDAYS_LIST, DEFAULT_HOLIDAY_DATES };
 
 export const DEFAULT_EMPLOYMENT_TERM: EmploymentTerm = {
   id: "default",
@@ -295,13 +297,16 @@ export async function getMonthData(
     const totalUsedSinceStart = usedBeforeSelectedYear + ytdUsed;
     const activeTermForDay = findActiveTermForDate(terms, iso);
 
+    const dateObj = new Date(`${iso}T00:00:00`);
+    const dow = dateObj.getDay();
+    const isWeekend = dow === 5 || dow === 6;
+    const holiday = DEFAULT_HOLIDAYS_LIST.find((h) => h.date === iso);
+
     if (dbRow) {
-      // In future dates, if user didn't enter anything, don't enter classification (leave empty)
       if (isFuture) {
         const hasEnteredData = Boolean(
           (dbRow.entry && String(dbRow.entry).trim() !== "") ||
           (dbRow.exit && String(dbRow.exit).trim() !== "") ||
-          Number(dbRow.total_hours_decimal || 0) > 0 ||
           Number(dbRow.vacation_days || 0) > 0 ||
           Number(dbRow.sick_days || 0) > 0 ||
           Number(dbRow.reserve_days || 0) > 0 ||
@@ -310,17 +315,29 @@ export async function getMonthData(
           (dbRow.order_type && String(dbRow.order_type).trim() !== "")
         );
         if (!hasEnteredData) {
-          const normC = (dbRow.classification || "").replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
-          if (normC === 'סופ"ש' || normC === "סופש" || normC === "סופשבוע" || normC === "עבודה") {
+          if (holiday) {
+            dbRow = { ...dbRow, classification: holiday.category, notes: dbRow.notes || holiday.name };
+          } else if (isWeekend) {
+            dbRow = { ...dbRow, classification: 'סופ"ש' };
+          } else {
+            // Future workday with no data: leave classification empty
             dbRow = { ...dbRow, classification: "" };
           }
         }
       }
       records.push(deriveDayRecord(dbRow, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month, activeTermForDay));
     } else {
-      const dateObj = new Date(`${iso}T00:00:00`);
-      const dow = dateObj.getDay();
-      const isWeekend = dow === 5 || dow === 6;
+      let autoClassification = "";
+      let autoNotes: string | null = null;
+      if (holiday) {
+        autoClassification = holiday.category;
+        autoNotes = holiday.name;
+      } else if (isWeekend) {
+        autoClassification = 'סופ"ש';
+      } else {
+        autoClassification = "";
+      }
+
       const defaultRaw = {
         date: iso,
         entry: null,
@@ -328,8 +345,8 @@ export async function getMonthData(
         vacation_days: 0,
         sick_days: 0,
         reserve_days: 0,
-        classification: isFuture ? "" : (isWeekend ? 'סופ"ש' : ""),
-        notes: null,
+        classification: autoClassification,
+        notes: autoNotes,
         unique_notes: null,
         order_type: null,
       };
@@ -774,22 +791,6 @@ export async function deleteEmploymentTerm(termId: string): Promise<void> {
     throw new Error(error.message || "שגיאה במחיקת תנאי העסקה");
   }
 }
-
-export const DEFAULT_HOLIDAY_DATES = [
-  "2026-04-02",
-  "2026-04-03",
-  "2026-04-09",
-  "2026-05-21",
-  "2026-05-22",
-  "2026-09-11",
-  "2026-09-12",
-  "2026-09-13",
-  "2026-09-20",
-  "2026-09-21",
-  "2026-09-25",
-  "2026-09-26",
-  "2026-10-02",
-];
 
 export async function getMissingReportsList(options?: {
   from?: string;

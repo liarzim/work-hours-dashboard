@@ -1,6 +1,7 @@
 import { HEBREW_DAYS } from "./types";
 import type { DayRecord, ReportInput, StandardSettings } from "./types";
 import { daysInMonth, decimalToHhmm, hhmmToDecimal, isoToDdmmyyyy, round1, todayIso } from "./date";
+import { DEFAULT_HOLIDAYS_LIST } from "./holidays";
 
 /**
  * In-memory mock data source. Active whenever Google credentials are absent,
@@ -46,7 +47,20 @@ function buildStore(): MockStore {
         const iso = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
         const isFuture = iso > todayIso();
         const weekend = dow === 5 || dow === 6;
-        const dailyStandard = weekend ? 0 : dow === 4 ? 8.5 : 9;
+        const holiday = DEFAULT_HOLIDAYS_LIST.find((h) => h.date === iso);
+
+        let classification = "";
+        let notes = "";
+        if (holiday) {
+          classification = holiday.category;
+          notes = holiday.name;
+        } else if (weekend) {
+          classification = 'סופ"ש';
+        } else if (!isFuture) {
+          classification = "עבודה";
+        }
+
+        const dailyStandard = weekend || (holiday && holiday.category === "חג") ? 0 : dow === 4 ? 8.5 : 9;
         records.set(iso, {
           rowIndex: rowIndex++,
           tab: "",
@@ -61,8 +75,8 @@ function buildStore(): MockStore {
           vacationDays: 0,
           reserveDays: 0,
           sickDays: 0,
-          classification: isFuture ? "" : (weekend ? 'סופ"ש' : "עבודה"),
-          notes: "",
+          classification,
+          notes,
           uniqueNotes: "",
           orderType: "",
           dayName: HEBREW_DAYS[dow],
