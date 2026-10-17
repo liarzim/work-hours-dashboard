@@ -98,9 +98,16 @@ export function deriveDayRecord(
   
   // Overtime eligibility: if false (e.g. global contract with no daily overtime), overtime is 0
   const isOvertimeEligible = term ? term.overtimeEligible : true;
-  const overtimeDecimal = isOvertimeEligible
-    ? Math.max(0, Math.round((totalHoursDecimal - dailyStandard) * 100) / 100)
-    : 0;
+  const rawOvertime = Math.max(0, Math.round((totalHoursDecimal - dailyStandard) * 100) / 100);
+  const overtimeDecimal = isOvertimeEligible ? rawOvertime : 0;
+
+  // Regular hours (up to daily standard)
+  const regularHoursDecimal = Math.min(totalHoursDecimal, dailyStandard);
+
+  // Statutory Israeli Overtime breakdown:
+  // First 2 overtime hours = 125%, beyond 2 hours = 150%
+  const overtime125Decimal = isOvertimeEligible ? Math.min(overtimeDecimal, 2.0) : 0;
+  const overtime150Decimal = isOvertimeEligible ? Math.max(0, Math.round((overtimeDecimal - 2.0) * 100) / 100) : 0;
   
   const date = new Date(`${raw.date}T00:00:00`);
   const dayName = HEBREW_DAYS[date.getDay()];
@@ -120,6 +127,9 @@ export function deriveDayRecord(
     totalHoursDecimal,
     dailyStandard,
     overtimeDecimal,
+    regularHoursDecimal,
+    overtime125Decimal,
+    overtime150Decimal,
     vacationDays: raw.vacation_days,
     reserveDays: raw.reserve_days,
     sickDays: raw.sick_days,

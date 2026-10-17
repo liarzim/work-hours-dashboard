@@ -72,12 +72,14 @@ export default function KpiCards({ summary, onOpenMissingModal }: Props) {
             {summary.activeEmploymentTerm?.hourlyRate ? (
               <div className="text-[11px] font-semibold text-emerald-600">
                 {summary.activeEmploymentTerm.employmentType === "hourly"
-                  ? `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate} (סה"כ כ-₪${(summary.estimatedEarnings || 0).toLocaleString()})`
-                  : `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate}${
+                  ? `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate} • שכר משוער: ₪${(summary.totalEstimatedPay || 0).toLocaleString()}`
+                  : summary.activeEmploymentTerm.employmentType === "monthly_overtime"
+                  ? `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate}${
                       (summary.overtimeHoursThisMonth || 0) > 0
-                        ? ` • ש"נ: ${summary.overtimeHoursThisMonth}ש' (כ-₪${(summary.estimatedEarnings || 0).toLocaleString()})`
-                        : ""
-                    }`}
+                        ? ` • תוספת ש"נ לתלוש: ₪${(summary.overtimeAdditionPay || 0).toLocaleString()} (${summary.overtimeHoursThisMonth}ש')`
+                        : " • אין שעות נוספות"
+                    }`
+                  : `ערך שעה: ₪${summary.activeEmploymentTerm.hourlyRate}`}
               </div>
             ) : null}
           </div>
