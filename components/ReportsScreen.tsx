@@ -58,6 +58,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
   }, []);
 
   const holidayDatesSet = useMemo(() => new Set(holidays.map((h) => h.date)), [holidays]);
+  const holidayMap = useMemo(() => new Map(holidays.map((h) => [h.date, h])), [holidays]);
   const nonWorkingDaysSet = useMemo(() => new Set(nonWorkingDays), [nonWorkingDays]);
 
   const todayIso = useMemo(() => {
@@ -74,6 +75,29 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
   useEffect(() => {
     setSelectedDates([]);
   }, [year, month, showMissingOnly, classFilter]);
+
+  const getEffectiveClassification = (r: DayRecord): string => {
+    if (r.classification) {
+      return r.classification.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+    }
+    if (r.date > todayIso) {
+      const hol = holidayMap.get(r.date);
+      if (hol) return hol.category;
+      const [yStr, mStr, dStr] = r.date.split("-");
+      const dow = new Date(Number(yStr), Number(mStr) - 1, Number(dStr)).getDay();
+      if (nonWorkingDaysSet.has(dow)) return 'סופ"ש';
+    }
+    return "";
+  };
+
+  const getEffectiveNotes = (r: DayRecord): string => {
+    if (r.notes) return r.notes;
+    if (r.date > todayIso) {
+      const hol = holidayMap.get(r.date);
+      if (hol) return hol.name;
+    }
+    return "";
+  };
 
   // Check if a day record is a missing report
   const isMissingReport = (r: DayRecord): boolean => {
@@ -134,30 +158,37 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
   }, [records, todayIso, nonWorkingDaysSet, holidayDatesSet]);
 
   const classifications = useMemo(() => {
-    const s = new Set(records.map((r) => r.classification).filter(Boolean));
+    const s = new Set<string>();
+    records.forEach((r) => {
+      const c = getEffectiveClassification(r);
+      if (c) s.add(c);
+    });
     const list = ["הכל", ...Array.from(s)];
     if (missingDatesSet.size > 0 && !list.includes("דיווחים חסרים")) {
       list.push("דיווחים חסרים");
     }
     return list;
-  }, [records, missingDatesSet]);
+  }, [records, missingDatesSet, holidayMap, nonWorkingDaysSet, todayIso]);
 
   const filtered = useMemo(() => {
     return records.filter((r) => {
       const isMissing = missingDatesSet.has(r.date);
+      const effClass = getEffectiveClassification(r);
+      const effNotes = getEffectiveNotes(r);
+
       if (showMissingOnly && !isMissing) return false;
       if (classFilter === "דיווחים חסרים") {
         if (!isMissing) return false;
-      } else if (classFilter !== "הכל" && r.classification !== classFilter) {
+      } else if (classFilter !== "הכל" && effClass !== classFilter) {
         return false;
       }
       if (search) {
-        const hay = `${r.dateDisplay} ${r.notes ?? ""} ${r.uniqueNotes ?? ""} ${r.classification ?? ""} ${r.dayName ?? ""} ${isMissing ? "חסר דיווח חסרים" : ""}`;
+        const hay = `${r.dateDisplay} ${effNotes} ${r.uniqueNotes ?? ""} ${effClass} ${r.dayName ?? ""} ${isMissing ? "חסר דיווח חסרים" : ""}`;
         if (!hay.includes(search)) return false;
       }
       return true;
     });
-  }, [records, classFilter, showMissingOnly, search, missingDatesSet]);
+  }, [records, classFilter, showMissingOnly, search, missingDatesSet, holidayMap, nonWorkingDaysSet, todayIso]);
 
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
@@ -347,11 +378,14 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                           <span>⚠️</span>
                           <span>חסר דיווח</span>
                         </span>
-                      ) : r.classification ? (
-                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${classChip(r.classification)}`}>
-                          {r.classification.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim()}
-                        </span>
-                      ) : null}
+                      ) : (() => {
+                        const effC = getEffectiveClassification(r);
+                        return effC ? (
+                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${classChip(effC)}`}>
+                            {effC}
+                          </span>
+                        ) : null;
+                      })()}
                     </td>
                     <td className="px-4 py-2.5 text-center text-xs font-bold text-indigo-600">
                       {r.orderType || <span className="text-slate-300">—</span>}
@@ -360,9 +394,16 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                       {absences.length ? absences.join(" · ") : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="max-w-[220px] px-4 py-2.5 text-xs text-slate-500">
-                      {r.notes && <div className="truncate text-slate-700 font-medium" title={r.notes}>{r.notes}</div>}
-                      {r.uniqueNotes && <div className="truncate text-brand-600 font-bold mt-0.5" title={r.uniqueNotes}>{r.uniqueNotes}</div>}
-                      {!r.notes && !r.uniqueNotes && <span className="text-slate-300">—</span>}
+                      {(() => {
+                        const effNotes = getEffectiveNotes(r);
+                        return (
+                          <>
+                            {effNotes && <div className="truncate text-slate-700 font-medium" title={effNotes}>{effNotes}</div>}
+                            {r.uniqueNotes && <div className="truncate text-brand-600 font-bold mt-0.5" title={r.uniqueNotes}>{r.uniqueNotes}</div>}
+                            {!effNotes && !r.uniqueNotes && <span className="text-slate-300">—</span>}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <button
