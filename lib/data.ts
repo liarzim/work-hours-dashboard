@@ -862,17 +862,23 @@ export async function getMissingReportsList(options?: {
     const [reportsRes, termsRes] = await Promise.all([
       supabase
         .from("reports")
-        .select("date, entry, exit, total_hours_decimal, vacation_days, sick_days, reserve_days, classification, notes, unique_notes, order_type")
+        .select("date, entry, exit, vacation_days, sick_days, reserve_days, classification, notes, unique_notes, order_type")
         .eq("user_id", userId)
         .gte("date", from)
         .lte("date", to)
-        .order("date", { ascending: true }),
+        .order("date", { ascending: true })
+        .range(0, 4999),
       supabase
         .from("employment_terms")
         .select("*")
         .eq("user_id", userId)
         .order("start_date", { ascending: true }),
     ]);
+
+    if (reportsRes.error) {
+      console.error("Error in getMissingReportsList reports query:", reportsRes.error);
+      throw new Error(reportsRes.error.message || "שגיאה בטעינת דיווחים מהמסד");
+    }
 
     if (termsRes?.data && termsRes.data.length > 0) {
       terms = termsRes.data.map(mapDbTermToEmploymentTerm);
@@ -906,11 +912,9 @@ export async function getMissingReportsList(options?: {
 
     const row = reportsMap.get(iso);
     if (row) {
-      const hasHours = Boolean(
-        (row.entry && String(row.entry).trim() !== "") ||
-        (row.exit && String(row.exit).trim() !== "") ||
-        (Number(row.total_hours_decimal || 0) > 0)
-      );
+      const entryStr = (row.entry || "").trim();
+      const exitStr = (row.exit || "").trim();
+      const hasHours = Boolean(entryStr !== "" && exitStr !== "");
       const hasAbsence = Boolean(
         Number(row.vacation_days || 0) > 0 ||
         Number(row.sick_days || 0) > 0 ||
