@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useSWRConfig } from "swr";
 import Header, { TabId } from "@/components/Header";
 import Dashboard from "@/components/Dashboard";
 import ReportsScreen from "@/components/ReportsScreen";
 import SettingsScreen from "@/components/SettingsScreen";
+import AdminScreen from "@/components/AdminScreen";
 import GuideScreen from "@/components/GuideScreen";
 import ReportModal from "@/components/ReportModal";
 import BulkUpdateModal from "@/components/BulkUpdateModal";
 import MissingReportsModal from "@/components/MissingReportsModal";
+import { createSupabaseClient } from "@/lib/supabase/client";
 import { monthKey, useMonthData } from "@/lib/client";
 import { DayRecord, MonthData, ReportInput, MissingReportItem } from "@/lib/types";
 
@@ -24,6 +26,22 @@ export default function Home() {
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [bulkDates, setBulkDates] = useState<string[]>([]);
   const [missingModalOpen, setMissingModalOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const supabase = createSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email && user.email.toLowerCase() === "michael.liarzi@gmail.com") {
+          setIsAdmin(true);
+        }
+      } catch (e) {
+        console.error("Admin check failed", e);
+      }
+    };
+    checkAdmin();
+  }, []);
 
   const { data, isLoading, error } = useMonthData(year, month);
   const { mutate } = useSWRConfig();
@@ -327,6 +345,7 @@ export default function Home() {
         onNewReport={openNewReport}
         onSync={refreshData}
         syncing={syncing}
+        isAdmin={isAdmin}
         onSelectMonth={(y, m) => {
           setYear(y);
           setMonth(m);
@@ -362,6 +381,7 @@ export default function Home() {
         )}
         {tab === "guide" && <GuideScreen />}
         {tab === "settings" && <SettingsScreen />}
+        {tab === "admin" && isAdmin && <AdminScreen />}
       </main>
 
       {missingModalOpen && (
