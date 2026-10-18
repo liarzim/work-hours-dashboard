@@ -156,7 +156,7 @@ export default function GuideScreen() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-sm font-bold truncate">{sec.title}</span>
+                      <span className="text-sm font-bold">{sec.title}</span>
                       {sec.badge && (
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${

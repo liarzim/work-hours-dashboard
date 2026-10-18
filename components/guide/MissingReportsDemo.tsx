@@ -263,14 +263,14 @@ export default function MissingReportsDemo() {
               key={st.num}
               type="button"
               onClick={() => setStep(i)}
-              className={`rounded-xl p-2.5 transition text-right sm:text-center ${
+              className={`rounded-xl p-2.5 transition text-center min-h-[58px] flex flex-col justify-center ${
                 step === i
                   ? "bg-brand-600 text-white font-black shadow-md ring-2 ring-brand-400/50"
                   : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
               }`}
             >
               <div className="text-[10px] opacity-75 font-semibold">שלב {st.num}</div>
-              <div className="truncate text-xs font-bold mt-0.5">{st.label}</div>
+              <div className="text-xs font-bold mt-0.5 leading-snug break-words">{st.label}</div>
             </button>
           ))}
         </div>
