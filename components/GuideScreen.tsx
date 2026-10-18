@@ -108,7 +108,7 @@ export default function GuideScreen() {
         <div className="relative z-10 max-w-3xl">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-md">
             <SparklesIcon className="h-4 w-4 text-amber-300" />
-            <span>מרכז הדרכה אינטראקטיבי • סרטוני הדמיה בלולאה (Option C)</span>
+            <span>מרכז הדרכה אינטראקטיבי • הדמיה מונפשת</span>
           </div>
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl lg:text-4xl">
             היכרות מקיפה עם כל יכולות המערכת
@@ -208,7 +208,7 @@ export default function GuideScreen() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span>🎬 הדמיה מונפשת</span>
                     <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
                       מומלץ
                     </span>
@@ -333,7 +333,7 @@ export default function GuideScreen() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span>🎬 הדמיה מונפשת</span>
                     <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
                       מומלץ
                     </span>
@@ -459,7 +459,7 @@ export default function GuideScreen() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span>🎬 הדמיה מונפשת</span>
                     <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
                       מומלץ
                     </span>
@@ -583,7 +583,7 @@ export default function GuideScreen() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span>🎬 הדמיה מונפשת</span>
                     <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
                       מומלץ
                     </span>
@@ -705,7 +705,7 @@ export default function GuideScreen() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span>🎬 הדמיה מונפשת</span>
                     <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
                       מומלץ
                     </span>
@@ -807,7 +807,7 @@ export default function GuideScreen() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span>🎬 הדמיה מונפשת</span>
                     <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
                       מומלץ
                     </span>

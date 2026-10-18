@@ -25,7 +25,7 @@ export default function MissingReportsDemo() {
           <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
           <span className="mr-2 text-xs font-bold text-white flex items-center gap-1.5">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-            הדמיה מונפשת (1:1 למסך האמיתי) • חלון דיווחים חסרים
+            הדמיה מונפשת
           </span>
         </div>
         <div className="flex items-center gap-2">
