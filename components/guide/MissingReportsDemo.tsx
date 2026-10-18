@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { AlertTriangleIcon, PencilIcon, XIcon } from "../Icons";
 
 export default function MissingReportsDemo() {
   const [step, setStep] = useState(0);
@@ -16,7 +17,7 @@ export default function MissingReportsDemo() {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-700/30 bg-slate-950 shadow-2xl">
-      {/* Mockup Header */}
+      {/* Simulation Header */}
       <div className="flex flex-wrap items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 py-3 text-slate-300 gap-2">
         <div className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-rose-500/80 inline-block" />
@@ -24,7 +25,7 @@ export default function MissingReportsDemo() {
           <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
           <span className="mr-2 text-xs font-bold text-white flex items-center gap-1.5">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-            הדמיה מונפשת בלולאה (Option C) • השלמת דיווחים חסרים
+            הדמיה מונפשת (1:1 למסך האמיתי) • חלון דיווחים חסרים
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -33,7 +34,7 @@ export default function MissingReportsDemo() {
             onClick={() => setIsPlaying(!isPlaying)}
             className="flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1 text-xs font-bold text-slate-200 hover:bg-slate-700 transition"
           >
-            <span>{isPlaying ? "⏸️ השהה לולאה" : "▶️ הפעל לולאה"}</span>
+            <span>{isPlaying ? "⏸️ השהה" : "▶️ נגן"}</span>
           </button>
           <button
             type="button"
@@ -46,17 +47,17 @@ export default function MissingReportsDemo() {
         </div>
       </div>
 
-      {/* Simulated Interactive Screen */}
-      <div className="relative bg-slate-100 p-4 sm:p-6 select-none overflow-hidden min-h-[340px]">
+      {/* Screen Backdrop */}
+      <div className="relative bg-slate-900/50 p-3 sm:p-6 select-none overflow-hidden min-h-[520px] flex items-center justify-center backdrop-blur-xs">
         {/* Animated Virtual Cursor */}
         <div
-          className={`absolute z-30 transition-all duration-700 pointer-events-none drop-shadow-xl ${
+          className={`absolute z-40 transition-all duration-700 pointer-events-none drop-shadow-xl ${
             step === 0
-              ? "right-16 top-24"
+              ? "right-1/4 top-40"
               : step === 1
-              ? "right-44 top-36 scale-90"
+              ? "right-[34%] top-[230px] scale-90"
               : step === 2
-              ? "right-64 top-56 scale-90"
+              ? "right-[26%] top-[305px] scale-90"
               : "right-1/2 top-1/2 opacity-0"
           }`}
         >
@@ -73,154 +74,179 @@ export default function MissingReportsDemo() {
           </div>
         </div>
 
-        {/* Modal Window Mockup */}
-        <div className="rounded-2xl bg-white p-4 sm:p-5 shadow-xl border border-slate-200">
+        {/* Real MissingReportsModal Replica */}
+        <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700 text-sm font-bold shadow-xs">
-                ⚠️
-              </span>
-              <div>
-                <h4 className="text-sm font-extrabold text-slate-900">דיווחים חסרים במערכת</h4>
-                <p className="text-[11px] font-medium text-slate-500">
-                  {step === 0
-                    ? "נמצאו 7 ימי עבודה בעבר ללא דיווח (סריקה אוטומטית)"
-                    : step === 1
-                    ? "נמצאו 6 ימי עבודה בעבר ללא דיווח (הושלם יום 12/10)"
-                    : "נמצאו 5 ימי עבודה בעבר ללא דיווח (הושלמו 2 ימים בזה אחר זה!)"}
-                </p>
-              </div>
-            </div>
-            <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-black text-amber-900 shadow-xs">
-              {step === 0 ? "7 ימים חסרים" : step === 1 ? "6 ימים חסרים" : "5 ימים חסרים"}
+          <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:px-6">
+            <span className="p-1 text-slate-400">
+              <XIcon className="h-5 w-5" />
             </span>
+            <div className="flex items-center gap-3 text-right">
+              <div>
+                <h3 className="text-base font-black text-slate-900">דיווחים חסרים במערכת</h3>
+                <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 mt-0.5">
+                  {step === 0 ? "נמצאו 7 ימי עבודה בעבר ללא דיווח (כולל חודשים קודמים)" : step === 1 ? "נמצאו 6 ימי עבודה בעבר ללא דיווח" : "נמצאו 5 ימי עבודה בעבר ללא דיווח"}
+                </span>
+              </div>
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+                <AlertTriangleIcon className="h-5 w-5" />
+              </span>
+            </div>
           </div>
 
-          {/* List of rows */}
-          <div className="space-y-2.5">
-            {/* Row 1: Work Hours */}
-            <div
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 border transition-all duration-500 ${
-                step >= 1
-                  ? "bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-200 shadow-xs"
-                  : "bg-slate-50/80 border-slate-200"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-black text-slate-800">12/10/2026 • יום שני</div>
-                  <div className="text-[10px] text-slate-400">תקן יומי: 9.0 שעות</div>
-                </div>
-                {step >= 1 ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 border border-emerald-200">
-                    ✅ 9.0 שעות (08:00 - 17:00)
-                  </span>
-                ) : (
-                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200">
-                    לא מולא
-                  </span>
-                )}
+          {/* Search & Filter Bar */}
+          <div className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
+            <div className="flex gap-3">
+              <div className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-400">
+                חיפוש לפי תאריך / יום...
               </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 flex items-center gap-1">
+                <span>כל החודשים ({step === 0 ? "7" : step === 1 ? "6" : "5"})</span>
+                <span>▼</span>
+              </div>
+            </div>
+          </div>
 
+          {/* Items List */}
+          <div className="p-4 sm:px-6 space-y-2.5 max-h-[320px] overflow-hidden">
+            {/* Header row */}
+            <div className="flex items-center justify-between px-2 text-xs text-slate-400 pb-1 border-b border-slate-100">
+              <span>פעולות מהירות לעדכון</span>
+              <div className="flex items-center gap-2">
+                <span>בחר הכל ({step === 0 ? "7" : step === 1 ? "6" : "5"})</span>
+                <input type="checkbox" readOnly className="rounded border-slate-300" />
+              </div>
+            </div>
+
+            {/* Row 1: 12/10/2026 */}
+            <div className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3 transition duration-300 ${
+              step >= 1 ? "border-emerald-300 bg-emerald-50/90 shadow-2xs" : "border-slate-100 bg-white"
+            }`}>
+              {/* Quick actions (Left in RTL) */}
               {step >= 1 ? (
-                <span className="text-[11px] font-extrabold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-xs">
-                  הושלם לשעות תקן ✓
+                <span className="text-xs font-bold text-emerald-800 bg-white/90 border border-emerald-200 rounded-xl px-3 py-1 shadow-2xs">
+                  ✅ 9.0 שעות הוזנו בהצלחה!
                 </span>
               ) : (
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition shadow-xs ${
-                      step === 0
-                        ? "bg-brand-600 text-white ring-2 ring-brand-300 scale-105"
-                        : "bg-brand-50 text-brand-700 border border-brand-200"
-                    }`}
-                  >
+                  <span className={`rounded-xl border px-2.5 py-1 text-xs font-bold transition shadow-xs ${
+                    step === 0
+                      ? "border-blue-500 bg-blue-600 text-white ring-2 ring-blue-200 scale-105"
+                      : "border-blue-200 bg-blue-50/80 text-blue-700"
+                  }`}>
                     ⏱️ שעות תקן
                   </span>
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                    חופש
+                  <span className="rounded-xl border border-purple-200 bg-purple-50/80 px-2.5 py-1 text-xs font-semibold text-purple-700">
+                    🏖️ חופש
                   </span>
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                    מחלה
+                  <span className="rounded-xl border border-amber-200 bg-amber-50/80 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                    🩹 מחלה
+                  </span>
+                  <span className="rounded-xl border border-slate-200 bg-white p-1 text-slate-400">
+                    <PencilIcon className="h-3.5 w-3.5" />
                   </span>
                 </div>
               )}
-            </div>
 
-            {/* Row 2: Vacation */}
-            <div
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 border transition-all duration-500 ${
-                step >= 2
-                  ? "bg-purple-50/90 border-purple-300 ring-2 ring-purple-200 shadow-xs"
-                  : "bg-slate-50/80 border-slate-200"
-              }`}
-            >
+              {/* Day info (Right in RTL) */}
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-black text-slate-800">11/10/2026 • יום ראשון</div>
-                  <div className="text-[10px] text-slate-400">תקן יומי: 9.0 שעות</div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                      ⚠️ לא מולא
+                    </span>
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                      שני
+                    </span>
+                    <span className="font-bold text-slate-900 text-sm">
+                      12/10/2026
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    תקן יומי: 9 שעות
+                  </div>
                 </div>
-                {step >= 2 ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-2 py-0.5 text-[11px] font-bold text-purple-800 border border-purple-200">
-                    🏖️ חופש 1 (עודכנה יתרה)
-                  </span>
-                ) : (
-                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200">
-                    לא מולא
-                  </span>
-                )}
+                <input type="checkbox" readOnly className="rounded border-slate-300" />
               </div>
+            </div>
 
+            {/* Row 2: 11/10/2026 */}
+            <div className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3 transition duration-300 ${
+              step >= 2 ? "border-purple-300 bg-purple-50/90 shadow-2xs" : "border-slate-100 bg-white"
+            }`}>
+              {/* Quick actions (Left in RTL) */}
               {step >= 2 ? (
-                <span className="text-[11px] font-extrabold text-purple-700 bg-white px-2.5 py-1 rounded-lg border border-purple-300 shadow-xs">
-                  עודכן כיום חופש ✓
+                <span className="text-xs font-bold text-purple-800 bg-white/90 border border-purple-200 rounded-xl px-3 py-1 shadow-2xs">
+                  🏖️ עודכן כיום חופש מלא!
                 </span>
               ) : (
                 <div className="flex items-center gap-1.5">
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                    שעות תקן
+                  <span className="rounded-xl border border-blue-200 bg-blue-50/80 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                    ⏱️ שעות תקן
                   </span>
-                  <span
-                    className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition shadow-xs ${
-                      step === 1
-                        ? "bg-purple-600 text-white ring-2 ring-purple-300 scale-105"
-                        : "bg-purple-50 text-purple-700 border border-purple-200"
-                    }`}
-                  >
+                  <span className={`rounded-xl border px-2.5 py-1 text-xs font-bold transition shadow-xs ${
+                    step === 1
+                      ? "border-purple-500 bg-purple-600 text-white ring-2 ring-purple-200 scale-105"
+                      : "border-purple-200 bg-purple-50/80 text-purple-700"
+                  }`}>
                     🏖️ חופש
                   </span>
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                    מחלה
+                  <span className="rounded-xl border border-amber-200 bg-amber-50/80 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                    🩹 מחלה
+                  </span>
+                  <span className="rounded-xl border border-slate-200 bg-white p-1 text-slate-400">
+                    <PencilIcon className="h-3.5 w-3.5" />
                   </span>
                 </div>
               )}
-            </div>
 
-            {/* Row 3 */}
-            <div className="flex items-center justify-between rounded-xl bg-slate-50/50 p-3 border border-slate-200 opacity-60">
+              {/* Day info (Right in RTL) */}
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs font-black text-slate-800">14/09/2026 • יום שני</div>
-                  <div className="text-[10px] text-slate-400">תקן יומי: 9.0 שעות</div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                      ⚠️ לא מולא
+                    </span>
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                      ראשון
+                    </span>
+                    <span className="font-bold text-slate-900 text-sm">
+                      11/10/2026
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    תקן יומי: 9 שעות
+                  </div>
                 </div>
-                <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                  לא מולא
-                </span>
+                <input type="checkbox" readOnly className="rounded border-slate-300" />
               </div>
+            </div>
+
+            {/* Row 3: 14/09/2026 */}
+            <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-3 opacity-60">
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span>⏱️ תקן</span>
                 <span>🏖️ חופש</span>
               </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="font-bold text-slate-900 text-sm">14/09/2026 • שני</span>
+                  <div className="text-[11px] text-slate-400">תקן יומי: 9 שעות</div>
+                </div>
+                <input type="checkbox" readOnly className="rounded border-slate-300" />
+              </div>
             </div>
           </div>
 
-          {/* Success Banner */}
-          {step === 3 && (
-            <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-2.5 text-white text-xs font-black shadow-lg animate-bounce">
-              <span>✨ 2 דיווחים הושלמו בהצלחה תוך 2 שניות ללא הקלדה ידנית!</span>
-            </div>
-          )}
+          {/* Footer */}
+          <div className="border-t border-slate-100 bg-slate-50 p-4 sm:px-6 flex items-center justify-between text-xs">
+            <span className="rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 shadow-2xs">
+              סגירה
+            </span>
+            <span className="font-bold text-slate-500">
+              {step === 3 ? "🎉 עודכנו 2 ימים תוך שניות!" : `סה"כ ${step === 0 ? "7" : step === 1 ? "6" : "5"} דיווחים חסרים`}
+            </span>
+          </div>
         </div>
       </div>
 
