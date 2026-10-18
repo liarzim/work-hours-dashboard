@@ -3,10 +3,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+const ADMIN_EMAILS = new Set(["michael.liarzi@gmail.com"]);
+
 /**
- * GET /api/user/backups - List personal backups for the authenticated user
+ * GET /api/user/backups - List personal backups or download backup by ID
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const supabase = createSupabaseServerClient();
     const {
@@ -16,6 +18,33 @@ export async function GET() {
 
     if (authError || !user) {
       return NextResponse.json({ error: "משתמש לא מחובר" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const backupId = searchParams.get("id");
+    const isAdmin = user.email ? ADMIN_EMAILS.has(user.email.toLowerCase()) : false;
+
+    // Single backup download
+    if (backupId) {
+      let query = supabase
+        .from("user_backups")
+        .select("id, filename, backup_sql, user_id")
+        .eq("id", backupId);
+
+      if (!isAdmin) {
+        query = query.eq("user_id", user.id);
+      }
+
+      const { data, error: dbErr } = await query.single();
+      if (dbErr || !data) {
+        return NextResponse.json({ error: "קובץ גיבוי לא נמצא או שאינך מורשה לגשת אליו" }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        filename: data.filename,
+        sql_dump: data.backup_sql,
+      });
     }
 
     const { data: backups, error: dbErr } = await supabase
@@ -84,19 +113,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "מזהה גיבוי חסר לשחזור." }, { status: 400 });
       }
 
+      const isAdmin = user.email ? ADMIN_EMAILS.has(user.email.toLowerCase()) : false;
+      const targetUserId = (isAdmin && body.targetUserId) ? body.targetUserId : user.id;
+
       const { data, error } = await supabase.rpc("restore_user_backup_by_id", {
         p_backup_id: backupId,
-        p_user_id: user.id,
+        p_user_id: targetUserId,
       });
 
       if (error) {
-        throw new Error("שגיאה בשחזור הגיבוי האישי: " + error.message);
+        throw new Error("שגיאה בשחזור הגיבוי: " + error.message);
       }
 
       return NextResponse.json({
         ok: true,
         result: data,
-        message: "הנתונים האישיים שלך שוחזרו בהצלחה מנקודת הגיבוי! (נוצר גיבוי ביטחון אישי מקדים)",
+        message: "הנתונים שוחזרו בהצלחה מנקודת הגיבוי! (נוצר גיבוי ביטחון מקדים)",
       });
     }
 
@@ -107,15 +139,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "מזהה גיבוי חסר להורדה." }, { status: 400 });
       }
 
-      const { data, error } = await supabase
+      const isAdmin = user.email ? ADMIN_EMAILS.has(user.email.toLowerCase()) : false;
+      let query = supabase
         .from("user_backups")
-        .select("filename, backup_sql")
-        .eq("id", backupId)
-        .eq("user_id", user.id)
-        .single();
+        .select("filename, backup_sql, user_id")
+        .eq("id", backupId);
+
+      if (!isAdmin) {
+        query = query.eq("user_id", user.id);
+      }
+
+      const { data, error } = await query.single();
 
       if (error || !data) {
-        throw new Error("קובץ הגיבוי לא נמצא או שאינו שייך לך: " + (error?.message || ""));
+        throw new Error("קובץ הגיבוי לא נמצא או שאינך מורשה לגשת אליו: " + (error?.message || ""));
       }
 
       return NextResponse.json({
