@@ -158,6 +158,7 @@ export default function SettingsScreen() {
   const [userBackupsLoading, setUserBackupsLoading] = useState(false);
   const [userBackupCreating, setUserBackupCreating] = useState(false);
   const [userBackupRestoringId, setUserBackupRestoringId] = useState<string | null>(null);
+  const [userBackupDeletingId, setUserBackupDeletingId] = useState<string | null>(null);
   const [userBackupMessage, setUserBackupMessage] = useState<string | null>(null);
   const [userBackupError, setUserBackupError] = useState<string | null>(null);
 
@@ -816,9 +817,31 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleDeleteUserBackup = async (backup: UserBackupItem) => {
+    const dateFormatted = new Date(backup.created_at).toLocaleString("he-IL");
+    const confirmed = window.confirm(
+      `מחיקת גיבוי אישי:\n\nהאם אתה בטוח שברצונך למחוק לצמיתות את הגיבוי מתאריך ${dateFormatted}? פעולה זו אינה ניתנת לביטול.`
+    );
+    if (!confirmed) return;
 
-
-
+    setUserBackupDeletingId(backup.id);
+    setUserBackupMessage(null);
+    setUserBackupError(null);
+    try {
+      const res = await fetch(`/api/user/backups?id=${backup.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "מחיקת הגיבוי נכשלה");
+      setUserBackupMessage(`הגיבוי מ-${dateFormatted} נמחק בהצלחה.`);
+      await fetchUserBackups();
+      setTimeout(() => setUserBackupMessage(null), 4000);
+    } catch (err: any) {
+      setUserBackupError(err.message || "שגיאה במחיקת הגיבוי");
+    } finally {
+      setUserBackupDeletingId(null);
+    }
+  };
 
   // Historic Data Importer
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1899,20 +1922,20 @@ export default function SettingsScreen() {
           </div>
         )}
 
-        {/* Desktop & Tablet Table */}
-        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80">
-          <table className="w-full text-sm text-right">
+        {/* Desktop Table (Visible on lg and wider - zero horizontal scroll!) */}
+        <div className="hidden lg:block rounded-xl border border-slate-200/80 bg-white">
+          <table className="w-full text-xs text-right divide-y divide-slate-200">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/80 text-xs font-semibold text-slate-500">
-                <th className="px-3.5 py-2.5">תאריך ושעה</th>
-                <th className="px-3.5 py-2.5">סוג גיבוי</th>
-                <th className="px-3.5 py-2.5">דיווחי שעות</th>
-                <th className="px-3.5 py-2.5">תקנים ותנאים</th>
-                <th className="px-3.5 py-2.5">גודל ב-NAS</th>
-                <th className="px-3.5 py-2.5 text-center">פעולות ושחזור</th>
+              <tr className="bg-slate-50/80 text-xs font-semibold text-slate-500">
+                <th className="px-3 py-2.5 whitespace-nowrap">תאריך ושעה</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">סוג גיבוי</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">דיווחי שעות</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">תקנים ותנאים</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">גודל ב-NAS</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">פעולות ושחזור</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 bg-white">
               {userBackups.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-6 text-center text-xs text-slate-400">
@@ -1922,52 +1945,51 @@ export default function SettingsScreen() {
               ) : (
                 userBackups.map((b) => {
                   const isRestoring = userBackupRestoringId === b.id;
-                  const dateFormatted = new Date(b.created_at).toLocaleString("he-IL", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  });
 
                   return (
                     <tr key={b.id} className="hover:bg-slate-50/60 transition">
-                      <td className="px-3.5 py-2.5 font-medium text-slate-700 whitespace-nowrap">
-                        {dateFormatted}
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex flex-col leading-tight">
+                          <span className="font-semibold text-slate-800 text-xs">
+                            {new Date(b.created_at).toLocaleDateString("he-IL")}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {new Date(b.created_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         {b.backup_type === "manual_user" && (
-                          <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
+                          <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
                             👤 גיבוי אישי שלי
                           </span>
                         )}
                         {b.backup_type === "pre_restore_safety" && (
-                          <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
                             🛡️ ביטחון מקדים
                           </span>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 font-bold text-slate-800 whitespace-nowrap">
+                      <td className="px-3 py-2 text-center font-bold text-slate-800 whitespace-nowrap">
                         {b.reports_count.toLocaleString("he-IL")} דיווחים
                       </td>
-                      <td className="px-3.5 py-2.5 text-xs text-slate-500 whitespace-nowrap">
+                      <td className="px-3 py-2 text-center text-slate-500 whitespace-nowrap">
                         {b.standards_count} תקנים • {b.terms_count || 0} תנאים
                       </td>
-                      <td className="px-3.5 py-2.5 text-xs font-mono text-slate-600 whitespace-nowrap">
+                      <td className="px-3 py-2 text-center font-mono text-slate-600 whitespace-nowrap">
                         {b.file_size_kb ? `${b.file_size_kb} KB` : "-"}
                       </td>
-                      <td className="px-3.5 py-2.5 text-center whitespace-nowrap">
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleRestoreUserBackup(b)}
-                            disabled={isRestoring || userBackupRestoringId !== null}
+                            disabled={isRestoring || userBackupRestoringId !== null || userBackupDeletingId !== null}
                             title="שחזר נקודתית אך ורק את הנתונים שלך מגיבוי זה (נוצר גיבוי ביטחון מקדים אוטומטית)"
                             className="inline-flex items-center gap-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-bold transition border border-blue-200 disabled:opacity-50"
                           >
-                            <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
-                            {isRestoring ? "משחזר..." : "שחזר נתונים אישיים"}
+                            <RotateCcwIcon className={`h-3 w-3 ${isRestoring ? "animate-spin" : ""}`} />
+                            <span>{isRestoring ? "משחזר..." : "שחזר"}</span>
                           </button>
 
                           <button
@@ -1976,8 +1998,19 @@ export default function SettingsScreen() {
                             title="הורד קובץ SQL אישי למחשב"
                             className="inline-flex items-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-2 py-1 text-xs font-medium transition border border-slate-200"
                           >
-                            <DownloadIcon className="h-3.5 w-3.5" />
-                            <span className="hidden lg:inline">הורד SQL</span>
+                            <DownloadIcon className="h-3 w-3" />
+                            <span>SQL</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUserBackup(b)}
+                            disabled={userBackupDeletingId !== null}
+                            title="מחק גיבוי אישי זה לצמיתות מה-NAS"
+                            className="inline-flex items-center gap-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 text-xs font-bold transition border border-red-200 disabled:opacity-50"
+                          >
+                            <TrashIcon className="h-3 w-3" />
+                            <span>{userBackupDeletingId === b.id ? "מוחק..." : "מחק"}</span>
                           </button>
                         </div>
                       </td>
@@ -1989,8 +2022,8 @@ export default function SettingsScreen() {
           </table>
         </div>
 
-        {/* Mobile Cards */}
-        <div className="block md:hidden space-y-2.5">
+        {/* Mobile & Tablet Cards (Visible on screens below lg - 100% responsive, zero horizontal scroll!) */}
+        <div className="block lg:hidden space-y-2.5">
           {userBackups.length === 0 ? (
             <div className="py-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
               {userBackupsLoading ? "טוען גיבויים אישיים..." : "טרם בוצעו גיבויים אישיים"}
@@ -2022,10 +2055,14 @@ export default function SettingsScreen() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 p-2 rounded-lg border border-slate-100 text-center">
                     <div>
-                      <span className="text-slate-400 block text-[10px]">דיווחי שעות:</span>
+                      <span className="text-slate-400 block text-[10px]">דיווחים:</span>
                       <span className="font-bold text-slate-800">{b.reports_count.toLocaleString("he-IL")}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">תקנים ותנאים:</span>
+                      <span className="text-slate-700">{b.standards_count} • {b.terms_count || 0}</span>
                     </div>
                     <div>
                       <span className="text-slate-400 block text-[10px]">נפח ב-NAS:</span>
@@ -2033,24 +2070,34 @@ export default function SettingsScreen() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                  <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
                     <button
                       type="button"
                       onClick={() => handleRestoreUserBackup(b)}
-                      disabled={isRestoring || userBackupRestoringId !== null}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white py-2 text-xs font-bold transition disabled:opacity-50"
+                      disabled={isRestoring || userBackupRestoringId !== null || userBackupDeletingId !== null}
+                      className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 py-1.5 text-xs font-bold transition border border-blue-200 disabled:opacity-50"
                     >
-                      <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
-                      {isRestoring ? "משחזר..." : "שחזר גיבוי זה"}
+                      <RotateCcwIcon className={`h-3 w-3 ${isRestoring ? "animate-spin" : ""}`} />
+                      <span>{isRestoring ? "משחזר..." : "שחזר"}</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleDownloadUserBackup(b)}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 text-xs font-medium transition"
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-3 py-1.5 text-xs font-medium transition border border-slate-200"
                     >
-                      <DownloadIcon className="h-3.5 w-3.5" />
+                      <DownloadIcon className="h-3 w-3" />
                       <span>SQL</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUserBackup(b)}
+                      disabled={userBackupDeletingId !== null}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 text-xs font-bold transition border border-red-200"
+                    >
+                      <TrashIcon className="h-3 w-3" />
+                      <span>{userBackupDeletingId === b.id ? "מוחק..." : "מחק"}</span>
                     </button>
                   </div>
                 </div>
