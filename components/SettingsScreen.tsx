@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSWRConfig } from "swr";
 import { useSettings, useEmploymentTerms } from "@/lib/client";
 import { HEBREW_MONTHS, HEBREW_DAYS, EmploymentTerm, EmploymentType } from "@/lib/types";
-import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon, BriefcaseIcon, PencilIcon, TrashIcon, PlusIcon, XIcon, RefreshIcon, CalendarIcon, DownloadIcon } from "./Icons";
+import { SaveIcon, ShieldIcon, UmbrellaIcon, FingerprintIcon, UploadIcon, ListIcon, BriefcaseIcon, PencilIcon, TrashIcon, PlusIcon, XIcon, RefreshIcon, CalendarIcon, DownloadIcon, DatabaseIcon, RotateCcwIcon } from "./Icons";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import * as XLSX from "xlsx";
 import {
@@ -25,6 +25,18 @@ import {
   DEFAULT_CHART_PALETTE,
   ChartPalette,
 } from "@/lib/settingsStore";
+
+interface NasBackupItem {
+  id: string;
+  filename: string;
+  backup_type: string;
+  reports_count: number;
+  profiles_count: number;
+  standards_count: number;
+  terms_count: number;
+  file_size_kb: number;
+  created_at: string;
+}
 
 export default function SettingsScreen() {
   const { data, isLoading } = useSettings();
@@ -135,6 +147,14 @@ export default function SettingsScreen() {
   const [adminBackupLoading, setAdminBackupLoading] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [adminManualEmail, setAdminManualEmail] = useState("");
+
+  // Admin NAS System Backups State
+  const [nasBackups, setNasBackups] = useState<NasBackupItem[]>([]);
+  const [nasBackupsLoading, setNasBackupsLoading] = useState(false);
+  const [nasBackupCreating, setNasBackupCreating] = useState(false);
+  const [nasBackupRestoringId, setNasBackupRestoringId] = useState<string | null>(null);
+  const [nasBackupMessage, setNasBackupMessage] = useState<string | null>(null);
+  const [nasBackupError, setNasBackupError] = useState<string | null>(null);
 
   // Import State
   const [importing, setImporting] = useState(false);
@@ -701,11 +721,110 @@ export default function SettingsScreen() {
     }
   }, [userEmail]);
 
+  const fetchNasBackups = useCallback(async () => {
+    if (!userEmail || userEmail.toLowerCase() !== "michael.liarzi@gmail.com") return;
+    setNasBackupsLoading(true);
+    setNasBackupError(null);
+    try {
+      const res = await fetch("/api/admin/backups");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה בטעינת גיבויים מה-NAS");
+      setNasBackups(data.backups || []);
+    } catch (err: any) {
+      setNasBackupError(err.message || "שגיאה בטעינת גיבויים");
+    } finally {
+      setNasBackupsLoading(false);
+    }
+  }, [userEmail]);
+
   useEffect(() => {
     if (userEmail && userEmail.toLowerCase() === "michael.liarzi@gmail.com") {
       fetchAdminUsers();
+      fetchNasBackups();
     }
-  }, [userEmail, fetchAdminUsers]);
+  }, [userEmail, fetchAdminUsers, fetchNasBackups]);
+
+  // Admin NAS System Backups Actions
+  const handleCreateNasBackup = async () => {
+    setNasBackupCreating(true);
+    setNasBackupMessage(null);
+    setNasBackupError(null);
+    try {
+      const res = await fetch("/api/admin/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "יצירת הגיבוי ב-NAS נכשלה");
+      setNasBackupMessage(data.message || "גיבוי חדש נוצר ונשמר בהצלחה ב-NAS!");
+      await fetchNasBackups();
+    } catch (err: any) {
+      setNasBackupError(err.message || "שגיאה ביצירת גיבוי ב-NAS");
+    } finally {
+      setNasBackupCreating(false);
+    }
+  };
+
+  const handleRestoreNasBackup = async (backup: NasBackupItem) => {
+    const dateFormatted = new Date(backup.created_at).toLocaleString("he-IL");
+    const confirmed = window.confirm(
+      ` שחזור מערכת מגיבוי ב-NAS\n\n` +
+      `האם אתה בטוח שברצונך לשחזר את כל נתוני המערכת לנקודת הגיבוי:\n` +
+      `• תאריך ושעה: ${dateFormatted}\n` +
+      `• כמות דיווחי שעות: ${backup.reports_count.toLocaleString("he-IL")}\n` +
+      `• קובץ: ${backup.filename}\n\n` +
+      ` הערת בטיחות חשובה: המערכת תיצור אוטומטית גיבוי ביטחון מלא של המצב הנוכחי לפני ביצוע השחזור!`
+    );
+    if (!confirmed) return;
+
+    setNasBackupRestoringId(backup.id);
+    setNasBackupMessage(null);
+    setNasBackupError(null);
+    try {
+      const res = await fetch("/api/admin/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", backupId: backup.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שחזור הגיבוי ב-NAS נכשל");
+      setNasBackupMessage(
+        `המערכת שוחזרה בהצלחה לנקודת הגיבוי מ-${dateFormatted}! שוחזרו ${data.result?.details?.reports_restored?.toLocaleString("he-IL") || backup.reports_count} דיווחים.`
+      );
+      await fetchNasBackups();
+      await mutate((k) => typeof k === "string" && (k.startsWith("/api/reports") || k.startsWith("/api/employment-terms") || k.startsWith("/api/settings")));
+    } catch (err: any) {
+      setNasBackupError(err.message || "שגיאה בשחזור הגיבוי");
+    } finally {
+      setNasBackupRestoringId(null);
+    }
+  };
+
+  const handleDownloadNasBackup = async (backup: NasBackupItem) => {
+    try {
+      const res = await fetch("/api/admin/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "download", backupId: backup.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "הורדת הגיבוי נכשלה");
+      if (data.sql) {
+        const blob = new Blob([data.sql], { type: "application/sql;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.filename || `backup-nas-${backup.id}.sql`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      alert(err.message || "שגיאה בהורדת קובץ הגיבוי");
+    }
+  };
 
   // Admin: Backup single user data and download SQL file
   const handleBackupUser = async (targetId: string, targetEmail?: string | null) => {
@@ -1824,6 +1943,250 @@ export default function SettingsScreen() {
             </button>
             {passkeyMessage && (
               <p className="text-xs text-slate-500 mt-3 text-center leading-normal">{passkeyMessage}</p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Admin NAS System Backups & Disaster Recovery */}
+      {userEmail && userEmail.toLowerCase() === "michael.liarzi@gmail.com" && (
+        <section className="rounded-2xl border border-indigo-100 bg-white p-4 sm:p-5 shadow-card space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+                <DatabaseIcon className="h-5 w-5" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-slate-800">גיבויי מערכת ושחזור אוטומטי (ב-NAS)</h2>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    לילי אוטומטי 03:00 פעיל ב-NAS
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  כל הדיווחים, הפרופילים, התקנים ותנאי ההעסקה מגובים ישירות על כונני ה-NAS באופן עצמאי וללא תלות במחשב
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={fetchNasBackups}
+                disabled={nasBackupsLoading}
+                className="inline-flex items-center gap-1 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition border border-slate-200 disabled:opacity-50"
+              >
+                <RefreshIcon className={`h-3.5 w-3.5 ${nasBackupsLoading ? "animate-spin" : ""}`} />
+                {nasBackupsLoading ? "מרענן..." : "רענן רשימה"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCreateNasBackup}
+                disabled={nasBackupCreating}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                <SaveIcon className="h-3.5 w-3.5" />
+                {nasBackupCreating ? "מגבה ב-NAS..." : "גבה עכשיו (ב-NAS)"}
+              </button>
+            </div>
+          </div>
+
+          {/* Info banner */}
+          <div className="rounded-xl bg-gradient-to-l from-indigo-50/50 via-slate-50 to-indigo-50/30 p-3 border border-indigo-100/80 text-xs text-slate-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldIcon className="h-4 w-4 text-indigo-600 shrink-0" />
+              <span>
+                <strong>מדיניות שמירה ושחזור בטוח:</strong> ה-NAS שומר היסטוריה של 30 גיבויים אחרונים. לפני כל פעולת שחזור נוצר אוטומטית גיבוי ביטחון מקדים.
+              </span>
+            </div>
+            <div className="text-[11px] font-semibold text-indigo-700 shrink-0" dir="ltr">
+              NAS: 10.0.0.16 (PostgreSQL)
+            </div>
+          </div>
+
+          {nasBackupMessage && (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800 flex items-center justify-between">
+              <span>{nasBackupMessage}</span>
+              <button type="button" onClick={() => setNasBackupMessage(null)} className="text-emerald-600 hover:text-emerald-900 text-sm">✕</button>
+            </div>
+          )}
+
+          {nasBackupError && (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-semibold text-red-800 flex items-center justify-between">
+              <span>{nasBackupError}</span>
+              <button type="button" onClick={() => setNasBackupError(null)} className="text-red-600 hover:text-red-900 text-sm">✕</button>
+            </div>
+          )}
+
+          {/* Desktop & Tablet Table */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80">
+            <table className="w-full text-sm text-right">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/80 text-xs font-semibold text-slate-500">
+                  <th className="px-3.5 py-2.5">תאריך ושעה</th>
+                  <th className="px-3.5 py-2.5">סוג גיבוי</th>
+                  <th className="px-3.5 py-2.5">סה״כ דיווחים</th>
+                  <th className="px-3.5 py-2.5">פרופילים ותקנים</th>
+                  <th className="px-3.5 py-2.5">גודל ב-NAS</th>
+                  <th className="px-3.5 py-2.5 text-center">פעולות ושחזור</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {nasBackups.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-6 text-center text-xs text-slate-400">
+                      {nasBackupsLoading ? "טוען גיבויים מה-NAS..." : "לא נמצאו גיבויים שמורים ב-NAS"}
+                    </td>
+                  </tr>
+                ) : (
+                  nasBackups.map((b) => {
+                    const isRestoring = nasBackupRestoringId === b.id;
+                    const dateFormatted = new Date(b.created_at).toLocaleString("he-IL", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    });
+
+                    return (
+                      <tr key={b.id} className="hover:bg-slate-50/60 transition">
+                        <td className="px-3.5 py-2.5 font-medium text-slate-700 whitespace-nowrap">
+                          {dateFormatted}
+                        </td>
+                        <td className="px-3.5 py-2.5 whitespace-nowrap">
+                          {b.backup_type === "auto_nas" && (
+                            <span className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
+                              🤖 אוטומטי לילי (NAS)
+                            </span>
+                          )}
+                          {b.backup_type === "manual_admin" && (
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                              👤 יזום ע״י מנהל
+                            </span>
+                          )}
+                          {b.backup_type === "pre_restore_safety" && (
+                            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
+                              🛡️ ביטחון מקדים
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 font-bold text-slate-800 whitespace-nowrap">
+                          {b.reports_count.toLocaleString("he-IL")} דיווחים
+                        </td>
+                        <td className="px-3.5 py-2.5 text-xs text-slate-500 whitespace-nowrap">
+                          {b.profiles_count} פרופילים • {b.standards_count} תקנים • {b.terms_count} תנאים
+                        </td>
+                        <td className="px-3.5 py-2.5 text-xs font-mono text-slate-600 whitespace-nowrap">
+                          {b.file_size_kb ? `${b.file_size_kb} KB` : "-"}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleRestoreNasBackup(b)}
+                              disabled={isRestoring || nasBackupRestoringId !== null}
+                              title="שחזר את כל נתוני המערכת מגיבוי זה (ייווצר גיבוי ביטחון אוטומטי מקדים)"
+                              className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 py-1 text-xs font-bold transition border border-indigo-200 disabled:opacity-50"
+                            >
+                              <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
+                              {isRestoring ? "משחזר..." : "שחזר גיבוי"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadNasBackup(b)}
+                              title="הורד קובץ SQL למחשב"
+                              className="inline-flex items-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-2 py-1 text-xs font-medium transition border border-slate-200"
+                            >
+                              <DownloadIcon className="h-3.5 w-3.5" />
+                              <span className="hidden lg:inline">הורד SQL</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="block md:hidden space-y-2.5">
+            {nasBackups.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+                {nasBackupsLoading ? "טוען גיבויים מה-NAS..." : "לא נמצאו גיבויים שמורים ב-NAS"}
+              </div>
+            ) : (
+              nasBackups.map((b) => {
+                const isRestoring = nasBackupRestoringId === b.id;
+                const dateFormatted = new Date(b.created_at).toLocaleString("he-IL", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+
+                return (
+                  <div key={b.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-slate-800 text-xs">{dateFormatted}</span>
+                      {b.backup_type === "auto_nas" && (
+                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-200">
+                          🤖 אוטומטי לילי (NAS)
+                        </span>
+                      )}
+                      {b.backup_type === "manual_admin" && (
+                        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                          👤 יזום
+                        </span>
+                      )}
+                      {b.backup_type === "pre_restore_safety" && (
+                        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                          🛡️ ביטחון מקדים
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">דיווחי שעות:</span>
+                        <span className="font-bold text-slate-800">{b.reports_count.toLocaleString("he-IL")}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">נפח ב-NAS:</span>
+                        <span className="font-mono text-slate-700">{b.file_size_kb} KB</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleRestoreNasBackup(b)}
+                        disabled={isRestoring || nasBackupRestoringId !== null}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white py-2 text-xs font-bold transition disabled:opacity-50"
+                      >
+                        <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
+                        {isRestoring ? "משחזר מערכת..." : "שחזר גיבוי זה"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadNasBackup(b)}
+                        className="inline-flex items-center justify-center gap-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 text-xs font-medium transition"
+                      >
+                        <DownloadIcon className="h-3.5 w-3.5" />
+                        <span>SQL</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </section>
