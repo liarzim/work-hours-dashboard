@@ -9,7 +9,7 @@ import { HEBREW_MONTHS } from "@/lib/types";
 
 interface Props {
   onClose: () => void;
-  onEditDate: (date: string) => void;
+  onEditDate: (date: string, item?: MissingReportItem) => void;
   onBulkUpdate: (dates: string[]) => void;
   onQuickSave: (updates: {
     date: string;
@@ -308,7 +308,7 @@ export default function MissingReportsModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => onEditDate(item.date)}
+                        onClick={() => onEditDate(item.date, item)}
                         className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200"
                         title="עריכת דיווח מלאה"
                       >
