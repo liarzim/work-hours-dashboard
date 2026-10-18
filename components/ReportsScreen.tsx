@@ -353,7 +353,19 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                       <div className="text-[11px] text-slate-400">{r.dayName}</div>
                     </td>
                     <td className="px-4 py-2.5 text-center text-brand-700">
-                      {r.entry && r.exit ? (
+                      {r.shifts && r.shifts.length > 1 ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span dir="ltr" className="font-semibold text-xs text-brand-900">
+                            {r.entry} — {r.exit}
+                          </span>
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-700 border border-brand-200 cursor-help"
+                            title={r.shifts.map((s, i) => `${s.description || `מקטע ${i + 1}`}: ${s.entry} - ${s.exit}`).join("\n")}
+                          >
+                            <span>{r.shifts.length} מקטעים</span>
+                          </span>
+                        </div>
+                      ) : r.entry && r.exit ? (
                         <span dir="ltr" className="font-medium">
                           {r.entry} — {r.exit}
                         </span>

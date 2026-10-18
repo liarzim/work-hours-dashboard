@@ -479,6 +479,7 @@ export async function saveReport(input: ReportInput): Promise<DayRecord | null> 
         date: input.date,
         entry: isAbsence ? null : (input.entry || null),
         exit: isAbsence ? null : (input.exit || null),
+        shifts: isAbsence ? [] : (input.shifts || []),
         vacation_days: input.vacationDays ?? 0,
         sick_days: input.sickDays ?? 0,
         reserve_days: input.reserveDays ?? 0,
