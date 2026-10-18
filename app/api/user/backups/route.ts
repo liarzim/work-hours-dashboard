@@ -171,3 +171,51 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+/**
+ * DELETE /api/user/backups - Delete a user backup by ID (owner or admin)
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = createSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "משתמש לא מחובר" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const body = await req.json().catch(() => ({}));
+    const backupId = searchParams.get("id") || body.backupId || body.id;
+
+    if (!backupId) {
+      return NextResponse.json({ error: "מזהה גיבוי חסר למחיקה." }, { status: 400 });
+    }
+
+    const isAdmin = user.email ? ADMIN_EMAILS.has(user.email.toLowerCase()) : false;
+
+    let query = supabase.from("user_backups").delete().eq("id", backupId);
+    if (!isAdmin) {
+      query = query.eq("user_id", user.id);
+    }
+
+    const { error: delErr } = await query;
+    if (delErr) {
+      throw new Error("שגיאה במחיקת הגיבוי: " + delErr.message);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: "הגיבוי נמחק בהצלחה מה-NAS.",
+    });
+  } catch (err: any) {
+    console.error("[User Backup DELETE Error]", err);
+    return NextResponse.json(
+      { error: err.message || "שגיאה במחיקת הגיבוי" },
+      { status: 500 }
+    );
+  }
+}

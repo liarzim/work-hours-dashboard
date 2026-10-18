@@ -312,6 +312,65 @@ export default function AdminScreen() {
     }
   };
 
+  const [backupDeletingId, setBackupDeletingId] = useState<string | null>(null);
+
+  const handleDeleteUserBackup = async (ub: UserBackupItem, userEmailOrId?: string) => {
+    const dateFormatted = new Date(ub.created_at).toLocaleString("he-IL");
+    const ok = confirm(
+      `מחיקת גיבוי משתמש לצמיתות:\n` +
+      `תאריך גיבוי: ${dateFormatted}\n` +
+      `משתמש: ${userEmailOrId || ub.user_id}\n` +
+      `דיווחים: ${ub.reports_count}, תקנים: ${ub.standards_count}\n\n` +
+      `האם אתה בטוח שברצונך למחוק לצמיתות גיבוי זה מה-NAS? פעולה זו אינה ניתנת לביטול.`
+    );
+    if (!ok) return;
+
+    setBackupDeletingId(ub.id);
+    try {
+      const res = await fetch(`/api/user/backups?id=${ub.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "שגיאה במחיקת הגיבוי");
+
+      setAdminMessage(`גיבוי המשתמש מ-${dateFormatted} נמחק בהצלחה מה-NAS.`);
+      await fetchAdminUsers();
+      setTimeout(() => setAdminMessage(null), 4000);
+    } catch (e: any) {
+      alert(e.message || "שגיאה במחיקת הגיבוי");
+    } finally {
+      setBackupDeletingId(null);
+    }
+  };
+
+  const handleDeleteSystemBackup = async (b: NasBackupItem) => {
+    const dateFormatted = new Date(b.created_at).toLocaleString("he-IL");
+    const ok = confirm(
+      `מחיקת גיבוי מערכת כולל לצמיתות:\n` +
+      `תאריך גיבוי: ${dateFormatted}\n` +
+      `דיווחים: ${b.reports_count}, פרופילים: ${b.profiles_count}\n\n` +
+      `האם אתה בטוח שברצונך למחוק לצמיתות גיבוי מערכת זה מה-NAS? פעולה זו אינה ניתנת לביטול.`
+    );
+    if (!ok) return;
+
+    setBackupDeletingId(b.id);
+    try {
+      const res = await fetch(`/api/admin/backups?id=${b.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "שגיאה במחיקת גיבוי המערכת");
+
+      setNasBackupMessage(`גיבוי המערכת מ-${dateFormatted} נמחק בהצלחה מה-NAS.`);
+      await fetchNasBackups();
+      setTimeout(() => setNasBackupMessage(null), 4000);
+    } catch (e: any) {
+      alert(e.message || "שגיאה במחיקת גיבוי המערכת");
+    } finally {
+      setBackupDeletingId(null);
+    }
+  };
+
   const handleSaveRetentionDays = async () => {
     setRetentionSaving(true);
     setRetentionMessage(null);
@@ -726,7 +785,7 @@ export default function AdminScreen() {
                                                 <button
                                                   type="button"
                                                   onClick={() => handleAdminRestoreUserBackup(u.id, ub)}
-                                                  disabled={isRestoring || userBackupRestoringId !== null}
+                                                  disabled={isRestoring || userBackupRestoringId !== null || backupDeletingId !== null}
                                                   title="שחזר דיווחים ותקנים לעובד זה"
                                                   className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 py-1 text-xs font-bold transition border border-indigo-200 disabled:opacity-50"
                                                 >
@@ -742,6 +801,17 @@ export default function AdminScreen() {
                                                 >
                                                   <DownloadIcon className="h-3 w-3" />
                                                   <span>הורד SQL</span>
+                                                </button>
+
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleDeleteUserBackup(ub, u.email || u.id)}
+                                                  disabled={backupDeletingId !== null}
+                                                  title="מחק גיבוי זה לצמיתות מה-NAS"
+                                                  className="inline-flex items-center gap-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 text-xs font-bold transition border border-red-200 disabled:opacity-50"
+                                                >
+                                                  <TrashIcon className="h-3 w-3" />
+                                                  <span>{backupDeletingId === ub.id ? "מוחק..." : "מחק"}</span>
                                                 </button>
                                               </div>
                                             </td>
@@ -872,7 +942,7 @@ export default function AdminScreen() {
                               <button
                                 type="button"
                                 onClick={() => handleAdminRestoreUserBackup(u.id, ub)}
-                                disabled={userBackupRestoringId !== null}
+                                disabled={userBackupRestoringId !== null || backupDeletingId !== null}
                                 className="flex-1 rounded-lg bg-indigo-50 py-1.5 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200"
                               >
                                 שחזר למשתמש
@@ -883,6 +953,14 @@ export default function AdminScreen() {
                                 className="rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-100 transition border border-slate-200"
                               >
                                 הורד SQL
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUserBackup(ub, u.email || u.id)}
+                                disabled={backupDeletingId !== null}
+                                className="rounded-lg bg-red-50 px-2 py-1.5 text-[11px] font-bold text-red-600 hover:bg-red-100 transition border border-red-200"
+                              >
+                                {backupDeletingId === ub.id ? "מוחק..." : "מחק"}
                               </button>
                             </div>
                           </div>
@@ -994,11 +1072,11 @@ export default function AdminScreen() {
                               {b.file_size_kb ? `${b.file_size_kb} KB` : "-"}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                                 <button
                                   type="button"
                                   onClick={() => handleRestoreNasBackup(b)}
-                                  disabled={isRestoring || nasBackupRestoringId !== null}
+                                  disabled={isRestoring || nasBackupRestoringId !== null || backupDeletingId !== null}
                                   title="שחזר את כל נתוני המערכת מגיבוי זה (ייווצר גיבוי ביטחון אוטומטי מקדים)"
                                   className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-bold transition border border-indigo-200 disabled:opacity-50"
                                 >
@@ -1014,6 +1092,17 @@ export default function AdminScreen() {
                                 >
                                   <DownloadIcon className="h-3.5 w-3.5" />
                                   <span>SQL</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteSystemBackup(b)}
+                                  disabled={backupDeletingId !== null}
+                                  title="מחק גיבוי מערכת זה לצמיתות מה-NAS"
+                                  className="inline-flex items-center gap-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 px-2.5 py-1 text-xs font-bold transition border border-red-200 disabled:opacity-50"
+                                >
+                                  <TrashIcon className="h-3.5 w-3.5" />
+                                  <span>{backupDeletingId === b.id ? "מוחק..." : "מחק"}</span>
                                 </button>
                               </div>
                             </td>
@@ -1061,7 +1150,7 @@ export default function AdminScreen() {
                         <button
                           type="button"
                           onClick={() => handleRestoreNasBackup(b)}
-                          disabled={isRestoring || nasBackupRestoringId !== null}
+                          disabled={isRestoring || nasBackupRestoringId !== null || backupDeletingId !== null}
                           className="flex-1 rounded-lg bg-indigo-50 py-1.5 font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200"
                         >
                           שחזר מערכת
@@ -1069,9 +1158,17 @@ export default function AdminScreen() {
                         <button
                           type="button"
                           onClick={() => handleDownloadNasBackup(b)}
-                          className="rounded-lg bg-slate-50 px-3 py-1.5 font-medium text-slate-600 hover:bg-slate-100 transition border border-slate-200"
+                          className="rounded-lg bg-slate-50 px-2.5 py-1.5 font-medium text-slate-600 hover:bg-slate-100 transition border border-slate-200"
                         >
                           הורד SQL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSystemBackup(b)}
+                          disabled={backupDeletingId !== null}
+                          className="rounded-lg bg-red-50 px-2.5 py-1.5 font-bold text-red-600 hover:bg-red-100 transition border border-red-200"
+                        >
+                          {backupDeletingId === b.id ? "מוחק..." : "מחק"}
                         </button>
                       </div>
                     </div>

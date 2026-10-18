@@ -189,3 +189,48 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+/**
+ * DELETE /api/admin/backups - Delete a system backup by ID (admin only)
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = createSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user || !user.email || !ADMIN_EMAILS.has(user.email.toLowerCase())) {
+      return NextResponse.json({ error: "גישה נדחתה. דרושות הרשאות מנהל." }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const body = await req.json().catch(() => ({}));
+    const backupId = searchParams.get("id") || body.backupId || body.id;
+
+    if (!backupId) {
+      return NextResponse.json({ error: "מזהה גיבוי חסר למחיקה." }, { status: 400 });
+    }
+
+    const { error: delErr } = await supabase
+      .from("system_backups")
+      .delete()
+      .eq("id", backupId);
+
+    if (delErr) {
+      throw new Error("שגיאה במחיקת גיבוי המערכת: " + delErr.message);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: "גיבוי המערכת נמחק בהצלחה מה-NAS.",
+    });
+  } catch (err: any) {
+    console.error("[System Backup DELETE Error]", err);
+    return NextResponse.json(
+      { error: err.message || "שגיאה במחיקת הגיבוי" },
+      { status: 500 }
+    );
+  }
+}
