@@ -25,7 +25,7 @@ export default function ImportDemo() {
           <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
           <span className="mr-2 text-xs font-bold text-white flex items-center gap-1.5">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-            הדמיה מונפשת בלולאה (Option C) • ייבוא קובץ נוכחות CSV / שעון
+            הדמיה מונפשת (1:1 למסך האמיתי) • ייבוא קובץ נוכחות CSV / שעון
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -48,32 +48,7 @@ export default function ImportDemo() {
       </div>
 
       {/* Screen Area */}
-      <div className="relative bg-slate-100 p-4 sm:p-6 select-none overflow-hidden min-h-[380px]">
-        {/* Animated Virtual Cursor */}
-        <div
-          className={`absolute z-30 transition-all duration-700 pointer-events-none drop-shadow-xl ${
-            step === 0
-              ? "right-1/2 top-28"
-              : step === 1
-              ? "right-1/3 top-36 scale-90"
-              : step === 2
-              ? "right-1/2 top-48 scale-90"
-              : "right-16 top-64 scale-90"
-          }`}
-        >
-          <div className="relative">
-            <svg
-              className="w-7 h-7 text-slate-950 fill-slate-950 drop-shadow-md"
-              viewBox="0 0 24 24"
-            >
-              <path d="M4 0l16 12.279-6.951 1.17 4.325 8.817-3.596 1.734-4.35-8.879-5.428 5.43z" />
-            </svg>
-            {(step === 1 || step === 2) && (
-              <span className="absolute -top-2 -right-2 h-10 w-10 rounded-full bg-brand-500/50 animate-ping pointer-events-none" />
-            )}
-          </div>
-        </div>
-
+      <div className="relative bg-slate-100 p-4 sm:p-6 select-none overflow-hidden min-h-[400px]">
         {/* Dropzone & Preview Mockup */}
         <div className="max-w-lg mx-auto space-y-3">
           {step === 0 ? (
@@ -84,8 +59,19 @@ export default function ImportDemo() {
               </div>
               <div className="text-sm font-black text-slate-800">בחר קובץ CSV או Excel להעלאה</div>
               <p className="text-xs text-slate-500 mt-1">תומך בפלט שעון נוכחות: חילן, מלם, הר-גל או קובץ מקומי</p>
-              <div className="mt-4 inline-block rounded-xl bg-brand-50 border border-brand-200 px-4 py-2 text-xs font-bold text-brand-700 shadow-2xs">
-                📄 גרור קובץ לכאן
+              <div className="mt-4 relative inline-block">
+                <div className="rounded-xl bg-brand-50 border border-brand-200 px-4 py-2 text-xs font-bold text-brand-700 shadow-2xs">
+                  📄 גרור קובץ לכאן
+                </div>
+                {/* Step 0 Virtual Cursor sitting on the dropzone */}
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none drop-shadow-xl animate-pulse">
+                  <div className="relative">
+                    <svg className="w-6 h-6 text-slate-950 fill-slate-950 drop-shadow-md -rotate-45" viewBox="0 0 24 24">
+                      <path d="M4 0l16 12.279-6.951 1.17 4.325 8.817-3.596 1.734-4.35-8.879-5.428 5.43z" />
+                    </svg>
+                    <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-brand-500/50 animate-ping pointer-events-none" />
+                  </div>
+                </div>
               </div>
             </div>
           ) : step === 1 ? (
@@ -125,15 +111,27 @@ export default function ImportDemo() {
               </div>
 
               {step === 2 ? (
-                <button
-                  type="button"
-                  className="w-full rounded-xl bg-brand-600 py-2.5 text-center text-xs font-black text-white shadow-md ring-2 ring-brand-300 scale-102 transition"
-                >
-                  ✓ אשר ושמור 22 דיווחים במערכת
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="w-full rounded-xl bg-brand-600 py-2.5 text-center text-xs font-black text-white shadow-md ring-2 ring-brand-300 scale-102 transition"
+                  >
+                    ✓ אשר ושמור 22 דיווחים במערכת
+                  </button>
+                  {/* Step 2 Cursor sitting directly on the confirm button */}
+                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none drop-shadow-xl animate-pulse">
+                    <div className="relative">
+                      <svg className="w-6 h-6 text-slate-950 fill-slate-950 drop-shadow-md -rotate-45" viewBox="0 0 24 24">
+                        <path d="M4 0l16 12.279-6.951 1.17 4.325 8.817-3.596 1.734-4.35-8.879-5.428 5.43z" />
+                      </svg>
+                      <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-brand-500/50 animate-ping pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <div className="rounded-xl bg-emerald-600 py-2.5 text-center text-xs font-black text-white shadow-lg animate-bounce">
-                  🎉 כל הדיווחים נשמרו בהצלחה במסד הנתונים!
+                <div className="rounded-xl bg-emerald-600 py-2.5 text-center text-xs font-black text-white shadow-lg animate-bounce flex items-center justify-center gap-1.5">
+                  <CheckCircleIcon className="w-4 h-4 text-emerald-200" />
+                  <span>כל הדיווחים נשמרו בהצלחה במסד הנתונים!</span>
                 </div>
               )}
             </div>

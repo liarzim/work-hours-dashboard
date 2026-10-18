@@ -49,31 +49,6 @@ export default function MissingReportsDemo() {
 
       {/* Screen Backdrop */}
       <div className="relative bg-slate-900/50 p-3 sm:p-6 select-none overflow-hidden min-h-[520px] flex items-center justify-center backdrop-blur-xs">
-        {/* Animated Virtual Cursor */}
-        <div
-          className={`absolute z-40 transition-all duration-700 pointer-events-none drop-shadow-xl ${
-            step === 0
-              ? "right-1/4 top-40"
-              : step === 1
-              ? "right-[34%] top-[230px] scale-90"
-              : step === 2
-              ? "right-[26%] top-[305px] scale-90"
-              : "right-1/2 top-1/2 opacity-0"
-          }`}
-        >
-          <div className="relative">
-            <svg
-              className="w-7 h-7 text-slate-950 fill-slate-950 drop-shadow-md"
-              viewBox="0 0 24 24"
-            >
-              <path d="M4 0l16 12.279-6.951 1.17 4.325 8.817-3.596 1.734-4.35-8.879-5.428 5.43z" />
-            </svg>
-            {(step === 1 || step === 2) && (
-              <span className="absolute -top-2 -right-2 h-10 w-10 rounded-full bg-brand-500/50 animate-ping pointer-events-none" />
-            )}
-          </div>
-        </div>
-
         {/* Real MissingReportsModal Replica */}
         <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
           {/* Header */}
@@ -112,9 +87,28 @@ export default function MissingReportsDemo() {
             {/* Header row */}
             <div className="flex items-center justify-between px-2 text-xs text-slate-400 pb-1 border-b border-slate-100">
               <span>פעולות מהירות לעדכון</span>
-              <div className="flex items-center gap-2">
-                <span>בחר הכל ({step === 0 ? "7" : step === 1 ? "6" : "5"})</span>
-                <input type="checkbox" readOnly className="rounded border-slate-300" />
+              <div className="flex items-center gap-2 relative">
+                <span className={`transition ${step === 2 ? "font-bold text-slate-800" : ""}`}>
+                  בחר הכל ({step === 0 ? "7" : step === 1 ? "6" : "5"})
+                </span>
+                <input
+                  type="checkbox"
+                  readOnly
+                  checked={step === 2}
+                  className={`rounded border-slate-300 transition ${
+                    step === 2 ? "ring-2 ring-brand-400 bg-brand-600" : ""
+                  }`}
+                />
+                {step === 2 && (
+                  <div className="absolute -bottom-7 left-2 z-40 pointer-events-none drop-shadow-xl animate-pulse">
+                    <div className="relative">
+                      <svg className="w-6 h-6 text-slate-950 fill-slate-950 drop-shadow-md -rotate-45" viewBox="0 0 24 24">
+                        <path d="M4 0l16 12.279-6.951 1.17 4.325 8.817-3.596 1.734-4.35-8.879-5.428 5.43z" />
+                      </svg>
+                      <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-brand-500/50 animate-ping pointer-events-none" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -129,13 +123,25 @@ export default function MissingReportsDemo() {
                 </span>
               ) : (
                 <div className="flex items-center gap-1.5">
-                  <span className={`rounded-xl border px-2.5 py-1 text-xs font-bold transition shadow-xs ${
-                    step === 0
-                      ? "border-blue-500 bg-blue-600 text-white ring-2 ring-blue-200 scale-105"
-                      : "border-blue-200 bg-blue-50/80 text-blue-700"
-                  }`}>
-                    ⏱️ שעות תקן
-                  </span>
+                  <div className="relative inline-flex">
+                    <span className={`rounded-xl border px-2.5 py-1 text-xs font-bold transition shadow-xs ${
+                      step === 0
+                        ? "border-blue-500 bg-blue-600 text-white ring-2 ring-blue-200 scale-105"
+                        : "border-blue-200 bg-blue-50/80 text-blue-700"
+                    }`}>
+                      ⏱️ שעות תקן
+                    </span>
+                    {step === 0 && (
+                      <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 z-40 pointer-events-none drop-shadow-xl animate-pulse">
+                        <div className="relative">
+                          <svg className="w-6 h-6 text-slate-950 fill-slate-950 drop-shadow-md -rotate-45" viewBox="0 0 24 24">
+                            <path d="M4 0l16 12.279-6.951 1.17 4.325 8.817-3.596 1.734-4.35-8.879-5.428 5.43z" />
+                          </svg>
+                          <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-blue-500/50 animate-ping pointer-events-none" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <span className="rounded-xl border border-purple-200 bg-purple-50/80 px-2.5 py-1 text-xs font-semibold text-purple-700">
                     🏖️ חופש
                   </span>
@@ -184,13 +190,25 @@ export default function MissingReportsDemo() {
                   <span className="rounded-xl border border-blue-200 bg-blue-50/80 px-2.5 py-1 text-xs font-semibold text-blue-700">
                     ⏱️ שעות תקן
                   </span>
-                  <span className={`rounded-xl border px-2.5 py-1 text-xs font-bold transition shadow-xs ${
-                    step === 1
-                      ? "border-purple-500 bg-purple-600 text-white ring-2 ring-purple-200 scale-105"
-                      : "border-purple-200 bg-purple-50/80 text-purple-700"
-                  }`}>
-                    🏖️ חופש
-                  </span>
+                  <div className="relative inline-flex">
+                    <span className={`rounded-xl border px-2.5 py-1 text-xs font-bold transition shadow-xs ${
+                      step === 1
+                        ? "border-purple-500 bg-purple-600 text-white ring-2 ring-purple-200 scale-105"
+                        : "border-purple-200 bg-purple-50/80 text-purple-700"
+                    }`}>
+                      🏖️ חופש
+                    </span>
+                    {step === 1 && (
+                      <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 z-40 pointer-events-none drop-shadow-xl animate-pulse">
+                        <div className="relative">
+                          <svg className="w-6 h-6 text-slate-950 fill-slate-950 drop-shadow-md -rotate-45" viewBox="0 0 24 24">
+                            <path d="M4 0l16 12.279-6.951 1.17 4.325 8.817-3.596 1.734-4.35-8.879-5.428 5.43z" />
+                          </svg>
+                          <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-purple-500/50 animate-ping pointer-events-none" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <span className="rounded-xl border border-amber-200 bg-amber-50/80 px-2.5 py-1 text-xs font-semibold text-amber-700">
                     🩹 מחלה
                   </span>

@@ -347,11 +347,11 @@ export default function GuideScreen() {
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span>📊 השוואה תרשימית</span>
+                    <span>📸 צילום מסך מקורי</span>
                   </button>
                 </div>
                 <span className="text-[11px] font-medium text-slate-500 hidden sm:inline px-2">
-                  {getMode("shifts") === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "השוואה בין מצבים"}
+                  {getMode("shifts") === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "צילומי מסך מהמערכת עם הגדלה"}
                 </span>
               </div>
 
@@ -360,77 +360,59 @@ export default function GuideScreen() {
                 <ShiftsDemo />
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {/* Single Shift Mockup */}
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700">מצב 1: משמרת רציפה אחת</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                        ברירת מחדל
-                      </span>
+                  {/* Single Shift Real Screenshot */}
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-xs">
+                    <div className="mb-2 text-xs font-bold text-slate-700">
+                      צילום מסך 1: משמרת רגילה וכפתור "פיצול למקטעים"
                     </div>
-                    <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <span className="block text-[11px] text-slate-500 mb-1">כניסה</span>
-                          <div className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-center font-bold text-brand-700 text-sm">
-                            08:00
-                          </div>
-                        </div>
-                        <div>
-                          <span className="block text-[11px] text-slate-500 mb-1">יציאה</span>
-                          <div className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-center font-bold text-brand-700 text-sm">
-                            17:00
-                          </div>
-                        </div>
+                    <div
+                      className="relative group cursor-pointer"
+                      onClick={() => setLightboxImage({
+                        src: "/guide/shifts_single.png",
+                        alt: "משמרת רגילה - כפתור פיצול למקטעים",
+                        caption: "צילום מסך מקורי: משמרת רגילה רציפה וכפתור 'פיצול למקטעים' משמאל"
+                      })}
+                    >
+                      <Image
+                        src="/guide/shifts_single.png"
+                        alt="משמרת רגילה"
+                        width={600}
+                        height={250}
+                        className="w-full rounded-xl object-contain bg-white border border-slate-200 transition group-hover:scale-[1.01]"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 group-hover:bg-slate-900/30 group-hover:opacity-100 transition rounded-xl">
+                        <span className="rounded-xl bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md">
+                          🔍 לחץ להגדלה
+                        </span>
                       </div>
-                    </div>
-                    <div className="mt-3 text-center text-xs font-bold text-slate-700">
-                      סה״כ שעות: <span className="text-brand-600 font-extrabold">9.0 שעות (9:00)</span>
                     </div>
                   </div>
 
-                  {/* Multi-shift Mockup */}
-                  <div className="rounded-2xl border-2 border-brand-500 bg-brand-50/30 p-4 shadow-sm">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-bold text-brand-900 flex items-center gap-1">
-                        <SparklesIcon className="w-3.5 h-3.5 text-brand-600" />
-                        מצב 2: פיצול למקטעים (חדש!)
-                      </span>
-                      <span className="rounded-md bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                        חישוב נטו
-                      </span>
+                  {/* Multi-shift Real Screenshot */}
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-xs">
+                    <div className="mb-2 text-xs font-bold text-slate-700">
+                      צילום מסך 2: פיצול למקטעים וחישוב שעות נטו
                     </div>
-
-                    <div className="space-y-2">
-                      <div className="rounded-xl bg-white p-2.5 border border-brand-200">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[11px] font-bold text-slate-700">מקטע 1 (בוקר)</span>
-                          <span className="text-[10px] font-semibold text-brand-700">4.0 שעות</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">08:00</span>
-                          <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">12:00</span>
-                        </div>
+                    <div
+                      className="relative group cursor-pointer"
+                      onClick={() => setLightboxImage({
+                        src: "/guide/shifts_split.png",
+                        alt: "פיצול למקטעים",
+                        caption: "צילום מסך מקורי: חלוקה ל-2 מקטעים, קיזוז הפסקה וחישוב סה״כ נטו מדויק"
+                      })}
+                    >
+                      <Image
+                        src="/guide/shifts_split.png"
+                        alt="פיצול למקטעים"
+                        width={600}
+                        height={350}
+                        className="w-full rounded-xl object-contain bg-white border border-slate-200 transition group-hover:scale-[1.01]"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 group-hover:bg-slate-900/30 group-hover:opacity-100 transition rounded-xl">
+                        <span className="rounded-xl bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md">
+                          🔍 לחץ להגדלה
+                        </span>
                       </div>
-
-                      <div className="text-center text-[11px] font-bold text-slate-400">
-                        ⏳ הפסקה / יציאה מהעבודה (לא נחשבת כשעות עבודה!)
-                      </div>
-
-                      <div className="rounded-xl bg-white p-2.5 border border-brand-200">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[11px] font-bold text-slate-700">מקטע 2 (ערב)</span>
-                          <span className="text-[10px] font-semibold text-brand-700">4.5 שעות</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">14:00</span>
-                          <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">18:30</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 rounded-lg bg-brand-600 py-1.5 text-center text-xs font-bold text-white">
-                      סה״כ שעות עבודה נטו: 8.5 שעות
                     </div>
                   </div>
                 </div>
