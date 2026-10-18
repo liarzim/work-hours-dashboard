@@ -1,3 +1,9 @@
+export interface ReportShift {
+  entry: string; // כניסה HH:mm
+  exit: string; // יציאה HH:mm
+  description?: string; // תיאור מקטע (למשל: "נתוני שעון - נוכחות", "עבודה מחוץ לאתר")
+}
+
 /** One journal row = one calendar date. Mirrors the 31-column sheet schema (A:AE). */
 export interface DayRecord {
   /** 1-based row index in the sheet (header = row 1). */
@@ -10,6 +16,7 @@ export interface DayRecord {
   dateDisplay: string;
   entry: string; // כניסה HH:mm
   exit: string; // יציאה HH:mm
+  shifts?: ReportShift[]; // מקטעי עבודה מפוצלים באותו יום
   totalHours: string; // סה"כ שעות HH:mm
   totalHoursDecimal: number; // תרגום שעות לעשרוני
   dailyStandard: number; // תקן יומי (עשרוני)
@@ -123,6 +130,7 @@ export interface ReportInput {
   date: string; // ISO yyyy-mm-dd
   entry?: string; // HH:mm
   exit?: string; // HH:mm
+  shifts?: ReportShift[]; // מקטעי עבודה מפוצלים באותו יום
   classification: string;
   vacationDays?: number;
   reserveDays?: number;

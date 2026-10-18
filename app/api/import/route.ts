@@ -164,6 +164,8 @@ export async function POST(req: NextRequest) {
     let entryIdx = -1;
     let exitIdx = -1;
     let classIdx = -1;
+    let dayTypeIdx = -1;
+    let hoursIdx = -1;
     let vacationIdx = -1;
     let sickIdx = -1;
     let reserveIdx = -1;
@@ -174,9 +176,32 @@ export async function POST(req: NextRequest) {
     firstRow.forEach((col, idx) => {
       const n = norm(col);
       if (n === "תאריך" || n === "date") dateIdx = idx;
-      else if (n === "כניסה" || n === "entry" || n === "start") entryIdx = idx;
-      else if (n === "יציאה" || n === "exit" || n === "end") exitIdx = idx;
-      else if (n === "סיווג" || n === "classification" || n === "type") classIdx = idx;
+      else if (
+        n === "כניסה" ||
+        n === "entry" ||
+        n === "start" ||
+        n.includes("שעתהתחלה") ||
+        n.includes("התחלה") ||
+        n.includes("שעתכניסה")
+      ) entryIdx = idx;
+      else if (
+        n === "יציאה" ||
+        n === "exit" ||
+        n === "end" ||
+        n.includes("שעתסיום") ||
+        n.includes("סיום") ||
+        n.includes("שעתיציאה")
+      ) exitIdx = idx;
+      else if (n.includes("סוגיום")) dayTypeIdx = idx;
+      else if (
+        n === "סיווג" ||
+        n === "classification" ||
+        n === "type" ||
+        n.includes("תאורנוכחות") ||
+        n.includes("תיאורנוכחות") ||
+        n.includes("תאורהעדרות")
+      ) classIdx = idx;
+      else if (n.includes("סךשעות") || n.includes("סהכשעות") || n === "hours") hoursIdx = idx;
       else if (n.includes("חופש") || n.includes("חופשה") || n === "vacation" || n === "vacationdays") vacationIdx = idx;
       else if (n.includes("מחלה") || n === "sick" || n === "sickdays") sickIdx = idx;
       else if (n.includes("מילואים") || n === "reserve" || n === "reservedays") reserveIdx = idx;
@@ -189,7 +214,8 @@ export async function POST(req: NextRequest) {
     const isLegacy = !hasHeaderMapping && firstRow.length >= 16;
     const startIndex = hasHeaderMapping ? 1 : (parseCellDate(firstRow[0]) ? 0 : 1);
 
-    const parsedRows: any[] = [];
+    // Group rows by parsed date to handle multi-shift / split punch days
+    const dateGroups = new Map<string, any[]>();
     let skippedCount = 0;
 
     for (let i = startIndex; i < rawRows.length; i++) {
@@ -203,6 +229,8 @@ export async function POST(req: NextRequest) {
       let entryRaw: any = "";
       let exitRaw: any = "";
       let classificationRaw: any = "";
+      let dayTypeRaw: any = "";
+      let totalHoursRaw: any = 0;
       let vacationDays = 0;
       let sickDays = 0;
       let reserveDays = 0;
@@ -215,6 +243,8 @@ export async function POST(req: NextRequest) {
         entryRaw = entryIdx !== -1 ? cols[entryIdx] : "";
         exitRaw = exitIdx !== -1 ? cols[exitIdx] : "";
         classificationRaw = classIdx !== -1 ? cols[classIdx] : "";
+        dayTypeRaw = dayTypeIdx !== -1 ? cols[dayTypeIdx] : "";
+        totalHoursRaw = hoursIdx !== -1 ? parseFloat(cols[hoursIdx]) || 0 : 0;
         vacationDays = vacationIdx !== -1 ? parseFloat(cols[vacationIdx]) || 0 : 0;
         sickDays = sickIdx !== -1 ? parseFloat(cols[sickIdx]) || 0 : 0;
         reserveDays = reserveIdx !== -1 ? parseFloat(cols[reserveIdx]) || 0 : 0;
@@ -222,7 +252,6 @@ export async function POST(req: NextRequest) {
         uniqueNotesRaw = uniqueNotesIdx !== -1 ? cols[uniqueNotesIdx] : "";
         orderTypeRaw = orderTypeIdx !== -1 ? cols[orderTypeIdx] : "";
       } else if (isLegacy) {
-        // Legacy workbook: Col 0 = Date, Col 1 = Entry, Col 2 = Exit, Col 9 = Vacation, Col 10 = Reserve, Col 11 = Sick, Col 12 = Classification, Col 13 = Notes, Col 14 = Unique Notes, Col 15 = Order Type
         dateRaw = cols[0];
         entryRaw = cols[1];
         exitRaw = cols[2];
@@ -234,7 +263,6 @@ export async function POST(req: NextRequest) {
         uniqueNotesRaw = cols[14] || "";
         orderTypeRaw = cols[15] || "";
       } else {
-        // Standard template: תאריך, כניסה, יציאה, סיווג, חופש, מחלה, מילואים, הערות, הערות ייחודיות
         dateRaw = cols[0];
         entryRaw = cols[1];
         exitRaw = cols[2];
@@ -247,84 +275,200 @@ export async function POST(req: NextRequest) {
         orderTypeRaw = cols[9] || "";
       }
 
-      // Ignore standard workday definition rows in legacy sheet
       if (String(classificationRaw).trim() === "הגדרת תקן") {
         continue;
       }
 
-      // Parse date
       const date = parseCellDate(dateRaw);
       if (!date) {
         skippedCount++;
         continue;
       }
 
+      if (!dateGroups.has(date)) {
+        dateGroups.set(date, []);
+      }
+      dateGroups.get(date)!.push({
+        entryRaw,
+        exitRaw,
+        classificationRaw,
+        dayTypeRaw,
+        totalHoursRaw,
+        vacationDays,
+        sickDays,
+        reserveDays,
+        notesRaw,
+        uniqueNotesRaw,
+        orderTypeRaw,
+      });
+    }
+
+    const parsedRows: any[] = [];
+
+    for (const [date, items] of Array.from(dateGroups.entries())) {
       const dateObj = new Date(`${date}T00:00:00`);
       const dow = dateObj.getDay();
 
-      const entryClean = parseCellTime(entryRaw);
-      const exitClean = parseCellTime(exitRaw);
+      // Check if completely empty placeholder row
+      const hasAnyHours = items.some((it) => it.entryRaw || it.exitRaw || it.totalHoursRaw > 0);
+      const hasAnyNotes = items.some((it) => it.notesRaw || it.uniqueNotesRaw);
+      const hasAbsenceDays = items.some((it) => it.vacationDays > 0 || it.sickDays > 0 || it.reserveDays > 0);
+      const hasSpecialDesc = items.some(
+        (it) => it.dayTypeRaw || (it.classificationRaw && it.classificationRaw !== "עבודה")
+      );
 
-      let classificationClean = cleanQuotes(classificationRaw);
-      if (!classificationClean) {
-        if (dow === 5 || dow === 6) {
-          classificationClean = 'סופ"ש';
-        } else {
-          classificationClean = "עבודה";
+      if (!hasAnyHours && !hasAnyNotes && !hasAbsenceDays && !hasSpecialDesc) {
+        // Skip empty future / placeholder lines
+        continue;
+      }
+
+      // Extract valid shifts for this day
+      const validShifts: Array<{ entry: string; exit: string; description?: string }> = [];
+      for (const it of items) {
+        const ent = parseCellTime(it.entryRaw);
+        const ext = parseCellTime(it.exitRaw);
+        if (ent || ext) {
+          validShifts.push({
+            entry: ent,
+            exit: ext,
+            description: cleanQuotes(it.classificationRaw || it.dayTypeRaw) || undefined,
+          });
         }
-      } else if (classificationClean === "חופשה" || classificationClean === "חופש") {
+      }
+
+      // Classify the day
+      const firstDesc = items.map((it) => cleanQuotes(it.classificationRaw)).find(Boolean) || "";
+      const firstDayType = items.map((it) => cleanQuotes(it.dayTypeRaw)).find(Boolean) || "";
+      let classificationClean = "עבודה";
+
+      if (
+        firstDayType.includes("חוה\"מ") ||
+        firstDayType.includes("חוהמ") ||
+        firstDayType.includes("חול המועד") ||
+        firstDesc.includes("חול המועד")
+      ) {
+        classificationClean = "חול המועד";
+      } else if (
+        firstDayType.includes("ערב חג") ||
+        firstDayType.includes("הושע\"ר") ||
+        firstDayType.includes("הושער")
+      ) {
+        classificationClean = "ערב חג";
+      } else if (
+        firstDayType.includes("חג") ||
+        firstDayType.includes("ש' תורה") ||
+        firstDayType.includes("שמחת תורה") ||
+        firstDayType.includes("סוכות") ||
+        firstDayType.includes("פסח") ||
+        firstDayType.includes("ראש השנה") ||
+        firstDayType.includes("כיפור")
+      ) {
+        classificationClean = "חג";
+      } else if (
+        firstDesc.includes("עבודה במילואים") ||
+        firstDayType.includes("עבודה במילואים")
+      ) {
+        classificationClean = "עבודה במילואים";
+      } else if (
+        firstDesc.includes("מילואים") ||
+        firstDayType.includes("מילואים")
+      ) {
+        classificationClean = "מילואים";
+      } else if (
+        firstDesc.includes("מחלה") ||
+        firstDayType.includes("מחלה")
+      ) {
+        classificationClean = "מחלה";
+      } else if (
+        firstDesc.includes("חופש") ||
+        firstDesc.includes("חופשה") ||
+        firstDesc.includes("היעדרות כללית")
+      ) {
         classificationClean = "חופש";
       } else if (
-        classificationClean === 'סופ"ש' ||
-        classificationClean === 'סופ""ש' ||
-        classificationClean === "סופש" ||
-        classificationClean === "סופשבוע" ||
-        classificationClean.includes("סופ")
+        firstDesc.includes("נוכחות") ||
+        firstDesc.includes("עבודה") ||
+        firstDesc.includes("שעון")
       ) {
+        classificationClean = "עבודה";
+      } else if (firstDesc) {
+        classificationClean = firstDesc;
+      } else if (dow === 5 || dow === 6) {
         classificationClean = 'סופ"ש';
-      } else if (classificationClean.includes("עבודה במילואים")) {
-        classificationClean = "עבודה במילואים";
-      } else if (classificationClean.includes("מילואים")) {
-        classificationClean = "מילואים";
-      } else if (classificationClean.includes("מחלה")) {
-        classificationClean = "מחלה";
-      } else if (classificationClean === "ערב חג" || classificationClean.includes("ערב חג")) {
-        classificationClean = "ערב חג";
-      } else if (classificationClean === "חג" || classificationClean.includes("חג")) {
-        classificationClean = "חג";
-      } else if (classificationClean.includes("חול המועד")) {
-        classificationClean = "חול המועד";
       }
 
       classificationClean = sanitizeCsvField(classificationClean);
-      const notesClean = notesRaw ? sanitizeCsvField(cleanQuotes(notesRaw).substring(0, 500)) : null;
-      const uniqueNotesClean = uniqueNotesRaw ? sanitizeCsvField(cleanQuotes(uniqueNotesRaw).substring(0, 500)) : null;
+
+      // Absence days computation
+      let vacationDays = items.reduce((acc, it) => acc + (it.vacationDays || 0), 0);
+      let sickDays = items.reduce((acc, it) => acc + (it.sickDays || 0), 0);
+      let reserveDays = items.reduce((acc, it) => acc + (it.reserveDays || 0), 0);
+
+      if (classificationClean === "חופש" && vacationDays === 0 && validShifts.length === 0) {
+        vacationDays = 1;
+      }
+      if (classificationClean === "מחלה" && sickDays === 0) {
+        sickDays = 1;
+      }
+      if (classificationClean === "מילואים" && reserveDays === 0) {
+        reserveDays = 1;
+      }
+
+      const isAbsence =
+        classificationClean !== "עבודה" && classificationClean !== "עבודה במילואים";
+
+      let entryClean: string | null = null;
+      let exitClean: string | null = null;
+      let shiftsPayload: Array<{ entry: string; exit: string; description?: string }> = [];
+
+      if (!isAbsence && validShifts.length > 0) {
+        entryClean = validShifts[0].entry || null;
+        exitClean = validShifts[validShifts.length - 1].exit || null;
+        if (validShifts.length > 1) {
+          shiftsPayload = validShifts;
+        }
+      }
+
+      // Combine notes
+      const notesClean = items
+        .map((it) => it.notesRaw)
+        .filter(Boolean)
+        .map((n) => cleanQuotes(n))
+        .join(" ; ");
+      const uniqueNotesClean = items
+        .map((it) => it.uniqueNotesRaw)
+        .filter(Boolean)
+        .map((n) => cleanQuotes(n))
+        .join(" ; ");
 
       const isReserveImport =
         classificationClean === "מילואים" ||
         classificationClean === "עבודה במילואים" ||
         reserveDays > 0;
 
-      const orderTypeClean = orderTypeRaw
-        ? cleanQuotes(orderTypeRaw)
-        : isReserveImport
-        ? /צו\s*8/.test(notesClean ?? "")
-          ? "צו 8"
-          : "מילואים רגילים"
-        : null;
+      const orderTypeClean =
+        items.map((it) => cleanQuotes(it.orderTypeRaw)).find(Boolean) ||
+        (isReserveImport
+          ? /צו\s*8/.test(notesClean)
+            ? "צו 8"
+            : "מילואים רגילים"
+          : null);
 
       parsedRows.push({
         user_id: userId,
         date,
-        entry: entryClean || null,
-        exit: exitClean || null,
+        entry: entryClean,
+        exit: exitClean,
+        shifts: shiftsPayload,
         vacation_days: vacationDays,
         sick_days: sickDays,
         reserve_days: reserveDays,
         classification: classificationClean,
-        notes: notesClean || null,
-        unique_notes: uniqueNotesClean || null,
-        order_type: orderTypeClean || null,
+        notes: notesClean ? sanitizeCsvField(notesClean.substring(0, 500)) : null,
+        unique_notes: uniqueNotesClean
+          ? sanitizeCsvField(uniqueNotesClean.substring(0, 500))
+          : null,
+        order_type: orderTypeClean ? sanitizeCsvField(orderTypeClean) : null,
       });
     }
 

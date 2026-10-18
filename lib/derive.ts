@@ -1,5 +1,5 @@
 import { HEBREW_DAYS } from "./types";
-import type { DayRecord, EmploymentTerm } from "./types";
+import type { DayRecord, EmploymentTerm, ReportShift } from "./types";
 
 /** Convert YYYY-MM-DD to DD/MM/YYYY */
 export function isoToDdmmyyyy(iso: string): string {
@@ -76,6 +76,7 @@ interface RawReport {
   notes: string | null;
   unique_notes: string | null;
   order_type: string | null;
+  shifts?: ReportShift[] | any;
 }
 
 /** Derive a full DayRecord from a database report row */
@@ -86,12 +87,36 @@ export function deriveDayRecord(
   monthIndex: number, // 1-12
   term?: EmploymentTerm
 ): DayRecord {
-  const entry = raw.entry ?? "";
-  const exit = raw.exit ?? "";
-  
-  const entryDec = hhmmToDecimal(entry);
-  const exitDec = hhmmToDecimal(exit);
-  const totalHoursDecimal = Math.max(0, Math.round((exitDec - entryDec) * 100) / 100);
+  const rawShifts = Array.isArray(raw.shifts) ? raw.shifts : [];
+  const shifts: ReportShift[] = rawShifts
+    .filter((s: any) => s && (s.entry || s.exit))
+    .map((s: any) => ({
+      entry: s.entry ? String(s.entry).trim() : "",
+      exit: s.exit ? String(s.exit).trim() : "",
+      description: s.description ? String(s.description).trim() : undefined,
+    }));
+
+  let entry = raw.entry ?? "";
+  let exit = raw.exit ?? "";
+  let totalHoursDecimal = 0;
+
+  if (shifts.length > 0) {
+    for (const s of shifts) {
+      if (s.entry && s.exit) {
+        const sEntryDec = hhmmToDecimal(s.entry);
+        const sExitDec = hhmmToDecimal(s.exit);
+        const diff = Math.max(0, Math.round((sExitDec - sEntryDec) * 100) / 100);
+        totalHoursDecimal += diff;
+      }
+    }
+    totalHoursDecimal = Math.round(totalHoursDecimal * 100) / 100;
+    if (!entry && shifts[0]?.entry) entry = shifts[0].entry;
+    if (!exit && shifts[shifts.length - 1]?.exit) exit = shifts[shifts.length - 1].exit;
+  } else {
+    const entryDec = hhmmToDecimal(entry);
+    const exitDec = hhmmToDecimal(exit);
+    totalHoursDecimal = Math.max(0, Math.round((exitDec - entryDec) * 100) / 100);
+  }
   const totalHours = totalHoursDecimal > 0 ? decimalToHhmm(totalHoursDecimal) : "";
   
   const dailyStandard = calculateDailyStandard(raw.date, raw.classification, term);
@@ -123,6 +148,7 @@ export function deriveDayRecord(
     dateDisplay: isoToDdmmyyyy(raw.date),
     entry,
     exit,
+    shifts: shifts.length > 0 ? shifts : undefined,
     totalHours,
     totalHoursDecimal,
     dailyStandard,
