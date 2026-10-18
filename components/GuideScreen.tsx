@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import {
   GridIcon,
@@ -17,6 +17,12 @@ import {
   UploadIcon,
   InfoIcon,
 } from "./Icons";
+import DashboardDemo from "./guide/DashboardDemo";
+import ShiftsDemo from "./guide/ShiftsDemo";
+import ReportsTableDemo from "./guide/ReportsTableDemo";
+import MissingReportsDemo from "./guide/MissingReportsDemo";
+import ImportDemo from "./guide/ImportDemo";
+import SettingsDemo from "./guide/SettingsDemo";
 
 interface GuideSection {
   id: string;
@@ -78,261 +84,22 @@ const SECTIONS: GuideSection[] = [
   },
 ];
 
-function MissingReportsAnimatedDemo() {
-  const [step, setStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    const timer = setInterval(() => {
-      setStep((prev) => (prev + 1) % 4);
-    }, 2800);
-    return () => clearInterval(timer);
-  }, [isPlaying]);
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-slate-700/30 bg-slate-950 shadow-2xl">
-      {/* Mockup Header */}
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 py-3 text-slate-300 gap-2">
-        <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-rose-500/80 inline-block" />
-          <span className="h-3 w-3 rounded-full bg-amber-500/80 inline-block" />
-          <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
-          <span className="mr-2 text-xs font-bold text-white flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-            הדמיה מונפשת בלולאה (Option C) • השלמת דיווחים חסרים
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1 text-xs font-bold text-slate-200 hover:bg-slate-700 transition"
-          >
-            <span>{isPlaying ? "⏸️ השהה לולאה" : "▶️ הפעל לולאה"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setStep(0)}
-            className="rounded-lg bg-slate-800 px-2 py-1 text-xs font-bold text-slate-300 hover:bg-slate-700 transition"
-            title="הפעל מחדש"
-          >
-            🔄
-          </button>
-        </div>
-      </div>
-
-      {/* Simulated Interactive Screen */}
-      <div className="relative bg-slate-100 p-4 sm:p-6 select-none overflow-hidden min-h-[340px]">
-        {/* Animated Virtual Cursor */}
-        <div
-          className={`absolute z-30 transition-all duration-700 pointer-events-none drop-shadow-xl ${
-            step === 0
-              ? "right-16 top-24"
-              : step === 1
-              ? "right-44 top-36 scale-90"
-              : step === 2
-              ? "right-64 top-56 scale-90"
-              : "right-1/2 top-1/2 opacity-0"
-          }`}
-        >
-          <div className="relative">
-            <svg
-              className="w-7 h-7 text-slate-950 fill-slate-950 drop-shadow-md"
-              viewBox="0 0 24 24"
-            >
-              <path d="M4 0l16 12.279-6.951 1.17 4.325 8.817-3.596 1.734-4.35-8.879-5.428 5.43z" />
-            </svg>
-            {(step === 1 || step === 2) && (
-              <span className="absolute -top-2 -right-2 h-10 w-10 rounded-full bg-brand-500/50 animate-ping pointer-events-none" />
-            )}
-          </div>
-        </div>
-
-        {/* Modal Window Mockup */}
-        <div className="rounded-2xl bg-white p-4 sm:p-5 shadow-xl border border-slate-200">
-          {/* Header */}
-          <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700 text-sm font-bold shadow-xs">
-                ⚠️
-              </span>
-              <div>
-                <h4 className="text-sm font-extrabold text-slate-900">דיווחים חסרים במערכת</h4>
-                <p className="text-[11px] font-medium text-slate-500">
-                  {step === 0
-                    ? "נמצאו 7 ימי עבודה בעבר ללא דיווח (סריקה אוטומטית)"
-                    : step === 1
-                    ? "נמצאו 6 ימי עבודה בעבר ללא דיווח (הושלם יום 12/10)"
-                    : "נמצאו 5 ימי עבודה בעבר ללא דיווח (הושלמו 2 ימים בזה אחר זה!)"}
-                </p>
-              </div>
-            </div>
-            <span className="rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-black text-amber-900 shadow-xs">
-              {step === 0 ? "7 ימים חסרים" : step === 1 ? "6 ימים חסרים" : "5 ימים חסרים"}
-            </span>
-          </div>
-
-          {/* List of rows */}
-          <div className="space-y-2.5">
-            {/* Row 1: Work Hours */}
-            <div
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 border transition-all duration-500 ${
-                step >= 1
-                  ? "bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-200 shadow-xs"
-                  : "bg-slate-50/80 border-slate-200"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-black text-slate-800">12/10/2026 • יום שני</div>
-                  <div className="text-[10px] text-slate-400">תקן יומי: 9.0 שעות</div>
-                </div>
-                {step >= 1 ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 border border-emerald-200">
-                    ✅ 9.0 שעות (08:00 - 17:00)
-                  </span>
-                ) : (
-                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200">
-                    לא מולא
-                  </span>
-                )}
-              </div>
-
-              {step >= 1 ? (
-                <span className="text-[11px] font-extrabold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-xs">
-                  הושלם לשעות תקן ✓
-                </span>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition shadow-xs ${
-                      step === 0
-                        ? "bg-brand-600 text-white ring-2 ring-brand-300 scale-105"
-                        : "bg-brand-50 text-brand-700 border border-brand-200"
-                    }`}
-                  >
-                    ⏱️ שעות תקן
-                  </span>
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                    חופש
-                  </span>
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                    מחלה
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Row 2: Vacation */}
-            <div
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 border transition-all duration-500 ${
-                step >= 2
-                  ? "bg-purple-50/90 border-purple-300 ring-2 ring-purple-200 shadow-xs"
-                  : "bg-slate-50/80 border-slate-200"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-black text-slate-800">11/10/2026 • יום ראשון</div>
-                  <div className="text-[10px] text-slate-400">תקן יומי: 9.0 שעות</div>
-                </div>
-                {step >= 2 ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-2 py-0.5 text-[11px] font-bold text-purple-800 border border-purple-200">
-                    🏖️ חופש 1 (עודכנה יתרה)
-                  </span>
-                ) : (
-                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 border border-amber-200">
-                    לא מולא
-                  </span>
-                )}
-              </div>
-
-              {step >= 2 ? (
-                <span className="text-[11px] font-extrabold text-purple-700 bg-white px-2.5 py-1 rounded-lg border border-purple-300 shadow-xs">
-                  עודכן כיום חופש ✓
-                </span>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                    שעות תקן
-                  </span>
-                  <span
-                    className={`rounded-lg px-2.5 py-1 text-xs font-extrabold transition shadow-xs ${
-                      step === 1
-                        ? "bg-purple-600 text-white ring-2 ring-purple-300 scale-105"
-                        : "bg-purple-50 text-purple-700 border border-purple-200"
-                    }`}
-                  >
-                    🏖️ חופש
-                  </span>
-                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                    מחלה
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Row 3 */}
-            <div className="flex items-center justify-between rounded-xl bg-slate-50/50 p-3 border border-slate-200 opacity-60">
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-black text-slate-800">14/09/2026 • יום שני</div>
-                  <div className="text-[10px] text-slate-400">תקן יומי: 9.0 שעות</div>
-                </div>
-                <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                  לא מולא
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <span>⏱️ תקן</span>
-                <span>🏖️ חופש</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Success Banner */}
-          {step === 3 && (
-            <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-2.5 text-white text-xs font-black shadow-lg animate-bounce">
-              <span>✨ 2 דיווחים הושלמו בהצלחה תוך 2 שניות ללא הקלדה ידנית!</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Progress Timeline Tabs */}
-      <div className="border-t border-slate-800 bg-slate-950 p-4">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-center text-xs">
-          {[
-            { num: 1, label: "איתור ימי עבודה חסרים" },
-            { num: 2, label: "קליק על 'שעות תקן'" },
-            { num: 3, label: "קליק על 'חופש'" },
-            { num: 4, label: "סיום עדכון מהיר!" },
-          ].map((st, i) => (
-            <button
-              key={st.num}
-              type="button"
-              onClick={() => setStep(i)}
-              className={`rounded-xl p-2.5 transition text-right sm:text-center ${
-                step === i
-                  ? "bg-brand-600 text-white font-black shadow-md ring-2 ring-brand-400/50"
-                  : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-              }`}
-            >
-              <div className="text-[10px] opacity-75 font-semibold">שלב {st.num}</div>
-              <div className="truncate text-xs font-bold mt-0.5">{st.label}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function GuideScreen() {
   const [activeSection, setActiveSection] = useState<string>("dashboard");
-  const [missingMode, setMissingMode] = useState<"animation" | "static">("animation");
+  const [viewModes, setViewModes] = useState<Record<string, "animation" | "static">>({
+    dashboard: "animation",
+    shifts: "animation",
+    reports: "animation",
+    missing: "animation",
+    import: "animation",
+    settings: "animation",
+  });
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string; caption?: string } | null>(null);
+
+  const getMode = (secId: string) => viewModes[secId] || "animation";
+  const toggleMode = (secId: string, mode: "animation" | "static") => {
+    setViewModes((prev) => ({ ...prev, [secId]: mode }));
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -341,14 +108,14 @@ export default function GuideScreen() {
         <div className="relative z-10 max-w-3xl">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-md">
             <SparklesIcon className="h-4 w-4 text-amber-300" />
-            <span>מדריך למשתמש • Employee Work Hours Dashboard</span>
+            <span>מרכז הדרכה אינטראקטיבי • סרטוני הדמיה בלולאה (Option C)</span>
           </div>
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl lg:text-4xl">
-            מרכז הדרכה והיכרות עם יכולות המערכת
+            היכרות מקיפה עם כל יכולות המערכת
           </h1>
           <p className="mt-2.5 text-sm text-brand-100 sm:text-base leading-relaxed">
-            כל מה שצריך לדעת על ניהול שעות העבודה, חישוב יתרות חופשה ומחלה, פיצול מקטעי עבודה, 
-            זיהוי והשלמת דיווחים חסרים, וייבוא קבצי נוכחות חודשיים בצורה קלה ומהירה.
+            צפה בהדמיות חיות שרצות בלולאה ללא צורך בקליקים, קרא הסברים ברורים שלב-אחר-שלב,
+            והכר את כל התכונות המתקדמות של ניהול שעות, פיצול משמרות, דיווחים חסרים וייבוא נתונים.
           </p>
         </div>
 
@@ -429,30 +196,71 @@ export default function GuideScreen() {
                 </p>
               </div>
 
-              {/* Visual Card Preview / Screenshot */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
-                <div className="relative group cursor-pointer" onClick={() => setLightboxImage({
-                  src: "/guide/dashboard_chart.png",
-                  alt: "גרף פעילות שעות יומית",
-                  caption: "גרף שעות יומי – מעקב אחר שעות שבוצעו בכל יום בחודש (מימין לשמאל)"
-                })}>
-                  <Image
-                    src="/guide/dashboard_chart.png"
-                    alt="גרף שעות יומי"
-                    width={800}
-                    height={400}
-                    className="w-full rounded-xl object-contain bg-white transition group-hover:scale-[1.01]"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 group-hover:bg-slate-900/30 group-hover:opacity-100 transition rounded-xl">
-                    <span className="rounded-xl bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md">
-                      🔍 לחץ להגדלת צילום המסך
+              {/* Display Mode Toggle */}
+              <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("dashboard", "animation")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("dashboard") === "animation"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
+                      מומלץ
                     </span>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("dashboard", "static")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("dashboard") === "static"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>📸 צילום מסך מקורי</span>
+                  </button>
                 </div>
-                <p className="p-2 text-center text-xs font-medium text-slate-500">
-                  צילום מסך: גרף פעילות שעות יומית לאורך ימי החודש עם חיווי ויזואלי של עמידה ביעד
-                </p>
+                <span className="text-[11px] font-medium text-slate-500 hidden sm:inline px-2">
+                  {getMode("dashboard") === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "תמונה סטטית עם זום"}
+                </span>
               </div>
+
+              {/* View Content */}
+              {getMode("dashboard") === "animation" ? (
+                <DashboardDemo />
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
+                  <div
+                    className="relative group cursor-pointer"
+                    onClick={() => setLightboxImage({
+                      src: "/guide/dashboard_chart.png",
+                      alt: "גרף פעילות שעות יומית",
+                      caption: "גרף שעות יומי – מעקב אחר שעות שבוצעו בכל יום בחודש (מימין לשמאל)"
+                    })}
+                  >
+                    <Image
+                      src="/guide/dashboard_chart.png"
+                      alt="גרף שעות יומי"
+                      width={800}
+                      height={400}
+                      className="w-full rounded-xl object-contain bg-white transition group-hover:scale-[1.01]"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 group-hover:bg-slate-900/30 group-hover:opacity-100 transition rounded-xl">
+                      <span className="rounded-xl bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md">
+                        🔍 לחץ להגדלת צילום המסך
+                      </span>
+                    </div>
+                  </div>
+                  <p className="p-2 text-center text-xs font-medium text-slate-500">
+                    צילום מסך: גרף פעילות שעות יומית לאורך ימי החודש עם חיווי ויזואלי של עמידה ביעד
+                  </p>
+                </div>
+              )}
 
               {/* Core Features Breakdown */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -513,82 +321,120 @@ export default function GuideScreen() {
                 </p>
               </div>
 
-              {/* Interactive Mockup Comparison */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {/* Single Shift Mockup */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700">מצב 1: משמרת רציפה אחת</span>
-                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                      ברירת מחדל
+              {/* Display Mode Toggle */}
+              <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("shifts", "animation")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("shifts") === "animation"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
+                      מומלץ
                     </span>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <span className="block text-[11px] text-slate-500 mb-1">כניסה</span>
-                        <div className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-center font-bold text-brand-700 text-sm">
-                          08:00
-                        </div>
-                      </div>
-                      <div>
-                        <span className="block text-[11px] text-slate-500 mb-1">יציאה</span>
-                        <div className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-center font-bold text-brand-700 text-sm">
-                          17:00
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-3 text-center text-xs font-bold text-slate-700">
-                    סה״כ שעות: <span className="text-brand-600 font-extrabold">9.0 שעות (9:00)</span>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("shifts", "static")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("shifts") === "static"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>📊 השוואה תרשימית</span>
+                  </button>
                 </div>
-
-                {/* Multi-shift Mockup */}
-                <div className="rounded-2xl border-2 border-brand-500 bg-brand-50/30 p-4 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-bold text-brand-900 flex items-center gap-1">
-                      <SparklesIcon className="w-3.5 h-3.5 text-brand-600" />
-                      מצב 2: פיצול למקטעים (חדש!)
-                    </span>
-                    <span className="rounded-md bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                      חישוב נטו
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="rounded-xl bg-white p-2.5 border border-brand-200">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[11px] font-bold text-slate-700">מקטע 1 (בוקר)</span>
-                        <span className="text-[10px] font-semibold text-brand-700">4.0 שעות</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">08:00</span>
-                        <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">12:00</span>
-                      </div>
-                    </div>
-
-                    <div className="text-center text-[11px] font-bold text-slate-400">
-                      ⏳ הפסקה / יציאה מהעבודה (לא נחשבת כשעות עבודה!)
-                    </div>
-
-                    <div className="rounded-xl bg-white p-2.5 border border-brand-200">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[11px] font-bold text-slate-700">מקטע 2 (ערב)</span>
-                        <span className="text-[10px] font-semibold text-brand-700">4.5 שעות</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">14:00</span>
-                        <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">18:30</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 rounded-lg bg-brand-600 py-1.5 text-center text-xs font-bold text-white">
-                    סה״כ שעות עבודה נטו: 8.5 שעות
-                  </div>
-                </div>
+                <span className="text-[11px] font-medium text-slate-500 hidden sm:inline px-2">
+                  {getMode("shifts") === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "השוואה בין מצבים"}
+                </span>
               </div>
+
+              {/* View Content */}
+              {getMode("shifts") === "animation" ? (
+                <ShiftsDemo />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {/* Single Shift Mockup */}
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">מצב 1: משמרת רציפה אחת</span>
+                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                        ברירת מחדל
+                      </span>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="block text-[11px] text-slate-500 mb-1">כניסה</span>
+                          <div className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-center font-bold text-brand-700 text-sm">
+                            08:00
+                          </div>
+                        </div>
+                        <div>
+                          <span className="block text-[11px] text-slate-500 mb-1">יציאה</span>
+                          <div className="rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-center font-bold text-brand-700 text-sm">
+                            17:00
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-center text-xs font-bold text-slate-700">
+                      סה״כ שעות: <span className="text-brand-600 font-extrabold">9.0 שעות (9:00)</span>
+                    </div>
+                  </div>
+
+                  {/* Multi-shift Mockup */}
+                  <div className="rounded-2xl border-2 border-brand-500 bg-brand-50/30 p-4 shadow-sm">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-xs font-bold text-brand-900 flex items-center gap-1">
+                        <SparklesIcon className="w-3.5 h-3.5 text-brand-600" />
+                        מצב 2: פיצול למקטעים (חדש!)
+                      </span>
+                      <span className="rounded-md bg-brand-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        חישוב נטו
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="rounded-xl bg-white p-2.5 border border-brand-200">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[11px] font-bold text-slate-700">מקטע 1 (בוקר)</span>
+                          <span className="text-[10px] font-semibold text-brand-700">4.0 שעות</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">08:00</span>
+                          <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">12:00</span>
+                        </div>
+                      </div>
+
+                      <div className="text-center text-[11px] font-bold text-slate-400">
+                        ⏳ הפסקה / יציאה מהעבודה (לא נחשבת כשעות עבודה!)
+                      </div>
+
+                      <div className="rounded-xl bg-white p-2.5 border border-brand-200">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[11px] font-bold text-slate-700">מקטע 2 (ערב)</span>
+                          <span className="text-[10px] font-semibold text-brand-700">4.5 שעות</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">14:00</span>
+                          <span className="bg-slate-50 rounded px-2 py-1 text-center font-bold">18:30</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 rounded-lg bg-brand-600 py-1.5 text-center text-xs font-bold text-white">
+                      סה״כ שעות עבודה נטו: 8.5 שעות
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Instructions */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
@@ -619,30 +465,71 @@ export default function GuideScreen() {
                 </p>
               </div>
 
-              {/* Screenshot */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
-                <div className="relative group cursor-pointer" onClick={() => setLightboxImage({
-                  src: "/guide/reports_table.png",
-                  alt: "טבלת דיווחים חודשית",
-                  caption: "טבלת דיווחים – סיווגי ימים, שעות עבודה, מקטעים והיעדרויות"
-                })}>
-                  <Image
-                    src="/guide/reports_table.png"
-                    alt="טבלת דיווחים חודשית"
-                    width={800}
-                    height={380}
-                    className="w-full rounded-xl object-contain bg-white transition group-hover:scale-[1.01]"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 group-hover:bg-slate-900/30 group-hover:opacity-100 transition rounded-xl">
-                    <span className="rounded-xl bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md">
-                      🔍 לחץ להגדלת צילום המסך
+              {/* Display Mode Toggle */}
+              <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("reports", "animation")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("reports") === "animation"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
+                      מומלץ
                     </span>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("reports", "static")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("reports") === "static"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>📸 צילום מסך מקורי</span>
+                  </button>
                 </div>
-                <p className="p-2 text-center text-xs font-medium text-slate-500">
-                  צילום מסך: תצוגת טבלת דיווחים חודשית עם סיווגים בצבעים מובחנים
-                </p>
+                <span className="text-[11px] font-medium text-slate-500 hidden sm:inline px-2">
+                  {getMode("reports") === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "תמונה סטטית עם זום"}
+                </span>
               </div>
+
+              {/* View Content */}
+              {getMode("reports") === "animation" ? (
+                <ReportsTableDemo />
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
+                  <div
+                    className="relative group cursor-pointer"
+                    onClick={() => setLightboxImage({
+                      src: "/guide/reports_table.png",
+                      alt: "טבלת דיווחים חודשית",
+                      caption: "טבלת דיווחים – סיווגי ימים, שעות עבודה, מקטעים והיעדרויות"
+                    })}
+                  >
+                    <Image
+                      src="/guide/reports_table.png"
+                      alt="טבלת דיווחים חודשית"
+                      width={800}
+                      height={380}
+                      className="w-full rounded-xl object-contain bg-white transition group-hover:scale-[1.01]"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 group-hover:bg-slate-900/30 group-hover:opacity-100 transition rounded-xl">
+                      <span className="rounded-xl bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md">
+                        🔍 לחץ להגדלת צילום המסך
+                      </span>
+                    </div>
+                  </div>
+                  <p className="p-2 text-center text-xs font-medium text-slate-500">
+                    צילום מסך: תצוגת טבלת דיווחים חודשית עם סיווגים בצבעים מובחנים
+                  </p>
+                </div>
+              )}
 
               {/* Legend & Badges Guide */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
@@ -702,14 +589,14 @@ export default function GuideScreen() {
                 </p>
               </div>
 
-              {/* Display Mode Toggle (Animation vs Screenshot) */}
+              {/* Display Mode Toggle */}
               <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setMissingMode("animation")}
+                    onClick={() => toggleMode("missing", "animation")}
                     className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                      missingMode === "animation"
+                      getMode("missing") === "animation"
                         ? "bg-white text-brand-700 shadow-xs border border-brand-200"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
@@ -721,9 +608,9 @@ export default function GuideScreen() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMissingMode("static")}
+                    onClick={() => toggleMode("missing", "static")}
                     className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                      missingMode === "static"
+                      getMode("missing") === "static"
                         ? "bg-white text-brand-700 shadow-xs border border-brand-200"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
@@ -732,20 +619,23 @@ export default function GuideScreen() {
                   </button>
                 </div>
                 <span className="text-[11px] font-medium text-slate-500 hidden sm:inline px-2">
-                  {missingMode === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "תמונה סטטית עם זום"}
+                  {getMode("missing") === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "תמונה סטטית עם זום"}
                 </span>
               </div>
 
-              {/* View according to mode */}
-              {missingMode === "animation" ? (
-                <MissingReportsAnimatedDemo />
+              {/* View Content */}
+              {getMode("missing") === "animation" ? (
+                <MissingReportsDemo />
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
-                  <div className="relative group cursor-pointer" onClick={() => setLightboxImage({
-                    src: "/guide/missing_reports_modal.png",
-                    alt: "מסך דיווחים חסרים ופעולות מהירות",
-                    caption: "מסך דיווחים חסרים – לחצני השלמה מהירה לשעות תקן (9 / 8.5 שעות) או היעדרות"
-                  })}>
+                  <div
+                    className="relative group cursor-pointer"
+                    onClick={() => setLightboxImage({
+                      src: "/guide/missing_reports_modal.png",
+                      alt: "מסך דיווחים חסרים ופעולות מהירות",
+                      caption: "מסך דיווחים חסרים – לחצני השלמה מהירה לשעות תקן (9 / 8.5 שעות) או היעדרות"
+                    })}
+                  >
                     <Image
                       src="/guide/missing_reports_modal.png"
                       alt="דיווחים חסרים במערכת"
@@ -821,46 +711,84 @@ export default function GuideScreen() {
                 </p>
               </div>
 
-              {/* Steps to import */}
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
-                    1
-                  </span>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800">היכנס למסך הגדרות &gt; ייבוא היסטוריית דיווחים</h4>
-                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                      בתחתית מסך ההגדרות תמצא את אזור ייבוא הקבצים. לחץ על אזור ההעלאה ובחר את קובץ ה-CSV או ה-Excel של החודש הרצוי.
-                    </p>
-                  </div>
+              {/* Display Mode Toggle */}
+              <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("import", "animation")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("import") === "animation"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
+                      מומלץ
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("import", "static")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("import") === "static"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>📋 מדריך שלבים כתוב</span>
+                  </button>
                 </div>
-
-                <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
-                    2
-                  </span>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800">זיהוי ומיפוי אוטומטי חכם</h4>
-                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                      המערכת מזהה אוטומטית את עמודות הקובץ (שעת התחלה, שעת סיום, תיאור נוכחות/היעדרות, סוג יום וסך שעות).
-                      בנוסף, ימים עם מספר מקטעים (כניסות ויציאות מרובות) מאוגדים אוטומטית למקטעי עבודה מדויקים!
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
-                    3
-                  </span>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800">תצוגה מקדימה ואישור שמירה</h4>
-                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                      לפני ביצוע השמירה, יוצג בפניך סיכום של הנתונים שנקלטו: מספר הימים, סך השעות שחושבו, ופירוט מלא.
-                      לאחר בדיקה קצרה, לוחצים על "שמור דיווחים" והנתונים מוזנים למערכת.
-                    </p>
-                  </div>
-                </div>
+                <span className="text-[11px] font-medium text-slate-500 hidden sm:inline px-2">
+                  {getMode("import") === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "שלבים כתובים"}
+                </span>
               </div>
+
+              {/* View Content */}
+              {getMode("import") === "animation" ? (
+                <ImportDemo />
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
+                      1
+                    </span>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">היכנס למסך הגדרות &gt; ייבוא היסטוריית דיווחים</h4>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                        בתחתית מסך ההגדרות תמצא את אזור ייבוא הקבצים. לחץ על אזור ההעלאה ובחר את קובץ ה-CSV או ה-Excel של החודש הרצוי.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
+                      2
+                    </span>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">זיהוי ומיפוי אוטומטי חכם</h4>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                        המערכת מזהה אוטומטית את עמודות הקובץ (שעת התחלה, שעת סיום, תיאור נוכחות/היעדרות, סוג יום וסך שעות).
+                        בנוסף, ימים עם מספר מקטעים (כניסות ויציאות מרובות) מאוגדים אוטומטית למקטעי עבודה מדויקים!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
+                      3
+                    </span>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">תצוגה מקדימה ואישור שמירה</h4>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                        לפני ביצוע השמירה, יוצג בפניך סיכום של הנתונים שנקלטו: מספר הימים, סך השעות שחושבו, ופירוט מלא.
+                        לאחר בדיקה קצרה, לוחצים על "שמור דיווחים" והנתונים מוזנים למערכת.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Pro Tip */}
               <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-blue-900 text-xs leading-relaxed">
@@ -885,30 +813,71 @@ export default function GuideScreen() {
                 </p>
               </div>
 
-              {/* Screenshot */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
-                <div className="relative group cursor-pointer" onClick={() => setLightboxImage({
-                  src: "/guide/settings_overview.png",
-                  alt: "מסך הגדרות מערכת ותקנים",
-                  caption: "מסך הגדרות – חופשה, תקן ימי עבודה שנתי, לוח חגים וסיווגים"
-                })}>
-                  <Image
-                    src="/guide/settings_overview.png"
-                    alt="הגדרות מערכת"
-                    width={800}
-                    height={400}
-                    className="w-full rounded-xl object-contain bg-white transition group-hover:scale-[1.01]"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 group-hover:bg-slate-900/30 group-hover:opacity-100 transition rounded-xl">
-                    <span className="rounded-xl bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md">
-                      🔍 לחץ להגדלת צילום המסך
+              {/* Display Mode Toggle */}
+              <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("settings", "animation")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("settings") === "animation"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>🎬 הדמיה מונפשת בלולאה (Option C)</span>
+                    <span className="rounded-full bg-brand-100 text-brand-800 px-1.5 py-0.2 text-[10px]">
+                      מומלץ
                     </span>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleMode("settings", "static")}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      getMode("settings") === "static"
+                        ? "bg-white text-brand-700 shadow-xs border border-brand-200"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>📸 צילום מסך מקורי</span>
+                  </button>
                 </div>
-                <p className="p-2 text-center text-xs font-medium text-slate-500">
-                  צילום מסך: מסך ההגדרות לניהול חופשות, תקנים שנתיים ולוח חגים
-                </p>
+                <span className="text-[11px] font-medium text-slate-500 hidden sm:inline px-2">
+                  {getMode("settings") === "animation" ? "סרטון הדמיה אוטומטי ללא קליקים" : "תמונה סטטית עם זום"}
+                </span>
               </div>
+
+              {/* View Content */}
+              {getMode("settings") === "animation" ? (
+                <SettingsDemo />
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
+                  <div
+                    className="relative group cursor-pointer"
+                    onClick={() => setLightboxImage({
+                      src: "/guide/settings_overview.png",
+                      alt: "מסך הגדרות מערכת ותקנים",
+                      caption: "מסך הגדרות – חופשה, תקן ימי עבודה שנתי, לוח חגים וסיווגים"
+                    })}
+                  >
+                    <Image
+                      src="/guide/settings_overview.png"
+                      alt="הגדרות מערכת"
+                      width={800}
+                      height={400}
+                      className="w-full rounded-xl object-contain bg-white transition group-hover:scale-[1.01]"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 group-hover:bg-slate-900/30 group-hover:opacity-100 transition rounded-xl">
+                      <span className="rounded-xl bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md">
+                        🔍 לחץ להגדלת צילום המסך
+                      </span>
+                    </div>
+                  </div>
+                  <p className="p-2 text-center text-xs font-medium text-slate-500">
+                    צילום מסך: מסך ההגדרות לניהול חופשות, תקנים שנתיים ולוח חגים
+                  </p>
+                </div>
+              )}
 
               {/* Overtime & Employment breakdown */}
               <div className="space-y-4">
