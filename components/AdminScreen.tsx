@@ -57,9 +57,8 @@ export default function AdminScreen() {
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [adminManualEmail, setAdminManualEmail] = useState("");
   const [expandedUserBackupsId, setExpandedUserBackupsId] = useState<string | null>(null);
-  const [adminSectionTab, setAdminSectionTab] = useState<"users" | "systemBackups">("users");
 
-  // NAS Backups state
+  // NAS System Backups state
   const [nasBackups, setNasBackups] = useState<NasBackupItem[]>([]);
   const [nasBackupsLoading, setNasBackupsLoading] = useState(false);
   const [nasBackupCreating, setNasBackupCreating] = useState(false);
@@ -67,6 +66,7 @@ export default function AdminScreen() {
   const [nasBackupMessage, setNasBackupMessage] = useState<string | null>(null);
   const [nasBackupError, setNasBackupError] = useState<string | null>(null);
   const [userBackupRestoringId, setUserBackupRestoringId] = useState<string | null>(null);
+  const [isSystemBackupsOpen, setIsSystemBackupsOpen] = useState(true);
 
   // Retention Days State
   const [retentionDays, setRetentionDays] = useState<number>(30);
@@ -277,7 +277,7 @@ export default function AdminScreen() {
       const res = await fetch("/api/user/backups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "restore", backupId: ub.id }),
+        body: JSON.stringify({ action: "restore", backupId: ub.id, targetUserId: userId }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "שגיאה בשחזור הגיבוי");
@@ -334,6 +334,35 @@ export default function AdminScreen() {
     }
   };
 
+  const renderBackupBadge = (type?: string) => {
+    if (type === "auto_nas" || type === "auto" || type === "auto_user") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200 whitespace-nowrap">
+          🤖 אוטומטי לילי
+        </span>
+      );
+    }
+    if (type === "pre_restore_safety") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200 whitespace-nowrap">
+          🛡️ ביטחון מקדים
+        </span>
+      );
+    }
+    if (type === "pre_delete") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 border border-rose-200 whitespace-nowrap">
+          ⚠️ לפני מחיקה
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200 whitespace-nowrap">
+        👤 יזום
+      </span>
+    );
+  };
+
   // Restrict access
   if (userEmail && userEmail.toLowerCase() !== "michael.liarzi@gmail.com") {
     return (
@@ -350,7 +379,7 @@ export default function AdminScreen() {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-card space-y-5">
-        {/* Header */}
+        {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white shrink-0 shadow-sm">
@@ -358,7 +387,7 @@ export default function AdminScreen() {
             </span>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-bold text-slate-800">ניהול מערכת (אדמין)</h1>
+                <h1 className="text-lg font-bold text-slate-800">ניהול מערכת וגיבויים (אדמין)</h1>
                 <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700 border border-slate-200">
                   הרשאות מנהל ראשי
                 </span>
@@ -367,7 +396,7 @@ export default function AdminScreen() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                ניהול משתמשים, צפייה בגיבויים על בסיס עובדים, שחזורים נקודתיים, גיבויי מערכת ו-Retention ב-NAS
+                מסך אחוד: ניהול משתמשים, צפייה בגיבויים מפורטים לפי עובד, שחזורים נקודתיים, גיבוי מערכת ו-Retention
               </p>
             </div>
           </div>
@@ -388,47 +417,6 @@ export default function AdminScreen() {
           </div>
         </div>
 
-        {/* Sub-Navigation Tabs: Screenshot 3 (Users) is FIRST, Screenshot 2 (System) is SECOND */}
-        <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-          <button
-            type="button"
-            onClick={() => setAdminSectionTab("users")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
-              adminSectionTab === "users"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
-            }`}
-          >
-            <span>👥 ניהול משתמשים וגיבויים לפי עובד</span>
-            <span
-              className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                adminSectionTab === "users" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-              }`}
-            >
-              {adminUsers.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setAdminSectionTab("systemBackups")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
-              adminSectionTab === "systemBackups"
-                ? "bg-slate-900 text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
-            }`}
-          >
-            <span>🗄️ גיבויי מערכת ושמירה ב-NAS</span>
-            <span
-              className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                adminSectionTab === "systemBackups" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-              }`}
-            >
-              {nasBackups.length}
-            </span>
-          </button>
-        </div>
-
         {/* Feedback Messages */}
         {adminMessage && (
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800 flex items-center justify-between">
@@ -439,394 +427,34 @@ export default function AdminScreen() {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 1: ניהול משתמשים וגיבויים על בסיס עובדים (Screenshot 3 - FIRST!) */}
-        {/* ========================================================================= */}
-        {adminSectionTab === "users" && (
-          <div className="space-y-4">
-            {/* מחיקה לפי אימייל חופשי */}
-            <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/80">
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                מחיקת משתמש מהירה לפי כתובת אימייל:
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="email"
-                  placeholder="user@example.com"
-                  value={adminManualEmail}
-                  onChange={(e) => setAdminManualEmail(e.target.value)}
-                  className="w-full flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-red-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleDeleteUser(adminManualEmail.trim())}
-                  disabled={!adminManualEmail.trim() || adminDeleteLoading !== null}
-                  className="w-full sm:w-auto justify-center rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-1.5 shrink-0"
-                >
-                  <TrashIcon className="h-3.5 w-3.5" />
-                  {adminDeleteLoading === adminManualEmail.trim() ? "מוחק..." : "מחק משתמש ודאטה"}
-                </button>
-              </div>
-            </div>
+        {nasBackupMessage && (
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800 flex items-center justify-between">
+            <span>{nasBackupMessage}</span>
+            <button type="button" onClick={() => setNasBackupMessage(null)} className="text-emerald-600 hover:text-emerald-900 text-sm">
+              ✕
+            </button>
+          </div>
+        )}
 
-            {/* Desktop & Tablet Table - Spacious, Zero Horizontal Clash! */}
-            <div className="hidden md:block rounded-xl border border-slate-200 overflow-x-auto">
-              <table className="w-full text-xs text-right divide-y divide-slate-200">
-                <thead className="bg-slate-50 text-slate-600 font-bold">
-                  <tr>
-                    <th className="px-4 py-3">אימייל משתמש</th>
-                    <th className="px-3 py-3 text-center whitespace-nowrap">תאריך הצטרפות</th>
-                    <th className="px-3 py-3 text-center whitespace-nowrap">דיווחי שעות</th>
-                    <th className="px-4 py-3 text-start whitespace-nowrap">גיבוי אחרון ב-NAS</th>
-                    <th className="px-3 py-3 text-center whitespace-nowrap">מכסת חופשה</th>
-                    <th className="px-4 py-3 text-center whitespace-nowrap">פעולות</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {adminUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
-                        {adminLoading ? "טוען משתמשים..." : "לא נמצאו משתמשים נוספים"}
-                      </td>
-                    </tr>
-                  ) : (
-                    adminUsers.map((u) => {
-                      const isSelf = u.email?.toLowerCase() === userEmail.toLowerCase();
-                      const isExpanded = expandedUserBackupsId === u.id;
-                      const uBackups = u.backups || [];
-
-                      return (
-                        <Fragment key={u.id}>
-                          <tr className="hover:bg-slate-50/60 transition">
-                            <td className="px-4 py-3 font-medium text-slate-800">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-900" dir="ltr">{u.email || u.id}</span>
-                                {u.is_current_auth_user && (
-                                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 shrink-0">
-                                    מחובר
-                                  </span>
-                                )}
-                                {!u.is_current_auth_user && isSelf && (
-                                  <span className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 shrink-0">
-                                    כפול
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 text-center text-slate-500 whitespace-nowrap">
-                              {u.created_at ? new Date(u.created_at).toLocaleDateString("he-IL") : "-"}
-                            </td>
-                            <td className="px-3 py-3 text-center whitespace-nowrap">
-                              {typeof u.reports_count === "number" ? (
-                                <span className={u.reports_count > 0 ? "font-bold text-slate-800" : "text-slate-400 italic"}>
-                                  {u.reports_count > 0 ? `${u.reports_count.toLocaleString("he-IL")} דיווחים` : "0 (ריק)"}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {u.last_backup_at ? (
-                                <div className="flex flex-col gap-1 items-start">
-                                  <span className="font-semibold text-emerald-700 whitespace-nowrap">
-                                    {new Date(u.last_backup_at).toLocaleDateString("he-IL")}{" "}
-                                    <span className="text-[10px] text-slate-400">
-                                      {new Date(u.last_backup_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
-                                    </span>
-                                  </span>
-                                  {uBackups.length > 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setExpandedUserBackupsId(isExpanded ? null : u.id)}
-                                      className="rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-0.5 text-[10px] font-bold transition border border-indigo-200 whitespace-nowrap"
-                                    >
-                                      {isExpanded ? "סגור ▲" : `📁 ${uBackups.length} גיבויים ▼`}
-                                    </button>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-slate-400 italic whitespace-nowrap">טרם בוצע</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-3 text-center text-slate-700 whitespace-nowrap font-medium">
-                              {u.annual_vacation_quota || 22} ימים
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => handleBackupUser(u.id, u.email)}
-                                  disabled={adminBackupLoading === u.id}
-                                  title="גבה את נתוני המשתמש (שעות, תקנים, תנאים) לקובץ SQL ב-NAS"
-                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold transition border border-emerald-200 disabled:opacity-50"
-                                >
-                                  <DownloadIcon className="h-3 w-3" />
-                                  <span>גבה</span>
-                                </button>
-
-                                {!u.is_current_auth_user && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteUser(u.email || "", u.id)}
-                                    disabled={adminDeleteLoading !== null}
-                                    title="מחק משתמש זה (יבוצע גיבוי אוטומטי שיישמר ב-NAS)"
-                                    className="inline-flex items-center gap-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 px-2.5 py-1 text-xs font-bold transition border border-red-200 disabled:opacity-50"
-                                  >
-                                    <TrashIcon className="h-3 w-3" />
-                                    <span>מחק</span>
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-
-                          {/* Sub-Row: Expandable user backups list */}
-                          {isExpanded && (
-                            <tr className="bg-indigo-50/20">
-                              <td colSpan={6} className="px-4 py-3">
-                                <div className="rounded-xl border border-indigo-100 bg-white p-3.5 space-y-2.5">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-indigo-900">
-                                      📁 היסטוריית גיבויים ב-NAS עבור {u.email || u.id} ({uBackups.length} גיבויים שמורים):
-                                    </span>
-                                    <span className="text-[11px] text-slate-400">
-                                      שחזור נקודתי משחזר רק את דיווחי והגדרות משתמש זה
-                                    </span>
-                                  </div>
-                                  <div className="divide-y divide-slate-100">
-                                    {uBackups.map((ub) => (
-                                      <div key={ub.id} className="flex items-center justify-between py-2 text-xs">
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-semibold text-slate-800">
-                                            {new Date(ub.created_at).toLocaleString("he-IL")}
-                                          </span>
-                                          <span className="text-slate-500">
-                                            ({ub.reports_count.toLocaleString("he-IL")} דיווחים • {ub.standards_count} תקנים • {ub.file_size_kb || 0} KB)
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() => handleAdminRestoreUserBackup(u.id, ub)}
-                                            disabled={userBackupRestoringId !== null}
-                                            className="rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 text-[11px] font-bold transition border border-blue-200"
-                                          >
-                                            שחזר למשתמש
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDownloadUserBackup(ub)}
-                                            className="rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 text-[11px] font-medium transition border border-slate-200"
-                                          >
-                                            הורד SQL
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Cards for Users (100% responsive, zero horizontal scroll!) */}
-            <div className="block md:hidden space-y-3">
-              {adminUsers.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                  {adminLoading ? "טוען משתמשים..." : "לא נמצאו משתמשים נוספים"}
-                </div>
-              ) : (
-                adminUsers.map((u) => {
-                  const isSelf = u.email?.toLowerCase() === userEmail.toLowerCase();
-                  const isExpanded = expandedUserBackupsId === u.id;
-                  const uBackups = u.backups || [];
-
-                  return (
-                    <div key={u.id} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="font-bold text-slate-800 text-sm truncate" dir="ltr">
-                            {u.email || u.id}
-                          </div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {u.is_current_auth_user && (
-                              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                                החשבון המחובר
-                              </span>
-                            )}
-                            {!u.is_current_auth_user && isSelf && (
-                              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
-                                חשבון כפול
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        <div>
-                          <span className="text-slate-400 block text-[11px]">תאריך הצטרפות:</span>
-                          <span className="font-medium text-slate-700">
-                            {u.created_at ? new Date(u.created_at).toLocaleDateString("he-IL") : "-"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[11px]">דיווחי שעות:</span>
-                          <span className={u.reports_count && u.reports_count > 0 ? "font-bold text-slate-800" : "text-slate-400 italic"}>
-                            {typeof u.reports_count === "number"
-                              ? u.reports_count > 0
-                                ? `${u.reports_count.toLocaleString("he-IL")} דיווחים`
-                                : "0 (ריק)"
-                              : "-"}
-                          </span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-slate-400 block text-[11px]">גיבוי אחרון ב-NAS:</span>
-                          {u.last_backup_at ? (
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-emerald-700">
-                                {new Date(u.last_backup_at).toLocaleDateString("he-IL")}{" "}
-                                <span className="text-[10px] text-slate-400">
-                                  {new Date(u.last_backup_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
-                                </span>
-                              </span>
-                              {uBackups.length > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => setExpandedUserBackupsId(isExpanded ? null : u.id)}
-                                  className="text-xs font-bold text-indigo-700"
-                                >
-                                  {isExpanded ? "סגור ▲" : `${uBackups.length} גיבויים ▼`}
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 italic">טרם בוצע</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Expandable sub-list on mobile */}
-                      {isExpanded && uBackups.length > 0 && (
-                        <div className="rounded-lg bg-indigo-50/40 p-2.5 space-y-2 border border-indigo-100">
-                          <span className="text-xs font-bold text-indigo-900 block">
-                            היסטוריית גיבויים ({uBackups.length}):
-                          </span>
-                          {uBackups.map((ub) => (
-                            <div key={ub.id} className="rounded bg-white p-2 text-xs border border-slate-100 flex items-center justify-between gap-1">
-                              <div>
-                                <div className="font-semibold text-slate-800">
-                                  {new Date(ub.created_at).toLocaleString("he-IL")}
-                                </div>
-                                <div className="text-[10px] text-slate-500">
-                                  {ub.reports_count.toLocaleString("he-IL")} דיווחים
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleAdminRestoreUserBackup(u.id, ub)}
-                                className="rounded bg-blue-50 text-blue-700 px-2 py-1 text-[11px] font-bold border border-blue-200"
-                              >
-                                שחזר
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => handleBackupUser(u.id, u.email)}
-                          disabled={adminBackupLoading === u.id}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition border border-emerald-200/60 disabled:opacity-50"
-                        >
-                          <DownloadIcon className="h-3.5 w-3.5" />
-                          <span>גבה</span>
-                        </button>
-
-                        {!u.is_current_auth_user && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteUser(u.email || "", u.id)}
-                            disabled={adminDeleteLoading !== null}
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-50 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition border border-red-200/60 disabled:opacity-50"
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" />
-                            {adminDeleteLoading === (u.email || u.id) ? "מוחק..." : "מחק"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        {nasBackupError && (
+          <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-semibold text-red-800 flex items-center justify-between">
+            <span>{nasBackupError}</span>
+            <button type="button" onClick={() => setNasBackupError(null)} className="text-red-600 hover:text-red-900 text-sm">
+              ✕
+            </button>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: גיבויי מערכת כלליים ושמירה ב-NAS (Screenshot 2 - SECOND!) */}
+        {/* UNIFIED TOP CONTROL BAR: Retention, Automation Status & Backup Now        */}
         {/* ========================================================================= */}
-        {adminSectionTab === "systemBackups" && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">גיבוי מערכת כולל:</span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200 shrink-0">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  לילי 03:00 פעיל ב-NAS
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCreateNasBackup}
-                disabled={nasBackupCreating}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition disabled:opacity-50 self-start sm:self-auto"
-              >
-                <SaveIcon className="h-3.5 w-3.5" />
-                {nasBackupCreating ? "מגבה ב-NAS..." : "גבה עכשיו (ב-NAS)"}
-              </button>
-            </div>
-
-            {/* Info banner */}
-            <div className="rounded-xl bg-gradient-to-l from-indigo-50/50 via-slate-50 to-indigo-50/30 p-3.5 border border-indigo-100 text-xs text-slate-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <ShieldIcon className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span>
-                  <strong>מדיניות שמירה ושחזור בטוח:</strong> ה-NAS שומר היסטוריה של {retentionDays} ימי גיבוי אחרונים. לפני כל פעולת שחזור נוצר אוטומטית גיבוי ביטחון מקדים.
-                </span>
-              </div>
-              <div className="text-[11px] font-semibold text-indigo-700 shrink-0" dir="ltr">
-                NAS: 10.0.0.16 (PostgreSQL)
-              </div>
-            </div>
-
-            {/* Retention Days Configuration */}
-            <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-800">
-                    שמירת גיבוי יומי (מספר ימים לאחור לשמירה ב-NAS):
-                  </span>
-                  {retentionMessage && (
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      {retentionMessage}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  קבע כמה ימי גיבוי אחרונים יישמרו על ה-NAS (הגיבויים הישנים מעבר למספר זה יימחקו אוטומטית)
-                </p>
-              </div>
+        <div className="rounded-xl bg-gradient-to-l from-indigo-50/40 via-slate-50 to-indigo-50/20 p-4 border border-indigo-100/80 space-y-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            {/* Left: Retention Days Form */}
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs font-bold text-slate-800">
+                שמירת גיבוי יומי (מספר ימים לאחור לשמירה ב-NAS):
+              </span>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -834,141 +462,572 @@ export default function AdminScreen() {
                   max="365"
                   value={retentionDays}
                   onChange={(e) => setRetentionDays(parseInt(e.target.value, 10) || 1)}
-                  className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-800 outline-none focus:border-indigo-400 text-center"
+                  className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-400 text-center shadow-sm"
                 />
                 <span className="text-xs text-slate-500 font-medium">ימים</span>
                 <button
                   type="button"
                   onClick={handleSaveRetentionDays}
                   disabled={retentionSaving}
-                  className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 text-xs font-bold transition disabled:opacity-50"
+                  className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 shadow-sm"
                 >
                   {retentionSaving ? "שומר..." : "שמור מספר ימים"}
                 </button>
               </div>
+              {retentionMessage && (
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  {retentionMessage}
+                </span>
+              )}
             </div>
 
-            {nasBackupMessage && (
-              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800 flex items-center justify-between">
-                <span>{nasBackupMessage}</span>
-                <button type="button" onClick={() => setNasBackupMessage(null)} className="text-emerald-600 hover:text-emerald-900 text-sm">
-                  ✕
-                </button>
-              </div>
-            )}
+            {/* Right: Auto Status & Backup Now Button */}
+            <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-200">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                🤖 לילי 03:00 פעיל ב-NAS
+              </span>
 
-            {nasBackupError && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-semibold text-red-800 flex items-center justify-between">
-                <span>{nasBackupError}</span>
-                <button type="button" onClick={() => setNasBackupError(null)} className="text-red-600 hover:text-red-900 text-sm">
-                  ✕
-                </button>
-              </div>
-            )}
+              <button
+                type="button"
+                onClick={handleCreateNasBackup}
+                disabled={nasBackupCreating}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                <SaveIcon className="h-3.5 w-3.5" />
+                {nasBackupCreating ? "מגבה ב-NAS..." : "גבה עכשיו (ב-NAS)"}
+              </button>
+            </div>
+          </div>
 
-            {/* Desktop & Tablet Table */}
-            <div className="hidden md:block rounded-xl border border-slate-200 overflow-x-auto">
-              <table className="w-full text-xs text-right divide-y divide-slate-200">
-                <thead className="bg-slate-50 text-slate-600 font-bold">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
+            <ShieldIcon className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+            <span>
+              <strong>מדיניות שמירה ושחזור בטוח:</strong> ה-NAS שומר היסטוריה של {retentionDays} ימי גיבוי אחרונים. לפני כל שחזור (מערכתי או נקודתי של עובד) נוצר אוטומטית גיבוי ביטחון מקדים.
+            </span>
+          </div>
+        </div>
+
+        {/* Quick Delete user by email */}
+        <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/80">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            מחיקת משתמש מהירה לפי כתובת אימייל:
+          </label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="email"
+              placeholder="user@example.com"
+              value={adminManualEmail}
+              onChange={(e) => setAdminManualEmail(e.target.value)}
+              className="w-full flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-red-400"
+            />
+            <button
+              type="button"
+              onClick={() => handleDeleteUser(adminManualEmail.trim())}
+              disabled={!adminManualEmail.trim() || adminDeleteLoading !== null}
+              className="w-full sm:w-auto justify-center rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+              {adminDeleteLoading === adminManualEmail.trim() ? "מוחק..." : "מחק משתמש ודאטה"}
+            </button>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* MAIN SECTION: ניהול משתמשים וגיבויים לפי עובד                              */}
+        {/* ========================================================================= */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-800">
+                👥 ניהול משתמשים וגיבויים לפי עובד
+              </h2>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200">
+                {adminUsers.length} משתמשים
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400">
+              לחיצה על כפתור הגיבויים פותחת פירוט מלא עם כל נתוני הגיבוי
+            </span>
+          </div>
+
+          {/* Desktop & Tablet Table */}
+          <div className="hidden md:block rounded-xl border border-slate-200 overflow-x-auto">
+            <table className="w-full text-xs text-right divide-y divide-slate-200">
+              <thead className="bg-slate-50 text-slate-600 font-bold">
+                <tr>
+                  <th className="px-4 py-3">אימייל משתמש</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">תאריך הצטרפות</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">דיווחי שעות</th>
+                  <th className="px-4 py-3 text-start whitespace-nowrap">גיבוי אחרון ב-NAS</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">מכסת חופשה</th>
+                  <th className="px-4 py-3 text-center whitespace-nowrap">פעולות</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {adminUsers.length === 0 ? (
                   <tr>
-                    <th className="px-4 py-3 whitespace-nowrap">תאריך ושעה</th>
-                    <th className="px-3 py-3 whitespace-nowrap">סוג גיבוי</th>
-                    <th className="px-3 py-3 text-center whitespace-nowrap">סה״כ דיווחים</th>
-                    <th className="px-3 py-3 text-center whitespace-nowrap">פרופילים ותקנים</th>
-                    <th className="px-3 py-3 text-center whitespace-nowrap">גודל ב-NAS</th>
-                    <th className="px-4 py-3 text-center whitespace-nowrap">פעולות ושחזור</th>
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                      {adminLoading ? "טוען משתמשים..." : "לא נמצאו משתמשים נוספים"}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {nasBackups.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
-                        {nasBackupsLoading ? "טוען גיבויים מה-NAS..." : "לא נמצאו גיבויים שמורים ב-NAS"}
-                      </td>
-                    </tr>
-                  ) : (
-                    nasBackups.map((b) => {
-                      const isRestoring = nasBackupRestoringId === b.id;
-                      const dateFormatted = new Date(b.created_at).toLocaleString("he-IL", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      });
+                ) : (
+                  adminUsers.map((u) => {
+                    const isSelf = u.email?.toLowerCase() === userEmail.toLowerCase();
+                    const isExpanded = expandedUserBackupsId === u.id;
+                    const uBackups = u.backups || [];
 
-                      return (
-                        <tr key={b.id} className="hover:bg-slate-50/60 transition">
-                          <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
-                            {dateFormatted}
-                          </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            {b.backup_type === "auto_nas" && (
-                              <span className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
-                                🤖 אוטומטי לילי
-                              </span>
-                            )}
-                            {b.backup_type === "manual_admin" && (
-                              <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                                👤 יזום ע״י מנהל
-                              </span>
-                            )}
-                            {b.backup_type === "pre_restore_safety" && (
-                              <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
-                                🛡️ ביטחון מקדים
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3 text-center font-bold text-slate-800 whitespace-nowrap">
-                            {b.reports_count.toLocaleString("he-IL")} דיווחים
+                    return (
+                      <Fragment key={u.id}>
+                        <tr className="hover:bg-slate-50/60 transition">
+                          <td className="px-4 py-3 font-medium text-slate-800">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-900" dir="ltr">{u.email || u.id}</span>
+                              {u.is_current_auth_user && (
+                                <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 shrink-0">
+                                  מחובר
+                                </span>
+                              )}
+                              {!u.is_current_auth_user && isSelf && (
+                                <span className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 shrink-0">
+                                  כפול
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-3 py-3 text-center text-slate-500 whitespace-nowrap">
-                            {b.profiles_count} פרופ׳ • {b.standards_count} תקנ׳
+                            {u.created_at ? new Date(u.created_at).toLocaleDateString("he-IL") : "-"}
                           </td>
-                          <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
-                            {b.file_size_kb ? `${b.file_size_kb} KB` : "-"}
+                          <td className="px-3 py-3 text-center whitespace-nowrap">
+                            {typeof u.reports_count === "number" ? (
+                              <span className={u.reports_count > 0 ? "font-bold text-slate-800" : "text-slate-400 italic"}>
+                                {u.reports_count > 0 ? `${u.reports_count.toLocaleString("he-IL")} דיווחים` : "0 (ריק)"}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {u.last_backup_at ? (
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className="font-semibold text-emerald-700 whitespace-nowrap">
+                                  {new Date(u.last_backup_at).toLocaleDateString("he-IL")}{" "}
+                                  <span className="text-[10px] text-slate-400">
+                                    {new Date(u.last_backup_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                                  </span>
+                                </span>
+                                {uBackups.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedUserBackupsId(isExpanded ? null : u.id)}
+                                    className="rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-0.5 text-[10px] font-bold transition border border-indigo-200 whitespace-nowrap"
+                                  >
+                                    {isExpanded ? "סגור ▲" : `📁 ${uBackups.length} גיבויים ▼`}
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic whitespace-nowrap">טרם בוצע</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center text-slate-700 whitespace-nowrap font-medium">
+                            {u.annual_vacation_quota || 22} ימים
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                               <button
                                 type="button"
-                                onClick={() => handleRestoreNasBackup(b)}
-                                disabled={isRestoring || nasBackupRestoringId !== null}
-                                title="שחזר את כל נתוני המערכת מגיבוי זה (ייווצר גיבוי ביטחון אוטומטי מקדים)"
-                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-bold transition border border-indigo-200 disabled:opacity-50"
+                                onClick={() => handleBackupUser(u.id, u.email)}
+                                disabled={adminBackupLoading === u.id}
+                                title="גבה את נתוני המשתמש (שעות, תקנים, תנאים) לקובץ SQL ב-NAS"
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-bold transition border border-emerald-200 disabled:opacity-50"
                               >
-                                <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
-                                <span>{isRestoring ? "משחזר..." : "שחזר"}</span>
+                                <DownloadIcon className="h-3 w-3" />
+                                <span>גבה</span>
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadNasBackup(b)}
-                                title="הורד קובץ SQL למחשב"
-                                className="inline-flex items-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 text-xs font-medium transition border border-slate-200"
-                              >
-                                <DownloadIcon className="h-3.5 w-3.5" />
-                                <span>SQL</span>
-                              </button>
+                              {!u.is_current_auth_user && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteUser(u.email || "", u.id)}
+                                  disabled={adminDeleteLoading !== null}
+                                  title="מחק משתמש זה (יבוצע גיבוי אוטומטי שיישמר ב-NAS)"
+                                  className="inline-flex items-center gap-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 px-2.5 py-1 text-xs font-bold transition border border-red-200 disabled:opacity-50"
+                                >
+                                  <TrashIcon className="h-3 w-3" />
+                                  <span>מחק</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
 
-            {/* Mobile Cards for Backups */}
-            <div className="block md:hidden space-y-3">
-              {nasBackups.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                  {nasBackupsLoading ? "טוען גיבויים מה-NAS..." : "לא נמצאו גיבויים שמורים ב-NAS"}
-                </div>
-              ) : (
-                nasBackups.map((b) => {
+                        {/* ================================================================= */}
+                        {/* UNIFIED DRAWER: Full Rich Table from Screenshot 3 for this user  */}
+                        {/* ================================================================= */}
+                        {isExpanded && (
+                          <tr className="bg-indigo-50/20">
+                            <td colSpan={6} className="px-3 sm:px-4 py-3">
+                              <div className="rounded-xl border border-indigo-200 bg-white p-3.5 shadow-sm space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-indigo-50 pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-indigo-900">
+                                      📁 גיבויים שמורים ב-NAS עבור {u.email || u.id} ({uBackups.length} נקודות שחזור):
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] text-slate-400">
+                                    שחזור נקודתי משחזר רק את דיווחי והגדרות משתמש זה (ויוצר גיבוי ביטחון מקדים)
+                                  </span>
+                                </div>
+
+                                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                                  <table className="w-full text-xs text-right divide-y divide-slate-200">
+                                    <thead className="bg-slate-50 text-slate-600 font-bold">
+                                      <tr>
+                                        <th className="px-3 py-2.5 whitespace-nowrap">תאריך ושעה</th>
+                                        <th className="px-3 py-2.5 whitespace-nowrap">סוג גיבוי</th>
+                                        <th className="px-3 py-2.5 text-center whitespace-nowrap">סה״כ דיווחים</th>
+                                        <th className="px-3 py-2.5 text-center whitespace-nowrap">תקנים והסכמים</th>
+                                        <th className="px-3 py-2.5 text-center whitespace-nowrap">גודל ב-NAS</th>
+                                        <th className="px-3 py-2.5 text-center whitespace-nowrap">פעולות ושחזור</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                      {uBackups.map((ub) => {
+                                        const isRestoring = userBackupRestoringId === ub.id;
+                                        const dateFormatted = new Date(ub.created_at).toLocaleString("he-IL", {
+                                          day: "2-digit",
+                                          month: "2-digit",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          second: "2-digit",
+                                        });
+
+                                        return (
+                                          <tr key={ub.id} className="hover:bg-slate-50/70 transition">
+                                            <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap">
+                                              {dateFormatted}
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                              {renderBackupBadge(ub.backup_type)}
+                                            </td>
+                                            <td className="px-3 py-2 text-center font-bold text-slate-800 whitespace-nowrap">
+                                              {ub.reports_count.toLocaleString("he-IL")} דיווחים
+                                            </td>
+                                            <td className="px-3 py-2 text-center text-slate-500 whitespace-nowrap">
+                                              {ub.standards_count} תקנים • {ub.terms_count || 1} תנאים
+                                            </td>
+                                            <td className="px-3 py-2 text-center font-mono text-slate-600 whitespace-nowrap">
+                                              {ub.file_size_kb ? `${ub.file_size_kb} KB` : "-"}
+                                            </td>
+                                            <td className="px-3 py-2 text-center whitespace-nowrap">
+                                              <div className="flex items-center justify-center gap-1.5">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleAdminRestoreUserBackup(u.id, ub)}
+                                                  disabled={isRestoring || userBackupRestoringId !== null}
+                                                  title="שחזר דיווחים ותקנים לעובד זה"
+                                                  className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 py-1 text-xs font-bold transition border border-indigo-200 disabled:opacity-50"
+                                                >
+                                                  <RotateCcwIcon className={`h-3 w-3 ${isRestoring ? "animate-spin" : ""}`} />
+                                                  <span>{isRestoring ? "משחזר..." : "שחזר למשתמש"}</span>
+                                                </button>
+
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleDownloadUserBackup(ub)}
+                                                  title="הורד קובץ SQL למחשב"
+                                                  className="inline-flex items-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-2 py-1 text-xs font-medium transition border border-slate-200"
+                                                >
+                                                  <DownloadIcon className="h-3 w-3" />
+                                                  <span>הורד SQL</span>
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards for Users */}
+          <div className="block md:hidden space-y-3">
+            {adminUsers.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+                {adminLoading ? "טוען משתמשים..." : "לא נמצאו משתמשים נוספים"}
+              </div>
+            ) : (
+              adminUsers.map((u) => {
+                const isSelf = u.email?.toLowerCase() === userEmail.toLowerCase();
+                const isExpanded = expandedUserBackupsId === u.id;
+                const uBackups = u.backups || [];
+
+                return (
+                  <div key={u.id} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-slate-800 text-sm truncate" dir="ltr">
+                          {u.email || u.id}
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {u.is_current_auth_user && (
+                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                              החשבון המחובר
+                            </span>
+                          )}
+                          {!u.is_current_auth_user && isSelf && (
+                            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                              חשבון כפול
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">תאריך הצטרפות:</span>
+                        <span className="font-medium text-slate-700">
+                          {u.created_at ? new Date(u.created_at).toLocaleDateString("he-IL") : "-"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">דיווחי שעות:</span>
+                        <span className={u.reports_count && u.reports_count > 0 ? "font-bold text-slate-800" : "text-slate-400 italic"}>
+                          {typeof u.reports_count === "number"
+                            ? u.reports_count > 0
+                              ? `${u.reports_count.toLocaleString("he-IL")} דיווחים`
+                              : "0 (ריק)"
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-400 block text-[11px]">גיבוי אחרון ב-NAS:</span>
+                        {u.last_backup_at ? (
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-emerald-700">
+                              {new Date(u.last_backup_at).toLocaleDateString("he-IL")}{" "}
+                              <span className="text-[10px] text-slate-400">
+                                {new Date(u.last_backup_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </span>
+                            {uBackups.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedUserBackupsId(isExpanded ? null : u.id)}
+                                className="text-xs font-bold text-indigo-700"
+                              >
+                                {isExpanded ? "סגור ▲" : `${uBackups.length} גיבויים ▼`}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic">טרם בוצע</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expandable sub-cards on mobile */}
+                    {isExpanded && uBackups.length > 0 && (
+                      <div className="rounded-lg bg-indigo-50/40 p-2.5 space-y-2 border border-indigo-100">
+                        <span className="text-xs font-bold text-indigo-900 block">
+                          היסטוריית גיבויים ({uBackups.length}):
+                        </span>
+                        {uBackups.map((ub) => (
+                          <div key={ub.id} className="rounded-lg bg-white p-2.5 text-xs border border-slate-100 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-slate-800">
+                                {new Date(ub.created_at).toLocaleString("he-IL")}
+                              </span>
+                              {renderBackupBadge(ub.backup_type)}
+                            </div>
+                            <div className="grid grid-cols-3 gap-1 text-[11px] bg-slate-50 p-1.5 rounded text-center">
+                              <div>
+                                <span className="text-slate-400 block text-[10px]">דיווחים</span>
+                                <span className="font-bold text-slate-800">{ub.reports_count}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 block text-[10px]">תקנים</span>
+                                <span className="text-slate-700">{ub.standards_count}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 block text-[10px]">גודל</span>
+                                <span className="font-mono text-slate-600">{ub.file_size_kb || 0} KB</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => handleAdminRestoreUserBackup(u.id, ub)}
+                                disabled={userBackupRestoringId !== null}
+                                className="flex-1 rounded-lg bg-indigo-50 py-1.5 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200"
+                              >
+                                שחזר למשתמש
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadUserBackup(ub)}
+                                className="rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-100 transition border border-slate-200"
+                              >
+                                הורד SQL
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleBackupUser(u.id, u.email)}
+                        disabled={adminBackupLoading === u.id}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition border border-emerald-200/60 disabled:opacity-50"
+                      >
+                        <DownloadIcon className="h-3.5 w-3.5" />
+                        <span>גבה</span>
+                      </button>
+
+                      {!u.is_current_auth_user && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(u.email || "", u.id)}
+                          disabled={adminDeleteLoading !== null}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-50 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition border border-red-200/60 disabled:opacity-50"
+                        >
+                          <TrashIcon className="h-3.5 w-3.5" />
+                          {adminDeleteLoading === (u.email || u.id) ? "מוחק..." : "מחק"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* COLLAPSIBLE SECTION: גיבויי מערכת כוללים של כלל בסיס הנתונים ב-NAS        */}
+        {/* ========================================================================= */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setIsSystemBackupsOpen(!isSystemBackupsOpen)}
+              className="flex items-center gap-2 text-left"
+            >
+              <span className="text-xs font-bold text-slate-800">
+                🗄️ גיבויי מערכת כוללים ב-NAS ({nasBackups.length} Snapshots של כלל בסיס הנתונים)
+              </span>
+              <span className="text-xs text-indigo-600 font-bold">
+                {isSystemBackupsOpen ? "הסתר ▲" : "הצג טבלה ▼"}
+              </span>
+            </button>
+            <span className="text-[11px] text-slate-400 hidden sm:inline">
+              כולל את כל המשתמשים, דיווחים והגדרות יחד
+            </span>
+          </div>
+
+          {isSystemBackupsOpen && (
+            <div className="space-y-3 pt-2 border-t border-slate-200">
+              {/* Desktop & Tablet Table */}
+              <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-x-auto">
+                <table className="w-full text-xs text-right divide-y divide-slate-200">
+                  <thead className="bg-slate-50 text-slate-600 font-bold">
+                    <tr>
+                      <th className="px-4 py-3 whitespace-nowrap">תאריך ושעה</th>
+                      <th className="px-3 py-3 whitespace-nowrap">סוג גיבוי</th>
+                      <th className="px-3 py-3 text-center whitespace-nowrap">סה״כ דיווחים</th>
+                      <th className="px-3 py-3 text-center whitespace-nowrap">פרופילים ותקנים</th>
+                      <th className="px-3 py-3 text-center whitespace-nowrap">גודל ב-NAS</th>
+                      <th className="px-4 py-3 text-center whitespace-nowrap">פעולות ושחזור</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {nasBackups.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-slate-400">
+                          {nasBackupsLoading ? "טוען גיבויים מה-NAS..." : "לא נמצאו גיבויים שמורים ב-NAS"}
+                        </td>
+                      </tr>
+                    ) : (
+                      nasBackups.map((b) => {
+                        const isRestoring = nasBackupRestoringId === b.id;
+                        const dateFormatted = new Date(b.created_at).toLocaleString("he-IL", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        });
+
+                        return (
+                          <tr key={b.id} className="hover:bg-slate-50/60 transition">
+                            <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
+                              {dateFormatted}
+                            </td>
+                            <td className="px-3 py-3 whitespace-nowrap">
+                              {renderBackupBadge(b.backup_type)}
+                            </td>
+                            <td className="px-3 py-3 text-center font-bold text-slate-800 whitespace-nowrap">
+                              {b.reports_count.toLocaleString("he-IL")} דיווחים
+                            </td>
+                            <td className="px-3 py-3 text-center text-slate-500 whitespace-nowrap">
+                              {b.profiles_count} פרופ׳ • {b.standards_count} תקנ׳
+                            </td>
+                            <td className="px-3 py-3 text-center font-mono text-slate-600 whitespace-nowrap">
+                              {b.file_size_kb ? `${b.file_size_kb} KB` : "-"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRestoreNasBackup(b)}
+                                  disabled={isRestoring || nasBackupRestoringId !== null}
+                                  title="שחזר את כל נתוני המערכת מגיבוי זה (ייווצר גיבוי ביטחון אוטומטי מקדים)"
+                                  className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-bold transition border border-indigo-200 disabled:opacity-50"
+                                >
+                                  <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
+                                  <span>{isRestoring ? "משחזר..." : "שחזר מערכת"}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadNasBackup(b)}
+                                  title="הורד קובץ SQL למחשב"
+                                  className="inline-flex items-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 text-xs font-medium transition border border-slate-200"
+                                >
+                                  <DownloadIcon className="h-3.5 w-3.5" />
+                                  <span>SQL</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards for System Backups */}
+              <div className="block md:hidden space-y-2">
+                {nasBackups.map((b) => {
                   const isRestoring = nasBackupRestoringId === b.id;
                   const dateFormatted = new Date(b.created_at).toLocaleString("he-IL", {
                     day: "2-digit",
@@ -979,66 +1038,49 @@ export default function AdminScreen() {
                   });
 
                   return (
-                    <div key={b.id} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-3">
+                    <div key={b.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-800 text-xs">{dateFormatted}</span>
-                        {b.backup_type === "auto_nas" && (
-                          <span className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-200">
-                            🤖 אוטומטי לילי
-                          </span>
-                        )}
-                        {b.backup_type === "manual_admin" && (
-                          <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                            👤 יזום ע״י מנהל
-                          </span>
-                        )}
-                        {b.backup_type === "pre_restore_safety" && (
-                          <span className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
-                            🛡️ ביטחון מקדים
-                          </span>
-                        )}
+                        <span className="font-bold text-slate-800">{dateFormatted}</span>
+                        {renderBackupBadge(b.backup_type)}
                       </div>
-
-                      <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 p-2 rounded-lg border border-slate-100 text-center">
+                      <div className="grid grid-cols-3 gap-1 bg-slate-50 p-2 rounded text-center text-[11px]">
                         <div>
-                          <span className="text-slate-400 block text-[10px]">דיווחים:</span>
-                          <span className="font-bold text-slate-800">{b.reports_count.toLocaleString("he-IL")}</span>
+                          <span className="text-slate-400 block text-[10px]">דיווחים</span>
+                          <span className="font-bold text-slate-800">{b.reports_count}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px]">פרופילים:</span>
-                          <span className="font-semibold text-slate-700">{b.profiles_count}</span>
+                          <span className="text-slate-400 block text-[10px]">פרופילים</span>
+                          <span className="text-slate-700">{b.profiles_count}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px]">גודל קובץ:</span>
+                          <span className="text-slate-400 block text-[10px]">גודל</span>
                           <span className="font-mono text-slate-600">{b.file_size_kb || 0} KB</span>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                      <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
                         <button
                           type="button"
                           onClick={() => handleRestoreNasBackup(b)}
                           disabled={isRestoring || nasBackupRestoringId !== null}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-indigo-50 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200/60 disabled:opacity-50"
+                          className="flex-1 rounded-lg bg-indigo-50 py-1.5 font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200"
                         >
-                          <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
-                          <span>{isRestoring ? "משחזר נתונים..." : "שחזר מגיבוי זה"}</span>
+                          שחזר מערכת
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDownloadNasBackup(b)}
-                          className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition border border-slate-200"
+                          className="rounded-lg bg-slate-50 px-3 py-1.5 font-medium text-slate-600 hover:bg-slate-100 transition border border-slate-200"
                         >
-                          הורד קובץ SQL
+                          הורד SQL
                         </button>
                       </div>
                     </div>
                   );
-                })
-              )}
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </section>
 
       {/* Adminer Direct Connection Protocol Card */}
