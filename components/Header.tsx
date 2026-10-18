@@ -14,15 +14,10 @@ import {
   ShieldIcon,
   LogOutIcon,
   BookOpenIcon,
+  SettingsIcon,
 } from "./Icons";
-export type TabId = "board" | "reports" | "guide" | "settings";
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "board", label: "לוח בקרה", icon: <GridIcon /> },
-  { id: "reports", label: "דיווחים", icon: <ListIcon /> },
-  { id: "guide", label: "הדרכה", icon: <BookOpenIcon /> },
-  { id: "settings", label: "הגדרות", icon: <ShieldIcon /> },
-];
+export type TabId = "board" | "reports" | "guide" | "settings" | "admin";
 
 interface Props {
   tab: TabId;
@@ -35,6 +30,7 @@ interface Props {
   onSync: () => void;
   syncing: boolean;
   onSelectMonth: (year: number, month: number) => void;
+  isAdmin?: boolean;
 }
 
 export default function Header({
@@ -48,7 +44,18 @@ export default function Header({
   onSync,
   syncing,
   onSelectMonth,
+  isAdmin = false,
 }: Props) {
+  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: "board", label: "לוח בקרה", icon: <GridIcon className="h-4 w-4" /> },
+    { id: "reports", label: "דיווחים", icon: <ListIcon className="h-4 w-4" /> },
+    { id: "guide", label: "הדרכה", icon: <BookOpenIcon className="h-4 w-4" /> },
+    { id: "settings", label: "הגדרות", icon: <SettingsIcon className="h-4 w-4" /> },
+    ...(isAdmin
+      ? [{ id: "admin" as TabId, label: "ניהול מערכת", icon: <ShieldIcon className="h-4 w-4 text-brand-600" /> }]
+      : []),
+  ];
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
@@ -68,13 +75,13 @@ export default function Header({
         {/* Tabs (center) */}
         <nav className="order-3 mx-auto flex w-full justify-center sm:order-none sm:w-auto">
           <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 w-full sm:w-auto justify-around sm:justify-start">
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => onTab(t.id)}
                 className={`flex items-center justify-center gap-1.5 rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition flex-1 sm:flex-initial ${
                   tab === t.id
-                    ? "bg-white text-brand-700 shadow-sm ring-1 ring-slate-200"
+                    ? "bg-white text-brand-700 shadow-sm ring-1 ring-slate-200 font-bold"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
