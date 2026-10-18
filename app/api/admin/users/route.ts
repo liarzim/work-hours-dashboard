@@ -78,19 +78,19 @@ export async function GET() {
       .select("id, email, annual_vacation_quota, created_at, reports(count)")
       .order("created_at", { ascending: false });
 
-    // Fetch latest backup for each user from user_backups table
-    const lastBackupMap = new Map<string, string>();
+    // Fetch all backups for each user from user_backups table
+    const userBackupsMap = new Map<string, any[]>();
     try {
-      const { data: latestBackups } = await supabase
+      const { data: allBackups } = await supabase
         .from("user_backups")
-        .select("user_id, created_at")
+        .select("id, user_id, filename, reports_count, standards_count, terms_count, backup_type, file_size_kb, created_at")
         .order("created_at", { ascending: false });
 
-      if (latestBackups) {
-        for (const b of latestBackups) {
-          if (!lastBackupMap.has(b.user_id)) {
-            lastBackupMap.set(b.user_id, b.created_at);
-          }
+      if (allBackups) {
+        for (const b of allBackups) {
+          const list = userBackupsMap.get(b.user_id) || [];
+          list.push(b);
+          userBackupsMap.set(b.user_id, list);
         }
       }
     } catch (e) {
@@ -108,27 +108,35 @@ export async function GET() {
         return NextResponse.json({ error: fallbackError.message }, { status: 500 });
       }
 
-      const mapped = (fallbackProfiles || []).map((p: any) => ({
+      const mapped = (fallbackProfiles || []).map((p: any) => {
+        const uBackups = userBackupsMap.get(p.id) || [];
+        return {
+          id: p.id,
+          email: p.email,
+          annual_vacation_quota: p.annual_vacation_quota,
+          created_at: p.created_at,
+          reports_count: null,
+          last_backup_at: uBackups[0]?.created_at || null,
+          backups: uBackups,
+          is_current_auth_user: p.id === user.id,
+        };
+      });
+      return NextResponse.json({ users: mapped });
+    }
+
+    const mapped = (profiles || []).map((p: any) => {
+      const uBackups = userBackupsMap.get(p.id) || [];
+      return {
         id: p.id,
         email: p.email,
         annual_vacation_quota: p.annual_vacation_quota,
         created_at: p.created_at,
-        reports_count: null,
-        last_backup_at: lastBackupMap.get(p.id) || null,
+        reports_count: p.reports?.[0]?.count ?? 0,
+        last_backup_at: uBackups[0]?.created_at || null,
+        backups: uBackups,
         is_current_auth_user: p.id === user.id,
-      }));
-      return NextResponse.json({ users: mapped });
-    }
-
-    const mapped = (profiles || []).map((p: any) => ({
-      id: p.id,
-      email: p.email,
-      annual_vacation_quota: p.annual_vacation_quota,
-      created_at: p.created_at,
-      reports_count: p.reports?.[0]?.count ?? 0,
-      last_backup_at: lastBackupMap.get(p.id) || null,
-      is_current_auth_user: p.id === user.id,
-    }));
+      };
+    });
 
     return NextResponse.json({ users: mapped });
   } catch (e) {
