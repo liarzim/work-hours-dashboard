@@ -38,6 +38,17 @@ interface NasBackupItem {
   created_at: string;
 }
 
+interface UserBackupItem {
+  id: string;
+  filename: string;
+  reports_count: number;
+  standards_count: number;
+  terms_count: number;
+  backup_type: string;
+  file_size_kb: number;
+  created_at: string;
+}
+
 export default function SettingsScreen() {
   const { data, isLoading } = useSettings();
   const { mutate } = useSWRConfig();
@@ -155,6 +166,17 @@ export default function SettingsScreen() {
   const [nasBackupRestoringId, setNasBackupRestoringId] = useState<string | null>(null);
   const [nasBackupMessage, setNasBackupMessage] = useState<string | null>(null);
   const [nasBackupError, setNasBackupError] = useState<string | null>(null);
+  const [retentionDays, setRetentionDays] = useState<number>(30);
+  const [retentionSaving, setRetentionSaving] = useState(false);
+  const [retentionMessage, setRetentionMessage] = useState<string | null>(null);
+
+  // Personal User Backups State (available for every user)
+  const [userBackups, setUserBackups] = useState<UserBackupItem[]>([]);
+  const [userBackupsLoading, setUserBackupsLoading] = useState(false);
+  const [userBackupCreating, setUserBackupCreating] = useState(false);
+  const [userBackupRestoringId, setUserBackupRestoringId] = useState<string | null>(null);
+  const [userBackupMessage, setUserBackupMessage] = useState<string | null>(null);
+  const [userBackupError, setUserBackupError] = useState<string | null>(null);
 
   // Import State
   const [importing, setImporting] = useState(false);
@@ -730,6 +752,9 @@ export default function SettingsScreen() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה בטעינת גיבויים מה-NAS");
       setNasBackups(data.backups || []);
+      if (typeof data.retentionDays === "number") {
+        setRetentionDays(data.retentionDays);
+      }
     } catch (err: any) {
       setNasBackupError(err.message || "שגיאה בטעינת גיבויים");
     } finally {
@@ -737,12 +762,138 @@ export default function SettingsScreen() {
     }
   }, [userEmail]);
 
-  useEffect(() => {
-    if (userEmail && userEmail.toLowerCase() === "michael.liarzi@gmail.com") {
-      fetchAdminUsers();
-      fetchNasBackups();
+  const handleSaveRetentionDays = async () => {
+    if (!retentionDays || retentionDays < 1 || retentionDays > 365) {
+      alert("מספר הימים חייב להיות בין 1 ל-365");
+      return;
     }
-  }, [userEmail, fetchAdminUsers, fetchNasBackups]);
+    setRetentionSaving(true);
+    setRetentionMessage(null);
+    try {
+      const res = await fetch("/api/admin/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_retention", retentionDays }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שמירת ימי הגיבוי נכשלה");
+      setRetentionMessage(data.message || `נשמר: יישמרו ${retentionDays} ימי גיבוי אחרונים.`);
+      await fetchNasBackups();
+    } catch (err: any) {
+      alert(err.message || "שגיאה בשמירת ימי הגיבוי");
+    } finally {
+      setRetentionSaving(false);
+    }
+  };
+
+  // Personal User Backups
+  const fetchUserBackups = useCallback(async () => {
+    if (!userEmail) return;
+    setUserBackupsLoading(true);
+    setUserBackupError(null);
+    try {
+      const res = await fetch("/api/user/backups");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה בטעינת הגיבויים האישיים");
+      setUserBackups(data.backups || []);
+    } catch (err: any) {
+      setUserBackupError(err.message || "שגיאה בטעינת גיבויים אישיים");
+    } finally {
+      setUserBackupsLoading(false);
+    }
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (userEmail) {
+      fetchUserBackups();
+      if (userEmail.toLowerCase() === "michael.liarzi@gmail.com") {
+        fetchAdminUsers();
+        fetchNasBackups();
+      }
+    }
+  }, [userEmail, fetchUserBackups, fetchAdminUsers, fetchNasBackups]);
+
+  const handleCreateUserBackup = async () => {
+    setUserBackupCreating(true);
+    setUserBackupMessage(null);
+    setUserBackupError(null);
+    try {
+      const res = await fetch("/api/user/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "יצירת הגיבוי האישי נכשלה");
+      setUserBackupMessage(data.message || "הגיבוי האישי שלך נשמר בהצלחה ב-NAS!");
+      await fetchUserBackups();
+    } catch (err: any) {
+      setUserBackupError(err.message || "שגיאה ביצירת גיבוי אישי ב-NAS");
+    } finally {
+      setUserBackupCreating(false);
+    }
+  };
+
+  const handleRestoreUserBackup = async (backup: UserBackupItem) => {
+    const dateFormatted = new Date(backup.created_at).toLocaleString("he-IL");
+    const confirmed = window.confirm(
+      ` שחזור נתונים אישי (נקודתי)\n\n` +
+      `האם אתה בטוח שברצונך לשחזר את הנתונים האישיים שלך לנקודת הגיבוי:\n` +
+      `• תאריך ושעה: ${dateFormatted}\n` +
+      `• דיווחי שעות שישוחזרו: ${backup.reports_count.toLocaleString("he-IL")}\n` +
+      `• תנאי העסקה ותקנים אישיים שישוחזרו\n\n` +
+      ` השחזור הינו נקודתי ומשפיע אך ורק על הנתונים שלך (לא משפיע על אף משתמש אחר במערכת).\n` +
+      ` המערכת תיצור אוטומטית גיבוי ביטחון אישי מקדים לפני ביצוע השחזור.`
+    );
+    if (!confirmed) return;
+
+    setUserBackupRestoringId(backup.id);
+    setUserBackupMessage(null);
+    setUserBackupError(null);
+    try {
+      const res = await fetch("/api/user/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", backupId: backup.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שחזור הגיבוי האישי נכשל");
+      setUserBackupMessage(
+        `הנתונים האישיים שלך שוחזרו בהצלחה מ-${dateFormatted}! שוחזרו ${data.result?.details?.reports_restored?.toLocaleString("he-IL") || backup.reports_count} דיווחים.`
+      );
+      await fetchUserBackups();
+      await mutate((k) => typeof k === "string" && (k.startsWith("/api/reports") || k.startsWith("/api/employment-terms") || k.startsWith("/api/settings")));
+    } catch (err: any) {
+      setUserBackupError(err.message || "שגיאה בשחזור הגיבוי האישי");
+    } finally {
+      setUserBackupRestoringId(null);
+    }
+  };
+
+  const handleDownloadUserBackup = async (backup: UserBackupItem) => {
+    try {
+      const res = await fetch("/api/user/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "download", backupId: backup.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "הורדת הגיבוי נכשלה");
+      if (data.sql) {
+        const blob = new Blob([data.sql], { type: "application/sql;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.filename || `backup-user-${backup.id}.sql`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      alert(err.message || "שגיאה בהורדת קובץ הגיבוי");
+    }
+  };
 
   // Admin NAS System Backups Actions
   const handleCreateNasBackup = async () => {
@@ -1919,6 +2070,224 @@ export default function SettingsScreen() {
         </div>
       </section>
 
+      {/* Personal User Backups & Point-in-Time Restore on NAS */}
+      <section className="rounded-2xl border border-blue-100 bg-white p-4 sm:p-5 shadow-card space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shrink-0">
+              <DatabaseIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-800">גיבוי ושחזור נתונים אישי (ב-NAS)</h2>
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
+                  🛡️ שחזור נקודתי אישי
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                גבה ושחזר את כל דיווחי השעות, התקנים וההסכמים האישיים שלך. השחזור נקודתי ומאובטח – משפיע אך ורק על הנתונים שלך בלבד
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={fetchUserBackups}
+              disabled={userBackupsLoading}
+              className="inline-flex items-center gap-1 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition border border-slate-200 disabled:opacity-50"
+            >
+              <RefreshIcon className={`h-3.5 w-3.5 ${userBackupsLoading ? "animate-spin" : ""}`} />
+              {userBackupsLoading ? "מרענן..." : "רענן רשימה"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCreateUserBackup}
+              disabled={userBackupCreating}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              <SaveIcon className="h-3.5 w-3.5" />
+              {userBackupCreating ? "מגבה ב-NAS..." : "גבה את הנתונים שלי עכשיו 💾"}
+            </button>
+          </div>
+        </div>
+
+        {userBackupMessage && (
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800 flex items-center justify-between">
+            <span>{userBackupMessage}</span>
+            <button type="button" onClick={() => setUserBackupMessage(null)} className="text-emerald-600 hover:text-emerald-900 text-sm">✕</button>
+          </div>
+        )}
+
+        {userBackupError && (
+          <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-semibold text-red-800 flex items-center justify-between">
+            <span>{userBackupError}</span>
+            <button type="button" onClick={() => setUserBackupError(null)} className="text-red-600 hover:text-red-900 text-sm">✕</button>
+          </div>
+        )}
+
+        {/* Desktop & Tablet Table */}
+        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80">
+          <table className="w-full text-sm text-right">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/80 text-xs font-semibold text-slate-500">
+                <th className="px-3.5 py-2.5">תאריך ושעה</th>
+                <th className="px-3.5 py-2.5">סוג גיבוי</th>
+                <th className="px-3.5 py-2.5">דיווחי שעות</th>
+                <th className="px-3.5 py-2.5">תקנים ותנאים</th>
+                <th className="px-3.5 py-2.5">גודל ב-NAS</th>
+                <th className="px-3.5 py-2.5 text-center">פעולות ושחזור</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {userBackups.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-xs text-slate-400">
+                    {userBackupsLoading ? "טוען גיבויים אישיים מה-NAS..." : "טרם בוצעו גיבויים אישיים. לחץ על 'גבה את הנתונים שלי עכשיו' כדי ליצור גיבוי אישי!"}
+                  </td>
+                </tr>
+              ) : (
+                userBackups.map((b) => {
+                  const isRestoring = userBackupRestoringId === b.id;
+                  const dateFormatted = new Date(b.created_at).toLocaleString("he-IL", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  });
+
+                  return (
+                    <tr key={b.id} className="hover:bg-slate-50/60 transition">
+                      <td className="px-3.5 py-2.5 font-medium text-slate-700 whitespace-nowrap">
+                        {dateFormatted}
+                      </td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        {b.backup_type === "manual_user" && (
+                          <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
+                            👤 גיבוי אישי שלי
+                          </span>
+                        )}
+                        {b.backup_type === "pre_restore_safety" && (
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
+                            🛡️ ביטחון מקדים
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3.5 py-2.5 font-bold text-slate-800 whitespace-nowrap">
+                        {b.reports_count.toLocaleString("he-IL")} דיווחים
+                      </td>
+                      <td className="px-3.5 py-2.5 text-xs text-slate-500 whitespace-nowrap">
+                        {b.standards_count} תקנים • {b.terms_count || 0} תנאים
+                      </td>
+                      <td className="px-3.5 py-2.5 text-xs font-mono text-slate-600 whitespace-nowrap">
+                        {b.file_size_kb ? `${b.file_size_kb} KB` : "-"}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreUserBackup(b)}
+                            disabled={isRestoring || userBackupRestoringId !== null}
+                            title="שחזר נקודתית אך ורק את הנתונים שלך מגיבוי זה (נוצר גיבוי ביטחון מקדים אוטומטית)"
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-bold transition border border-blue-200 disabled:opacity-50"
+                          >
+                            <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
+                            {isRestoring ? "משחזר..." : "שחזר נתונים אישיים"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadUserBackup(b)}
+                            title="הורד קובץ SQL אישי למחשב"
+                            className="inline-flex items-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-2 py-1 text-xs font-medium transition border border-slate-200"
+                          >
+                            <DownloadIcon className="h-3.5 w-3.5" />
+                            <span className="hidden lg:inline">הורד SQL</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="block md:hidden space-y-2.5">
+          {userBackups.length === 0 ? (
+            <div className="py-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
+              {userBackupsLoading ? "טוען גיבויים אישיים..." : "טרם בוצעו גיבויים אישיים"}
+            </div>
+          ) : (
+            userBackups.map((b) => {
+              const isRestoring = userBackupRestoringId === b.id;
+              const dateFormatted = new Date(b.created_at).toLocaleString("he-IL", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+
+              return (
+                <div key={b.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-800 text-xs">{dateFormatted}</span>
+                    {b.backup_type === "manual_user" && (
+                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+                        👤 גיבוי אישי שלי
+                      </span>
+                    )}
+                    {b.backup_type === "pre_restore_safety" && (
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                        🛡️ ביטחון מקדים
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">דיווחי שעות:</span>
+                      <span className="font-bold text-slate-800">{b.reports_count.toLocaleString("he-IL")}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">נפח ב-NAS:</span>
+                      <span className="font-mono text-slate-700">{b.file_size_kb || 0} KB</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => handleRestoreUserBackup(b)}
+                      disabled={isRestoring || userBackupRestoringId !== null}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white py-2 text-xs font-bold transition disabled:opacity-50"
+                    >
+                      <RotateCcwIcon className={`h-3.5 w-3.5 ${isRestoring ? "animate-spin" : ""}`} />
+                      {isRestoring ? "משחזר..." : "שחזר גיבוי זה"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadUserBackup(b)}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 text-xs font-medium transition"
+                    >
+                      <DownloadIcon className="h-3.5 w-3.5" />
+                      <span>SQL</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+
       {/* Biometric Credentials (Passkeys) */}
       {passkeySupported && (
         <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
@@ -1998,11 +2367,49 @@ export default function SettingsScreen() {
             <div className="flex items-center gap-2">
               <ShieldIcon className="h-4 w-4 text-indigo-600 shrink-0" />
               <span>
-                <strong>מדיניות שמירה ושחזור בטוח:</strong> ה-NAS שומר היסטוריה של 30 גיבויים אחרונים. לפני כל פעולת שחזור נוצר אוטומטית גיבוי ביטחון מקדים.
+                <strong>מדיניות שמירה ושחזור בטוח:</strong> ה-NAS שומר היסטוריה של {retentionDays} ימי גיבוי אחרונים. לפני כל פעולת שחזור נוצר אוטומטית גיבוי ביטחון מקדים.
               </span>
             </div>
             <div className="text-[11px] font-semibold text-indigo-700 shrink-0" dir="ltr">
               NAS: 10.0.0.16 (PostgreSQL)
+            </div>
+          </div>
+
+          {/* Retention Days Configuration */}
+          <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-800">
+                  שמירת גיבוי יומי (מספר ימים לאחור לשמירה ב-NAS):
+                </span>
+                {retentionMessage && (
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    {retentionMessage}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                קבע כמה ימי גיבוי אחרונים יישמרו על ה-NAS (הגיבויים הישנים מעבר למספר זה יימחקו אוטומטית)
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(parseInt(e.target.value, 10) || 1)}
+                className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-800 outline-none focus:border-indigo-400 text-center"
+              />
+              <span className="text-xs text-slate-500 font-medium">ימים</span>
+              <button
+                type="button"
+                onClick={handleSaveRetentionDays}
+                disabled={retentionSaving}
+                className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 text-xs font-bold transition disabled:opacity-50"
+              >
+                {retentionSaving ? "שומר..." : "שמור מספר ימים"}
+              </button>
             </div>
           </div>
 

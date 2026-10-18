@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const ADMIN_EMAILS = new Set(["michael.liarzi@gmail.com"]);
 
 /**
- * GET /api/admin/backups - List system backups stored on the NAS
+ * GET /api/admin/backups - List system backups and current retention setting stored on the NAS
  */
 export async function GET() {
   try {
@@ -29,9 +29,25 @@ export async function GET() {
       throw new Error("שגיאה בשליפת רשימת הגיבויים מה-NAS: " + dbErr.message);
     }
 
+    // Fetch retention setting
+    const { data: configData } = await supabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "backup_retention_days")
+      .maybeSingle();
+
+    let retentionDays = 30;
+    if (configData?.value !== undefined && configData?.value !== null) {
+      const parsed = parseInt(String(configData.value), 10);
+      if (!isNaN(parsed) && parsed >= 1) {
+        retentionDays = parsed;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       backups: backups || [],
+      retentionDays,
     });
   } catch (err: any) {
     console.error("[Backups API GET Error]", err);
@@ -43,7 +59,7 @@ export async function GET() {
 }
 
 /**
- * POST /api/admin/backups - Create, restore or download NAS backups
+ * POST /api/admin/backups - Create, restore, download NAS backups, or set retention days
  */
 export async function POST(req: NextRequest) {
   try {
@@ -60,7 +76,48 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const action = body.action;
 
-    // 1. Action: CREATE MANUAL BACKUP ON NAS
+    // 1. Action: SET RETENTION DAYS
+    if (action === "set_retention") {
+      const days = parseInt(body.retentionDays, 10);
+      if (isNaN(days) || days < 1 || days > 365) {
+        return NextResponse.json({ error: "מספר הימים חייב להיות מספר חיובי בין 1 ל-365." }, { status: 400 });
+      }
+
+      const { error: upsertErr } = await supabase
+        .from("system_config")
+        .upsert({
+          key: "backup_retention_days",
+          value: days,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (upsertErr) {
+        throw new Error("שגיאה בעדכון ימי הגיבוי: " + upsertErr.message);
+      }
+
+      // Enforce immediate cleanup of backups beyond the new limit
+      try {
+        const { data: allBackups } = await supabase
+          .from("system_backups")
+          .select("id")
+          .order("created_at", { ascending: false });
+
+        if (allBackups && allBackups.length > days) {
+          const toDeleteIds = allBackups.slice(days).map((b) => b.id);
+          await supabase.from("system_backups").delete().in("id", toDeleteIds);
+        }
+      } catch (cleanErr) {
+        console.warn("Immediate cleanup note:", cleanErr);
+      }
+
+      return NextResponse.json({
+        ok: true,
+        retentionDays: days,
+        message: `מדיניות השמירה עודכנה בהצלחה: יישמרו ${days} ימי גיבוי אחרונים ב-NAS.`,
+      });
+    }
+
+    // 2. Action: CREATE MANUAL BACKUP ON NAS
     if (action === "create") {
       const { data, error } = await supabase.rpc("generate_system_backup", {
         p_backup_type: "manual_admin",
@@ -77,7 +134,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. Action: RESTORE BACKUP FROM NAS
+    // 3. Action: RESTORE BACKUP FROM NAS
     if (action === "restore") {
       const backupId = body.backupId;
       if (!backupId) {
@@ -99,7 +156,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. Action: DOWNLOAD SQL CONTENT OF A BACKUP
+    // 4. Action: DOWNLOAD SQL CONTENT OF A BACKUP
     if (action === "download") {
       const backupId = body.backupId;
       if (!backupId) {
