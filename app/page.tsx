@@ -10,7 +10,7 @@ import ReportModal from "@/components/ReportModal";
 import BulkUpdateModal from "@/components/BulkUpdateModal";
 import MissingReportsModal from "@/components/MissingReportsModal";
 import { monthKey, useMonthData } from "@/lib/client";
-import { DayRecord, MonthData, ReportInput } from "@/lib/types";
+import { DayRecord, MonthData, ReportInput, MissingReportItem } from "@/lib/types";
 
 export default function Home() {
   const now = useMemo(() => new Date(), []);
@@ -67,10 +67,27 @@ export default function Home() {
   }, []);
 
   const openEditForDate = useCallback(
-    (date: string) => {
+    (date: string, item?: MissingReportItem) => {
       const rec = data?.records.find((r) => r.date === date);
       if (rec) {
         setEditRecord(rec);
+      } else if (item) {
+        setEditRecord({
+          date: item.date,
+          dayOfWeek: item.dayName,
+          dailyStandard: item.dailyStandard,
+          entry: "",
+          exit: "",
+          totalHours: "0:00",
+          totalHoursDecimal: 0,
+          overtimeDecimal: 0,
+          vacationDays: 0,
+          sickDays: 0,
+          reserveDays: 0,
+          classification: item.classification || "עבודה",
+          notes: item.notes || "",
+          uniqueNotes: item.uniqueNotes || "",
+        } as unknown as DayRecord);
       } else {
         setEditRecord(null);
       }
@@ -345,6 +362,27 @@ export default function Home() {
         {tab === "settings" && <SettingsScreen />}
       </main>
 
+      {missingModalOpen && (
+        <MissingReportsModal
+          onClose={() => setMissingModalOpen(false)}
+          onEditDate={openEditForDate}
+          onBulkUpdate={(dates) => {
+            setBulkDates(dates);
+            setBulkModalOpen(true);
+          }}
+          onQuickSave={handleQuickSaveMissing}
+        />
+      )}
+
+      {bulkModalOpen && (
+        <BulkUpdateModal
+          selectedDates={bulkDates}
+          existingRecords={data?.records ?? []}
+          onClose={() => setBulkModalOpen(false)}
+          onSaveBatch={saveReportsBatch}
+        />
+      )}
+
       {modalOpen && (
         <ReportModal
           record={editRecord}
@@ -363,27 +401,6 @@ export default function Home() {
             setModalOpen(false);
             setModalDate(null);
           }}
-        />
-      )}
-
-      {bulkModalOpen && (
-        <BulkUpdateModal
-          selectedDates={bulkDates}
-          existingRecords={data?.records ?? []}
-          onClose={() => setBulkModalOpen(false)}
-          onSaveBatch={saveReportsBatch}
-        />
-      )}
-
-      {missingModalOpen && (
-        <MissingReportsModal
-          onClose={() => setMissingModalOpen(false)}
-          onEditDate={openEditForDate}
-          onBulkUpdate={(dates) => {
-            setBulkDates(dates);
-            setBulkModalOpen(true);
-          }}
-          onQuickSave={handleQuickSaveMissing}
         />
       )}
     </div>
