@@ -6,6 +6,7 @@ import Header, { TabId } from "@/components/Header";
 import Dashboard from "@/components/Dashboard";
 import ReportsScreen from "@/components/ReportsScreen";
 import SettingsScreen from "@/components/SettingsScreen";
+import GuideScreen from "@/components/GuideScreen";
 import ReportModal from "@/components/ReportModal";
 import BulkUpdateModal from "@/components/BulkUpdateModal";
 import MissingReportsModal from "@/components/MissingReportsModal";
@@ -359,6 +360,7 @@ export default function Home() {
             onBulkUpdate={openBulkUpdate}
           />
         )}
+        {tab === "guide" && <GuideScreen />}
         {tab === "settings" && <SettingsScreen />}
       </main>
 

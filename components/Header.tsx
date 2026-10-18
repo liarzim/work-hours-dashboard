@@ -13,12 +13,14 @@ import {
   RefreshIcon,
   ShieldIcon,
   LogOutIcon,
+  BookOpenIcon,
 } from "./Icons";
-export type TabId = "board" | "reports" | "settings";
+export type TabId = "board" | "reports" | "guide" | "settings";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "board", label: "לוח בקרה", icon: <GridIcon /> },
   { id: "reports", label: "דיווחים", icon: <ListIcon /> },
+  { id: "guide", label: "הדרכה", icon: <BookOpenIcon /> },
   { id: "settings", label: "הגדרות", icon: <ShieldIcon /> },
 ];
 
