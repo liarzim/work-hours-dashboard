@@ -120,8 +120,8 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
 
   // Check if a day record is a missing report and its type
   const getMissingReportType = (r: DayRecord): "full" | "missing_entry" | "missing_exit" | null => {
-    // 1. Must be strictly past date (yesterday and backwards)
-    if (r.date >= todayIso) return null;
+    // 1. Must not be a future date
+    if (r.date > todayIso) return null;
 
     // 2. Must not be a defined non-working day (e.g. weekend)
     const [yStr, mStr, dStr] = r.date.split("-");
@@ -161,6 +161,11 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
 
     if (hasEntry && hasExit) {
       return null; // Complete report!
+    }
+
+    // If it's today and neither entry nor exit has been reported yet, it's not missing yet
+    if (r.date === todayIso && !hasEntry && !hasExit) {
+      return null;
     }
 
     if (!hasEntry && !hasExit) {
@@ -397,7 +402,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                 if (r.sickDays) absences.push(`מחלה ${r.sickDays}`);
                 if (r.reserveDays) absences.push(`מילואים ${r.reserveDays}`);
                 const missingType = missingMap.get(r.date);
-                const isMissing = Boolean(missingType);
+                const isMissing = Boolean(missingType) || Boolean((r.entry && !r.exit) || (!r.entry && r.exit));
                 const isToday = r.date === todayIso;
                 return (
                   <tr
@@ -474,7 +479,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                             <span>{r.shifts.length} מקטעים</span>
                           </span>
                         </div>
-                      ) : missingType === "missing_exit" ? (
+                      ) : missingType === "missing_exit" || (r.entry && !r.exit) ? (
                         <div className="flex flex-col items-center gap-0.5">
                           <span dir="ltr" className="font-semibold text-xs text-amber-950">
                             {r.entry} — <span className="text-rose-500 font-extrabold">--:--</span>
@@ -483,7 +488,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                             חסרה יציאה
                           </span>
                         </div>
-                      ) : missingType === "missing_entry" ? (
+                      ) : missingType === "missing_entry" || (!r.entry && r.exit) ? (
                         <div className="flex flex-col items-center gap-0.5">
                           <span dir="ltr" className="font-semibold text-xs text-amber-950">
                             <span className="text-rose-500 font-extrabold">--:--</span> — {r.exit}
@@ -524,12 +529,12 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                           <span>⚠️</span>
                           <span>דיווח חסר מלא</span>
                         </span>
-                      ) : missingType === "missing_entry" ? (
+                      ) : missingType === "missing_entry" || (!r.entry && r.exit) ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900 shadow-2xs whitespace-nowrap">
                           <span>⚠️</span>
                           <span>חסר חלקי - כניסה</span>
                         </span>
-                      ) : missingType === "missing_exit" ? (
+                      ) : missingType === "missing_exit" || (r.entry && !r.exit) ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-800 shadow-2xs whitespace-nowrap">
                           <span>⚠️</span>
                           <span>חסר חלקי - יציאה</span>

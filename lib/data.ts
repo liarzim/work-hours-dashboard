@@ -805,11 +805,9 @@ export async function getMissingReportsList(options?: {
 }): Promise<MissingReportsResponse> {
   const mode = currentMode();
 
-  // "to" is yesterday (inclusive)
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const defaultTo = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
-  const to = options?.to || defaultTo;
+  // "to" is today (inclusive) so partial reports on today are detected
+  const currentToday = todayIso();
+  const to = options?.to || currentToday;
 
   const holidaySet = new Set<string>([
     ...DEFAULT_HOLIDAY_DATES,
@@ -823,7 +821,7 @@ export async function getMissingReportsList(options?: {
 
   if (mode === "mock") {
     if (!from) {
-      from = `${yesterday.getFullYear() - 1}-01-01`;
+      from = `${new Date().getFullYear() - 1}-01-01`;
     }
     const all = mock.mockAllRecords();
     for (const r of all) {
@@ -857,7 +855,7 @@ export async function getMissingReportsList(options?: {
         .limit(1);
 
       const dbFirstDate = firstReportRes.data?.[0]?.date;
-      const minCapDate = `${yesterday.getFullYear() - 1}-01-01`; // Look up to 1-2 years back
+      const minCapDate = `${new Date().getFullYear() - 1}-01-01`; // Look up to 1-2 years back
       if (dbFirstDate) {
         from = dbFirstDate < minCapDate ? minCapDate : dbFirstDate;
       } else {
@@ -944,6 +942,11 @@ export async function getMissingReportsList(options?: {
       if (hasBothHours || hasAbsence || isExcused) {
         continue;
       }
+    }
+
+    // For today: only count as missing IF a partial report exists (entry without exit, or exit without entry)
+    if (iso === currentToday && !rowEntry && !rowExit) {
+      continue;
     }
 
     const activeTerm = findActiveTermForDate(terms, iso);
