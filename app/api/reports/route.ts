@@ -69,9 +69,6 @@ export async function POST(req: NextRequest) {
   if (body.exit && !hhmm.test(body.exit)) {
     return NextResponse.json({ error: "שעת יציאה לא תקינה (HH:mm)" }, { status: 400 });
   }
-  if ((body.entry && !body.exit) || (!body.entry && body.exit)) {
-    return NextResponse.json({ error: "יש למלא גם כניסה וגם יציאה" }, { status: 400 });
-  }
   if (body.entry && body.exit && toMinutes(body.exit) <= toMinutes(body.entry)) {
     return NextResponse.json(
       { error: "שעת היציאה חייבת להיות אחרי שעת הכניסה" },

@@ -435,6 +435,17 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                 </div>
               </div>
             )}
+
+            {((entry && !exit) || (!entry && exit)) && shifts.length === 0 && (
+              <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-50/90 border border-amber-200 px-3 py-2 text-xs text-amber-900">
+                <span className="text-sm">⚠️</span>
+                <span>
+                  {entry && !exit
+                    ? 'הוזנה שעת כניסה בלבד ללא שעת יציאה. הדיווח יישמר כ"דיווח חסר חלקי - יציאה".'
+                    : 'הוזנה שעת יציאה בלבד ללא שעת כניסה. הדיווח יישמר כ"דיווח חסר חלקי - כניסה".'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Full-day absences */}

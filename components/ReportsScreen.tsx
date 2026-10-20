@@ -118,19 +118,19 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
     return "";
   };
 
-  // Check if a day record is a missing report
-  const isMissingReport = (r: DayRecord): boolean => {
+  // Check if a day record is a missing report and its type
+  const getMissingReportType = (r: DayRecord): "full" | "missing_entry" | "missing_exit" | null => {
     // 1. Must be strictly past date (yesterday and backwards)
-    if (r.date >= todayIso) return false;
+    if (r.date >= todayIso) return null;
 
     // 2. Must not be a defined non-working day (e.g. weekend)
     const [yStr, mStr, dStr] = r.date.split("-");
     const dateObj = new Date(Number(yStr), Number(mStr) - 1, Number(dStr));
     const dow = dateObj.getDay();
-    if (nonWorkingDaysSet.has(dow)) return false;
+    if (nonWorkingDaysSet.has(dow)) return null;
 
     // 3. Must not be a holiday from the holidays settings table
-    if (holidayDatesSet.has(r.date)) return false;
+    if (holidayDatesSet.has(r.date)) return null;
 
     // 4. Must not have an excused absence / weekend / holiday classification
     const normC = (r.classification || "").replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
@@ -139,6 +139,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
       normC === "חופשה" ||
       normC === "מחלה" ||
       normC === "מילואים" ||
+      normC === "עבודה במילואים" ||
       normC === "חג" ||
       normC === "ערב חג" ||
       normC === "חול המועד" ||
@@ -146,35 +147,54 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
       normC === "סופש" ||
       normC === "סופשבוע"
     ) {
-      return false;
+      return null;
     }
 
     // 5. Must not have any absence days recorded
     if ((r.vacationDays ?? 0) > 0 || (r.sickDays ?? 0) > 0 || (r.reserveDays ?? 0) > 0) {
-      return false;
+      return null;
     }
 
-    // 6. Must not have entry, exit or total hours reported
-    const hasHours = Boolean(
-      (r.entry && r.entry.trim() !== "") ||
-      (r.exit && r.exit.trim() !== "") ||
-      ((r.totalHoursDecimal ?? 0) > 0)
-    );
-    if (hasHours) return false;
+    // 6. Check entry and exit
+    const hasEntry = Boolean(r.entry && r.entry.trim() !== "");
+    const hasExit = Boolean(r.exit && r.exit.trim() !== "");
 
-    return true;
+    if (hasEntry && hasExit) {
+      return null; // Complete report!
+    }
+
+    if (!hasEntry && !hasExit) {
+      return "full";
+    }
+    if (!hasEntry && hasExit) {
+      return "missing_entry";
+    }
+    return "missing_exit";
   };
 
-  // Set of dates identified as missing reports
-  const missingDatesSet = useMemo(() => {
-    const s = new Set<string>();
+  // Map of dates to their missing type
+  const missingMap = useMemo(() => {
+    const map = new Map<string, "full" | "missing_entry" | "missing_exit">();
     for (const r of records) {
-      if (isMissingReport(r)) {
-        s.add(r.date);
-      }
+      const type = getMissingReportType(r);
+      if (type) map.set(r.date, type);
     }
-    return s;
+    return map;
   }, [records, todayIso, nonWorkingDaysSet, holidayDatesSet]);
+
+  const missingDatesSet = useMemo(() => new Set(missingMap.keys()), [missingMap]);
+
+  const missingBreakdown = useMemo(() => {
+    let full = 0;
+    let missingEntry = 0;
+    let missingExit = 0;
+    missingMap.forEach((type) => {
+      if (type === "full") full++;
+      else if (type === "missing_entry") missingEntry++;
+      else if (type === "missing_exit") missingExit++;
+    });
+    return { full, missingEntry, missingExit };
+  }, [missingMap]);
 
   const classifications = useMemo(() => {
     const s = new Set<string>();
@@ -183,31 +203,41 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
       if (c) s.add(c);
     });
     const list = ["הכל", ...Array.from(s)];
-    if (missingDatesSet.size > 0 && !list.includes("דיווחים חסרים")) {
+    if (missingDatesSet.size > 0) {
       list.push("דיווחים חסרים");
+      if (missingBreakdown.full > 0) list.push("דיווח חסר מלא");
+      if (missingBreakdown.missingEntry > 0) list.push("דיווח חסר חלקי - כניסה");
+      if (missingBreakdown.missingExit > 0) list.push("דיווח חסר חלקי - יציאה");
     }
     return list;
-  }, [records, missingDatesSet, holidayMap, nonWorkingDaysSet, todayIso]);
+  }, [records, missingDatesSet, missingBreakdown, holidayMap, nonWorkingDaysSet, todayIso]);
 
   const filtered = useMemo(() => {
     return records.filter((r) => {
-      const isMissing = missingDatesSet.has(r.date);
+      const missingType = missingMap.get(r.date);
+      const isMissing = Boolean(missingType);
       const effClass = getEffectiveClassification(r);
       const effNotes = getEffectiveNotes(r);
 
       if (showMissingOnly && !isMissing) return false;
       if (classFilter === "דיווחים חסרים") {
         if (!isMissing) return false;
+      } else if (classFilter === "דיווח חסר מלא") {
+        if (missingType !== "full") return false;
+      } else if (classFilter === "דיווח חסר חלקי - כניסה") {
+        if (missingType !== "missing_entry") return false;
+      } else if (classFilter === "דיווח חסר חלקי - יציאה") {
+        if (missingType !== "missing_exit") return false;
       } else if (classFilter !== "הכל" && effClass !== classFilter) {
         return false;
       }
       if (search) {
-        const hay = `${r.dateDisplay} ${effNotes} ${r.uniqueNotes ?? ""} ${effClass} ${r.dayName ?? ""} ${isMissing ? "חסר דיווח חסרים" : ""}`;
+        const hay = `${r.dateDisplay} ${effNotes} ${r.uniqueNotes ?? ""} ${effClass} ${r.dayName ?? ""} ${isMissing ? "חסר דיווח חסרים חלקי כניסה יציאה" : ""}`;
         if (!hay.includes(search)) return false;
       }
       return true;
     });
-  }, [records, classFilter, showMissingOnly, search, missingDatesSet, holidayMap, nonWorkingDaysSet, todayIso]);
+  }, [records, classFilter, showMissingOnly, search, missingMap, holidayMap, nonWorkingDaysSet, todayIso]);
 
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
@@ -265,7 +295,11 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
               ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
               : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
           }`}
-          title={missingDatesSet.size > 0 ? "הצג רק ימי עבודה שטרם דווחו בעבר" : "אין דיווחים חסרים"}
+          title={
+            missingDatesSet.size > 0
+              ? `סה"כ דיווחים חסרים: ${missingDatesSet.size} (מלא: ${missingBreakdown.full}, חסר כניסה: ${missingBreakdown.missingEntry}, חסר יציאה: ${missingBreakdown.missingExit})`
+              : "אין דיווחים חסרים"
+          }
         >
           <span>⚠️</span>
           <span>דיווחים חסרים</span>
@@ -362,7 +396,8 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                 if (r.vacationDays) absences.push(`חופש ${r.vacationDays}`);
                 if (r.sickDays) absences.push(`מחלה ${r.sickDays}`);
                 if (r.reserveDays) absences.push(`מילואים ${r.reserveDays}`);
-                const isMissing = missingDatesSet.has(r.date);
+                const missingType = missingMap.get(r.date);
+                const isMissing = Boolean(missingType);
                 const isToday = r.date === todayIso;
                 return (
                   <tr
@@ -401,7 +436,22 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                         <>
                           <div className="flex items-center gap-1.5">
                             {isMissing && (
-                              <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" title="דיווח חסר" />
+                              <span
+                                className={`h-2 w-2 rounded-full shrink-0 ${
+                                  missingType === "missing_exit"
+                                    ? "bg-rose-500"
+                                    : missingType === "missing_entry"
+                                    ? "bg-amber-500"
+                                    : "bg-amber-500"
+                                }`}
+                                title={
+                                  missingType === "missing_exit"
+                                    ? "דיווח חסר חלקי - יציאה"
+                                    : missingType === "missing_entry"
+                                    ? "דיווח חסר חלקי - כניסה"
+                                    : "דיווח חסר מלא"
+                                }
+                              />
                             )}
                             <span className={`font-semibold ${isMissing ? "text-amber-950 font-bold" : "text-slate-800"}`}>
                               {r.dateDisplay}
@@ -424,13 +474,31 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                             <span>{r.shifts.length} מקטעים</span>
                           </span>
                         </div>
+                      ) : missingType === "missing_exit" ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span dir="ltr" className="font-semibold text-xs text-amber-950">
+                            {r.entry} — <span className="text-rose-500 font-extrabold">--:--</span>
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-50 px-2 py-0.2 text-[10px] font-bold text-rose-700 border border-rose-200">
+                            חסרה יציאה
+                          </span>
+                        </div>
+                      ) : missingType === "missing_entry" ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span dir="ltr" className="font-semibold text-xs text-amber-950">
+                            <span className="text-rose-500 font-extrabold">--:--</span> — {r.exit}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100/90 px-2 py-0.2 text-[10px] font-bold text-amber-900 border border-amber-300">
+                            חסרה כניסה
+                          </span>
+                        </div>
+                      ) : missingType === "full" ? (
+                        <span className="inline-block rounded-md bg-amber-100/90 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
+                          לא מולא
+                        </span>
                       ) : r.entry && r.exit ? (
                         <span dir="ltr" className="font-medium">
                           {r.entry} — {r.exit}
-                        </span>
-                      ) : isMissing ? (
-                        <span className="inline-block rounded-md bg-amber-100/90 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
-                          לא מולא
                         </span>
                       ) : (
                         <span className="text-slate-300">—</span>
@@ -451,10 +519,20 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-center">
-                      {isMissing ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold text-amber-900 shadow-xs">
+                      {missingType === "full" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold text-amber-900 shadow-2xs whitespace-nowrap">
                           <span>⚠️</span>
-                          <span>חסר דיווח</span>
+                          <span>דיווח חסר מלא</span>
+                        </span>
+                      ) : missingType === "missing_entry" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900 shadow-2xs whitespace-nowrap">
+                          <span>⚠️</span>
+                          <span>חסר חלקי - כניסה</span>
+                        </span>
+                      ) : missingType === "missing_exit" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-800 shadow-2xs whitespace-nowrap">
+                          <span>⚠️</span>
+                          <span>חסר חלקי - יציאה</span>
                         </span>
                       ) : (() => {
                         const effC = getEffectiveClassification(r);
