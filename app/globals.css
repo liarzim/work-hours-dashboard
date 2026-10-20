@@ -18,3 +18,21 @@ input[type="date"],
   direction: ltr;
   text-align: center;
 }
+
+/* Today's row blinking square highlight in Reports screen */
+@keyframes todayBlinkPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px #2563eb, 0 0 16px rgba(37, 99, 235, 0.45);
+    border-color: #2563eb;
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 0 1.5px rgba(37, 99, 235, 0.25), 0 0 4px rgba(37, 99, 235, 0.1);
+    border-color: #93c5fd;
+    transform: scale(1);
+  }
+}
+
+.animate-today-blink {
+  animation: todayBlinkPulse 1.4s ease-in-out infinite;
+}
