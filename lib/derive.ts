@@ -115,7 +115,7 @@ export function deriveDayRecord(
   } else {
     const entryDec = hhmmToDecimal(entry);
     const exitDec = hhmmToDecimal(exit);
-    totalHoursDecimal = Math.max(0, Math.round((exitDec - entryDec) * 100) / 100);
+    totalHoursDecimal = (entry && exit) ? Math.max(0, Math.round((exitDec - entryDec) * 100) / 100) : 0;
   }
   const totalHours = totalHoursDecimal > 0 ? decimalToHhmm(totalHoursDecimal) : "";
   

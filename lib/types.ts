@@ -94,6 +94,8 @@ export interface MonthData {
   info: JournalInfo;
 }
 
+export type MissingReportType = "full" | "missing_entry" | "missing_exit";
+
 export interface MissingReportItem {
   date: string; // ISO yyyy-mm-dd
   dateDisplay: string; // dd/mm/yyyy
@@ -104,10 +106,18 @@ export interface MissingReportItem {
   notes?: string;
   uniqueNotes?: string;
   classification?: string;
+  entry?: string;
+  exit?: string;
+  missingType?: MissingReportType;
 }
 
 export interface MissingReportsResponse {
   count: number;
+  breakdown?: {
+    full: number;
+    missingEntry: number;
+    missingExit: number;
+  };
   missing: MissingReportItem[];
 }
 

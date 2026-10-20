@@ -9,6 +9,7 @@ import type {
   StandardSettings,
   MissingReportItem,
   MissingReportsResponse,
+  MissingReportType,
 } from "./types";
 import { HEBREW_DAYS } from "./types";
 import { computeMonthSummary } from "./calc";
@@ -916,10 +917,13 @@ export async function getMissingReportsList(options?: {
     if (holidaySet.has(iso)) continue;
 
     const row = reportsMap.get(iso);
+    let rowEntry = "";
+    let rowExit = "";
+
     if (row) {
-      const entryStr = (row.entry || "").trim();
-      const exitStr = (row.exit || "").trim();
-      const hasHours = Boolean(entryStr !== "" && exitStr !== "");
+      rowEntry = (row.entry || "").trim();
+      rowExit = (row.exit || "").trim();
+      const hasBothHours = Boolean(rowEntry !== "" && rowExit !== "");
       const hasAbsence = Boolean(
         Number(row.vacation_days || 0) > 0 ||
         Number(row.sick_days || 0) > 0 ||
@@ -937,13 +941,22 @@ export async function getMissingReportsList(options?: {
         normC === "חול המועד" ||
         normC.includes("סופ");
 
-      if (hasHours || hasAbsence || isExcused) {
+      if (hasBothHours || hasAbsence || isExcused) {
         continue;
       }
     }
 
     const activeTerm = findActiveTermForDate(terms, iso);
     const dailyStandard = dow === 4 ? activeTerm.dailyStandardThu : activeTerm.dailyStandardSunWed;
+
+    let missingType: MissingReportType = "full";
+    if (!rowEntry && rowExit) {
+      missingType = "missing_entry";
+    } else if (rowEntry && !rowExit) {
+      missingType = "missing_exit";
+    } else {
+      missingType = "full";
+    }
 
     missing.push({
       date: iso,
@@ -955,14 +968,24 @@ export async function getMissingReportsList(options?: {
       classification: row?.classification || "",
       notes: row?.notes || "",
       uniqueNotes: row?.unique_notes || "",
+      entry: rowEntry || undefined,
+      exit: rowExit || undefined,
+      missingType,
     });
   }
 
   // Sort descending: most recent missing days first
   missing.sort((a, b) => b.date.localeCompare(a.date));
 
+  const breakdown = {
+    full: missing.filter((m) => m.missingType === "full").length,
+    missingEntry: missing.filter((m) => m.missingType === "missing_entry").length,
+    missingExit: missing.filter((m) => m.missingType === "missing_exit").length,
+  };
+
   return {
     count: missing.length,
+    breakdown,
     missing,
   };
 }

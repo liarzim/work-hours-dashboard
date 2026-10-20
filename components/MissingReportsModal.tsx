@@ -32,6 +32,7 @@ export default function MissingReportsModal({
   const { mutate } = useSWRConfig();
 
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
@@ -65,13 +66,17 @@ export default function MissingReportsModal({
         const itemKey = `${item.year}-${String(item.month).padStart(2, "0")}`;
         if (itemKey !== selectedMonth) return false;
       }
+      if (selectedType !== "all") {
+        const mType = item.missingType || "full";
+        if (mType !== selectedType) return false;
+      }
       if (search) {
-        const hay = `${item.dateDisplay} ${item.date} ${item.dayName} ${item.notes ?? ""}`;
+        const hay = `${item.dateDisplay} ${item.date} ${item.dayName} ${item.notes ?? ""} ${item.entry ?? ""} ${item.exit ?? ""}`;
         if (!hay.includes(search)) return false;
       }
       return true;
     });
-  }, [missingList, selectedMonth, search]);
+  }, [missingList, selectedMonth, selectedType, search]);
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -153,6 +158,19 @@ export default function MissingReportsModal({
                   ? "טוען דיווחים חסרים..."
                   : `נמצאו ${missingList.length} ימי עבודה בעבר ללא דיווח (כולל חודשים קודמים)`}
               </p>
+              {data?.breakdown && missingList.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[11px]">
+                  <span className="rounded-md bg-rose-50 px-2 py-0.5 font-bold text-rose-700 border border-rose-200">
+                    מלא: {data.breakdown.full}
+                  </span>
+                  <span className="rounded-md bg-amber-50 px-2 py-0.5 font-bold text-amber-800 border border-amber-300">
+                    חסר כניסה: {data.breakdown.missingEntry}
+                  </span>
+                  <span className="rounded-md bg-blue-50 px-2 py-0.5 font-bold text-blue-700 border border-blue-200">
+                    חסר יציאה: {data.breakdown.missingExit}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <button
@@ -180,6 +198,20 @@ export default function MissingReportsModal({
                 {opt.label}
               </option>
             ))}
+          </select>
+
+          <select
+            value={selectedType}
+            onChange={(e) => {
+              setSelectedType(e.target.value);
+              setSelectedDates([]);
+            }}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-brand-500"
+          >
+            <option value="all">כל הסוגים</option>
+            <option value="full">דיווח חסר מלא ({data?.breakdown?.full ?? 0})</option>
+            <option value="missing_entry">חסר כניסה ({data?.breakdown?.missingEntry ?? 0})</option>
+            <option value="missing_exit">חסר יציאה ({data?.breakdown?.missingExit ?? 0})</option>
           </select>
 
           <input
@@ -267,9 +299,19 @@ export default function MissingReportsModal({
                           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
                             {item.dayName}
                           </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
-                            ⚠️ לא מולא
-                          </span>
+                          {item.missingType === "missing_exit" ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-800 border border-rose-200">
+                              ⚠️ חסר חלקי - יציאה (כניסה: {item.entry})
+                            </span>
+                          ) : item.missingType === "missing_entry" ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
+                              ⚠️ חסר חלקי - כניסה (יציאה: {item.exit})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                              ⚠️ דיווח חסר מלא
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
                           תקן יומי: {item.dailyStandard} שעות

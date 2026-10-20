@@ -133,9 +133,31 @@ export default function KpiCards({ summary, onOpenMissingModal, onOpenOvertimeMo
         valueClass={missingCount > 0 ? "text-amber-600 font-extrabold" : "text-emerald-600"}
         sub={
           missingCount > 0 ? (
-            <span className="font-medium text-amber-700">
-              כולל חודשים קודמים • לחץ לעדכון ⚡
-            </span>
+            <div className="space-y-2">
+              <span className="font-medium text-amber-700 block">
+                כולל חודשים קודמים • לחץ לעדכון ⚡
+              </span>
+              <div className="flex flex-wrap items-center gap-1 text-[10px]">
+                <span
+                  className="rounded-md bg-rose-50 px-1.5 py-0.5 font-bold text-rose-700 border border-rose-200"
+                  title="ללא שעת כניסה וללא שעת יציאה"
+                >
+                  מלא: {missingData?.breakdown?.full ?? 0}
+                </span>
+                <span
+                  className="rounded-md bg-amber-50 px-1.5 py-0.5 font-bold text-amber-800 border border-amber-300"
+                  title="הוזנה יציאה אך חסרה כניסה"
+                >
+                  חסר כניסה: {missingData?.breakdown?.missingEntry ?? 0}
+                </span>
+                <span
+                  className="rounded-md bg-blue-50 px-1.5 py-0.5 font-bold text-blue-700 border border-blue-200"
+                  title="הוזנה כניסה אך חסרה יציאה"
+                >
+                  חסר יציאה: {missingData?.breakdown?.missingExit ?? 0}
+                </span>
+              </div>
+            </div>
           ) : (
             <span className="text-emerald-600 font-medium">
               מעולה! אין דיווחים חסרים
