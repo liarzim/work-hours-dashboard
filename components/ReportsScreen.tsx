@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { DayRecord, HEBREW_MONTHS, MonthData } from "@/lib/types";
 import { PencilIcon } from "./Icons";
 import { getHolidays, getNonWorkingDays, HolidaySetting } from "@/lib/settingsStore";
@@ -69,7 +69,26 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
     return `${y}-${m}-${d}`;
   }, []);
 
+  const todayRowRef = useRef<HTMLTableRowElement | null>(null);
+
   const records = data?.records ?? [];
+
+  // Automatically scroll to today's row when viewing current month/year
+  useEffect(() => {
+    const now = new Date();
+    if (year === now.getFullYear() && month === now.getMonth() + 1) {
+      const timer = setTimeout(() => {
+        if (todayRowRef.current) {
+          todayRowRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          });
+        }
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [year, month, records.length]);
 
   // Reset selection when year/month or filters change
   useEffect(() => {
@@ -262,6 +281,26 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
             {missingDatesSet.size}
           </span>
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            const now = new Date();
+            const curY = now.getFullYear();
+            const curM = now.getMonth() + 1;
+            if (year !== curY || month !== curM) {
+              onYear(curY);
+              onMonth(curM);
+            }
+            setTimeout(() => {
+              todayRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+            }, 250);
+          }}
+          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700 hover:bg-brand-100 transition cursor-pointer"
+          title="קפיצה מהירה לתאריך של היום ומיקוד"
+        >
+          <span>📍</span>
+          <span>היום</span>
+        </button>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -324,11 +363,15 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                 if (r.sickDays) absences.push(`מחלה ${r.sickDays}`);
                 if (r.reserveDays) absences.push(`מילואים ${r.reserveDays}`);
                 const isMissing = missingDatesSet.has(r.date);
+                const isToday = r.date === todayIso;
                 return (
                   <tr
                     key={r.date}
+                    ref={isToday ? todayRowRef : undefined}
                     className={`border-b transition ${
-                      isMissing
+                      isToday
+                        ? "bg-blue-50/70 hover:bg-blue-100/70 border-y-2 border-brand-400"
+                        : isMissing
                         ? "bg-amber-50/90 hover:bg-amber-100/80 border-s-4 border-s-amber-400 border-b-amber-200/60"
                         : "border-slate-50 hover:bg-slate-50/60"
                     }`}
@@ -342,15 +385,31 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                       />
                     </td>
                     <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-1.5">
-                        {isMissing && (
-                          <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" title="דיווח חסר" />
-                        )}
-                        <span className={`font-semibold ${isMissing ? "text-amber-950 font-bold" : "text-slate-800"}`}>
-                          {r.dateDisplay}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-400">{r.dayName}</div>
+                      {isToday ? (
+                        <div className="relative inline-flex flex-col rounded-xl border-2 border-brand-600 bg-white px-3 py-1.5 shadow-sm animate-today-blink">
+                          <span className="absolute -top-2.5 right-2 inline-flex items-center gap-0.5 rounded bg-brand-600 text-white text-[10px] font-black px-1.5 py-0.2 shadow-xs whitespace-nowrap">
+                            היום 📍
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="font-extrabold text-brand-900 text-sm">
+                              {r.dateDisplay}
+                            </span>
+                          </div>
+                          <div className="text-[11px] font-bold text-brand-700">{r.dayName}</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-1.5">
+                            {isMissing && (
+                              <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" title="דיווח חסר" />
+                            )}
+                            <span className={`font-semibold ${isMissing ? "text-amber-950 font-bold" : "text-slate-800"}`}>
+                              {r.dateDisplay}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-400">{r.dayName}</div>
+                        </>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-center text-brand-700">
                       {r.shifts && r.shifts.length > 1 ? (

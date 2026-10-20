@@ -337,7 +337,14 @@ export default function Home() {
     <div className="min-h-screen">
       <Header
         tab={tab}
-        onTab={setTab}
+        onTab={(newTab) => {
+          setTab(newTab);
+          if (newTab === "reports") {
+            const now = new Date();
+            setYear(now.getFullYear());
+            setMonth(now.getMonth() + 1);
+          }
+        }}
         year={year}
         month={month}
         onPrevMonth={() => shiftMonth(-1)}
