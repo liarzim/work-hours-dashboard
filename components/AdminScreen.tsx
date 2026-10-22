@@ -458,6 +458,56 @@ export default function AdminScreen() {
     };
   };
 
+  // Helper to resolve the most recent backup covering this user (either user-specific or system-wide NAS snapshot)
+  const getUserEffectiveBackupInfo = (u: AdminUserItem) => {
+    const userBackupDate = u.last_backup_at ? new Date(u.last_backup_at) : null;
+
+    // Check if the latest system snapshot covers this user
+    const latestSys = nasBackups[0] || null;
+    let systemBackupDate: Date | null = null;
+    if (latestSys?.created_at) {
+      const sysDate = new Date(latestSys.created_at);
+      const userCreatedDate = u.created_at ? new Date(u.created_at) : null;
+      if (!userCreatedDate || userCreatedDate <= sysDate) {
+        systemBackupDate = sysDate;
+      }
+    }
+
+    if (!userBackupDate && !systemBackupDate) {
+      return {
+        hasBackup: false,
+        effectiveDate: null,
+        source: null as "system" | "user" | null,
+        daysInfo: getDaysSinceLastBackup(null),
+      };
+    }
+
+    let source: "system" | "user" = "user";
+    let effectiveDate = userBackupDate;
+
+    if (!userBackupDate && systemBackupDate) {
+      source = "system";
+      effectiveDate = systemBackupDate;
+    } else if (userBackupDate && systemBackupDate) {
+      if (systemBackupDate.getTime() >= userBackupDate.getTime()) {
+        source = "system";
+        effectiveDate = systemBackupDate;
+      } else {
+        source = "user";
+        effectiveDate = userBackupDate;
+      }
+    }
+
+    return {
+      hasBackup: true,
+      effectiveDate: effectiveDate ? effectiveDate.toISOString() : null,
+      source,
+      daysInfo: getDaysSinceLastBackup(effectiveDate ? effectiveDate.toISOString() : null),
+      userBackupDate: userBackupDate ? userBackupDate.toISOString() : null,
+      systemBackupDate: systemBackupDate ? systemBackupDate.toISOString() : null,
+    };
+  };
+
   // Restrict access
   if (userEmail && userEmail.toLowerCase() !== "michael.liarzi@gmail.com") {
     return (
@@ -671,6 +721,7 @@ export default function AdminScreen() {
                     const isSelf = u.email?.toLowerCase() === userEmail.toLowerCase();
                     const isExpanded = expandedUserBackupsId === u.id;
                     const uBackups = u.backups || [];
+                    const effectiveBackup = getUserEffectiveBackupInfo(u);
 
                     return (
                       <Fragment key={u.id}>
@@ -703,21 +754,32 @@ export default function AdminScreen() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            {u.last_backup_at ? (
+                            {effectiveBackup.effectiveDate ? (
                               <div className="flex flex-col gap-1 items-start">
-                                <span className="font-semibold text-emerald-700 whitespace-nowrap">
-                                  {new Date(u.last_backup_at).toLocaleDateString("he-IL")}{" "}
-                                  <span className="text-[10px] text-slate-400">
-                                    {new Date(u.last_backup_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold text-emerald-700 whitespace-nowrap">
+                                    {new Date(effectiveBackup.effectiveDate).toLocaleDateString("he-IL")}{" "}
+                                    <span className="text-[10px] text-slate-400">
+                                      {new Date(effectiveBackup.effectiveDate).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                                    </span>
                                   </span>
-                                </span>
+                                  {effectiveBackup.source === "system" ? (
+                                    <span className="rounded bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 text-[9px] font-bold shrink-0" title="מכוסה בגיבוי מערכת אוטומטי כולל ב-NAS">
+                                      🤖 מערכת לילי
+                                    </span>
+                                  ) : (
+                                    <span className="rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 text-[9px] font-bold shrink-0" title="גיבוי פרטני יזום">
+                                      👤 יזום
+                                    </span>
+                                  )}
+                                </div>
                                 {uBackups.length > 0 && (
                                   <button
                                     type="button"
                                     onClick={() => setExpandedUserBackupsId(isExpanded ? null : u.id)}
                                     className="rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-0.5 text-[10px] font-bold transition border border-indigo-200 whitespace-nowrap"
                                   >
-                                    {isExpanded ? "סגור ▲" : `📁 ${uBackups.length} גיבויים ▼`}
+                                    {isExpanded ? "סגור ▲" : `📁 ${uBackups.length} גיבויים נקודתיים ▼`}
                                   </button>
                                 )}
                               </div>
@@ -726,14 +788,9 @@ export default function AdminScreen() {
                             )}
                           </td>
                           <td className="px-3 py-3 text-center whitespace-nowrap font-medium">
-                            {(() => {
-                              const info = getDaysSinceLastBackup(u.last_backup_at);
-                              return (
-                                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${info.badgeClass}`}>
-                                  {info.text}
-                                </span>
-                              );
-                            })()}
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${effectiveBackup.daysInfo.badgeClass}`}>
+                              {effectiveBackup.daysInfo.text}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
@@ -887,6 +944,7 @@ export default function AdminScreen() {
                 const isSelf = u.email?.toLowerCase() === userEmail.toLowerCase();
                 const isExpanded = expandedUserBackupsId === u.id;
                 const uBackups = u.backups || [];
+                const effectiveBackup = getUserEffectiveBackupInfo(u);
 
                 return (
                   <div key={u.id} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-3">
@@ -929,29 +987,35 @@ export default function AdminScreen() {
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[11px]">ימים ללא גיבוי:</span>
-                        {(() => {
-                          const info = getDaysSinceLastBackup(u.last_backup_at);
-                          return (
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border mt-0.5 ${info.badgeClass}`}>
-                              {info.text}
-                            </span>
-                          );
-                        })()}
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border mt-0.5 ${effectiveBackup.daysInfo.badgeClass}`}>
+                          {effectiveBackup.daysInfo.text}
+                        </span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[11px]">גיבוי אחרון ב-NAS:</span>
-                        {u.last_backup_at ? (
+                        {effectiveBackup.effectiveDate ? (
                           <div className="flex flex-col items-start gap-1">
-                            <span className="font-semibold text-emerald-700 text-[11px]">
-                              {new Date(u.last_backup_at).toLocaleDateString("he-IL")}
-                            </span>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="font-semibold text-emerald-700 text-[11px]">
+                                {new Date(effectiveBackup.effectiveDate).toLocaleDateString("he-IL")}
+                              </span>
+                              {effectiveBackup.source === "system" ? (
+                                <span className="rounded bg-purple-50 text-purple-700 border border-purple-200 px-1 py-0.2 text-[8px] font-bold">
+                                  מערכת לילי
+                                </span>
+                              ) : (
+                                <span className="rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1 py-0.2 text-[8px] font-bold">
+                                  יזום
+                                </span>
+                              )}
+                            </div>
                             {uBackups.length > 0 && (
                               <button
                                 type="button"
                                 onClick={() => setExpandedUserBackupsId(isExpanded ? null : u.id)}
                                 className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200"
                               >
-                                {isExpanded ? "סגור ▲" : `${uBackups.length} גיבויים ▼`}
+                                {isExpanded ? "סגור ▲" : `${uBackups.length} גיבויים נקודתיים ▼`}
                               </button>
                             )}
                           </div>
