@@ -84,7 +84,15 @@ function AbsenceInput({
 
 export default function ReportModal({ record, defaultDate, onClose, onSave }: Props) {
   const [date, setDate] = useState(record?.date ?? defaultDate);
-  const [classification, setClassification] = useState(record?.classification || "עבודה");
+  const initialClassification = useMemo(() => {
+    const raw = record?.classification || "";
+    const clean = raw.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+    if (clean === "סופש" || clean === "סופשבוע" || clean === 'סופ"ש') {
+      return 'סופ"ש';
+    }
+    return raw || "עבודה";
+  }, [record?.classification]);
+  const [classification, setClassification] = useState(initialClassification);
   const [entry, setEntry] = useState(padTime(record?.entry ?? ""));
   const [exit, setExit] = useState(padTime(record?.exit ?? ""));
   const [vacation, setVacation] = useState(record?.vacationDays ? String(record.vacationDays) : "");
@@ -162,7 +170,13 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const classificationsList = useMemo(() => getClassifications(), []);
+  const classificationsList = useMemo(() => {
+    const list = [...getClassifications()];
+    if (classification && !list.includes(classification)) {
+      list.push(classification);
+    }
+    return list;
+  }, [classification]);
   const orderTypesList = useMemo(() => getOrderTypes(), []);
 
   // Auto-detect holiday for current date
