@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { DayRecord, HEBREW_MONTHS, MonthData } from "@/lib/types";
 import { PencilIcon } from "./Icons";
 import { getHolidays, getNonWorkingDays, HolidaySetting } from "@/lib/settingsStore";
+import { getDayOfWeekFromIso } from "@/lib/date";
 
 interface Props {
   data?: MonthData;
@@ -102,8 +103,8 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
     if (r.date > todayIso) {
       const hol = holidayMap.get(r.date);
       if (hol) return hol.category;
-      const [yStr, mStr, dStr] = r.date.split("-");
-      const dow = new Date(Number(yStr), Number(mStr) - 1, Number(dStr)).getDay();
+  
+      const dow = getDayOfWeekFromIso(r.date);
       if (nonWorkingDaysSet.has(dow)) return 'סופ"ש';
     }
     return "";
@@ -124,9 +125,9 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
     if (r.date > todayIso) return null;
 
     // 2. Must not be a defined non-working day (e.g. weekend)
-    const [yStr, mStr, dStr] = r.date.split("-");
-    const dateObj = new Date(Number(yStr), Number(mStr) - 1, Number(dStr));
-    const dow = dateObj.getDay();
+
+
+    const dow = getDayOfWeekFromIso(r.date);
     if (nonWorkingDaysSet.has(dow)) return null;
 
     // 3. Must not be a holiday from the holidays settings table

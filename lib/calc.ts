@@ -1,5 +1,5 @@
 import type { DayRecord, MonthSummary, EmploymentTerm } from "./types";
-import { round1, todayIso } from "./date";
+import { round1, todayIso, currentIsraelHour } from "./date";
 
 const DEFAULT_DAILY_HOURS = 9;
 
@@ -32,10 +32,11 @@ export function computeMonthSummary(
     ? 0
     : round1(Math.max(targetHours - reportedHours, 0));
 
-  const now = new Date();
-  const curY = now.getFullYear();
-  const curM = now.getMonth() + 1;
-  const curD = now.getDate();
+  const todayStr = todayIso();
+  const [curY, curM, curD] = todayStr.split("-").map(Number);
+
+
+
 
   let remainingWorkdays = 0;
 
@@ -44,22 +45,22 @@ export function computeMonthSummary(
   } else if (year > curY || (year === curY && month > curM)) {
     const totalDays = new Date(year, month, 0).getDate();
     for (let d = 1; d <= totalDays; d++) {
-      const dow = new Date(year, month - 1, d).getDay();
+      const dow = new Date(year, month - 1, d, 12, 0, 0).getDay();
       if (!nonWorkingDays.includes(dow)) remainingWorkdays++;
     }
   } else {
     const totalDays = new Date(year, month, 0).getDate();
-    const todayStr = todayIso();
+
     const todayRecord = records.find((r) => r.date === todayStr);
     const todayCompleted = Boolean(todayRecord && todayRecord.entry && todayRecord.exit);
     // Today counts as a remaining workday only if it is not yet completed
     // AND the current time is before 17:00 (workday cutoff).
-    const isAfter17 = now.getHours() >= 17;
+    const isAfter17 = currentIsraelHour() >= 17;
     const todayStillOpen = !todayCompleted && !isAfter17;
     const startD = todayStillOpen ? curD : curD + 1;
 
     for (let d = startD; d <= totalDays; d++) {
-      const dow = new Date(year, month - 1, d).getDay();
+      const dow = new Date(year, month - 1, d, 12, 0, 0).getDay();
       if (!nonWorkingDays.includes(dow)) remainingWorkdays++;
     }
   }

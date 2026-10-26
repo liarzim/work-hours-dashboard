@@ -36,10 +36,49 @@ export function daysInMonth(year: number, month: number): number {
 }
 
 export function todayIso(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-    now.getDate()
-  ).padStart(2, "0")}`;
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jerusalem",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    return formatter.format(new Date());
+  } catch {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate()
+    ).padStart(2, "0")}`;
+  }
+}
+
+/**
+ * Robust day-of-week resolver (0 = Sunday, ..., 6 = Saturday).
+ * Evaluates at 12:00:00 noon to be 100% resilient to daylight saving time (DST) shifts.
+ */
+export function getDayOfWeekFromIso(iso: string): number {
+  if (!iso) return 0;
+  const clean = iso.slice(0, 10);
+  const [y, m, d] = clean.split("-").map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return 0;
+  return new Date(y, m - 1, d, 12, 0, 0).getDay();
+}
+
+/**
+ * Returns current hour in Israel (0..23), respecting winter/summer time.
+ */
+export function currentIsraelHour(): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-IL", {
+      timeZone: "Asia/Jerusalem",
+      hour: "numeric",
+      hour12: false,
+    }).formatToParts(new Date());
+    const hourPart = parts.find((p) => p.type === "hour");
+    return hourPart ? parseInt(hourPart.value, 10) : new Date().getHours();
+  } catch {
+    return new Date().getHours();
+  }
 }
 
 export function round1(n: number): number {
