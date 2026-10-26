@@ -1,5 +1,6 @@
 import { HEBREW_DAYS } from "./types";
 import type { DayRecord, EmploymentTerm, ReportShift } from "./types";
+import { getDayOfWeekFromIso } from "./date";
 
 /** Convert YYYY-MM-DD to DD/MM/YYYY */
 export function isoToDdmmyyyy(iso: string): string {
@@ -48,8 +49,8 @@ export function calculateDailyStandard(
 ): number {
   if (isNonWorkingClassification(classification)) return 0;
   
-  const date = new Date(`${dateIso}T00:00:00`);
-  const dow = date.getDay(); // 0 = Sunday, 4 = Thursday, 5 = Friday, 6 = Saturday
+
+  const dow = getDayOfWeekFromIso(dateIso); // 0 = Sunday, 4 = Thursday, 5 = Friday, 6 = Saturday
   if (dow === 5 || dow === 6) return 0; // Friday / Saturday
 
   // If term is hourly with 0 standard hours, daily standard is 0
@@ -134,8 +135,9 @@ export function deriveDayRecord(
   const overtime125Decimal = isOvertimeEligible ? Math.min(overtimeDecimal, 2.0) : 0;
   const overtime150Decimal = isOvertimeEligible ? Math.max(0, Math.round((overtimeDecimal - 2.0) * 100) / 100) : 0;
   
-  const date = new Date(`${raw.date}T00:00:00`);
-  const dayName = HEBREW_DAYS[date.getDay()];
+
+  const dow = getDayOfWeekFromIso(raw.date);
+  const dayName = HEBREW_DAYS[dow];
   
   // Vacation balance is the annual quota minus vacation used YTD (including today)
   const accruedQuota = annualVacationQuota;

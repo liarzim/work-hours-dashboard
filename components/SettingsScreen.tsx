@@ -25,6 +25,7 @@ import {
   DEFAULT_CHART_PALETTE,
   ChartPalette,
 } from "@/lib/settingsStore";
+import { todayIso } from "@/lib/date";
 
 interface NasBackupItem {
   id: string;
@@ -232,7 +233,7 @@ export default function SettingsScreen() {
   const openNewTermModal = () => {
     setEditingTermId(undefined);
     applyPreset("monthly");
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIso();
     setTermStartDate(today);
     setTermEndDate("");
     setTermHourlyRate("");
@@ -593,12 +594,15 @@ export default function SettingsScreen() {
             const serial = parseFloat(rawDate);
             if (!isNaN(serial) && serial > 30000 && serial < 60000) {
               const d = new Date((serial - 25569) * 86400 * 1000);
-              parsedDate = d.toISOString().split("T")[0];
+              parsedDate = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
             } else {
               try {
                 const d = new Date(rawDate);
                 if (!isNaN(d.getTime())) {
-                  parsedDate = d.toISOString().split("T")[0];
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, "0");
+                  const day = String(d.getDate()).padStart(2, "0");
+                  parsedDate = `${y}-${m}-${day}`;
                 }
               } catch {}
             }
