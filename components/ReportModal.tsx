@@ -20,39 +20,52 @@ function padTime(t: string): string {
   return m ? `${m[1].padStart(2, "0")}:${m[2]}` : "";
 }
 
-function formatTimeInput(value: string, prevValue: string): string {
-  if (value.length < prevValue.length) {
-    return value; // allow backspace
+function formatTimeInput(value: string, prevValue: string = ""): string {
+  if (!value) return "";
+
+  // Allow backspacing over colon or deleting
+  if (prevValue.endsWith(":") && value === prevValue.slice(0, -1)) {
+    return value;
   }
-  const clean = value.replace(/[^\d:]/g, "");
-  if (clean.includes(":")) {
-    const parts = clean.split(":");
-    let hh = parts[0].slice(0, 2);
-    let mm = parts[1].slice(0, 2);
-    const hhInt = parseInt(hh, 10);
-    if (!isNaN(hhInt) && hhInt > 23) hh = "23";
-    const mmInt = parseInt(mm, 10);
-    if (!isNaN(mmInt) && mmInt > 59) mm = "59";
-    return parts[1] !== "" ? `${hh}:${mm}` : `${hh}:`;
+  if (value.endsWith(":") && value.length < prevValue.length) {
+    return value;
   }
-  const digits = clean.replace(/\D/g, "");
-  if (digits.length > 2) {
-    let hh = digits.slice(0, 2);
-    let mm = digits.slice(2, 4);
-    const hhInt = parseInt(hh, 10);
-    if (hhInt > 23) hh = "23";
-    const mmInt = parseInt(mm, 10);
-    if (mmInt > 59) mm = "59";
-    return `${hh}:${mm}`;
-  } else if (digits.length === 2) {
-    const hhInt = parseInt(digits, 10);
-    if (hhInt > 23) return "23";
-    return digits + ":";
-  } else {
-    const hhInt = parseInt(digits, 10);
-    if (hhInt > 23) return "23";
+
+  // Extract only digits
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+
+  // 1 digit: if 3..9 or manual colon, auto-pad with 0 and add colon (e.g. '8' -> '08:')
+  if (digits.length === 1) {
+    const first = parseInt(digits[0], 10);
+    if ((first >= 3 && first <= 9) || value.includes(":")) {
+      return `0${first}:`;
+    }
     return digits;
   }
+
+  // 2 digits: hours (00 - 23)
+  let hh = digits.slice(0, 2);
+  let hhInt = parseInt(hh, 10);
+  if (isNaN(hhInt) || hhInt > 23) hh = "23";
+
+  if (digits.length === 2) {
+    return `${hh}:`;
+  }
+
+  // 3 digits: minutes tens (0 - 5)
+  if (digits.length === 3) {
+    let m1 = parseInt(digits[2], 10);
+    if (isNaN(m1)) m1 = 0;
+    if (m1 > 5) m1 = 5;
+    return `${hh}:${m1}`;
+  }
+
+  // 4+ digits: minutes (00 - 59)
+  let mm = digits.slice(2, 4);
+  let mmInt = parseInt(mm, 10);
+  if (isNaN(mmInt) || mmInt > 59) mm = "59";
+  return `${hh}:${mm}`;
 }
 
 
@@ -390,7 +403,6 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                           type="text"
                           value={s.entry}
                           placeholder="08:00"
-                          maxLength={5}
                           inputMode="numeric"
                           onChange={(e) => updateShift(idx, "entry", formatTimeInput(e.target.value, s.entry))}
                           className="ltr-field w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-200"
@@ -402,7 +414,6 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                           type="text"
                           value={s.exit}
                           placeholder="12:00"
-                          maxLength={5}
                           inputMode="numeric"
                           onChange={(e) => updateShift(idx, "exit", formatTimeInput(e.target.value, s.exit))}
                           className="ltr-field w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-200"
@@ -429,7 +440,6 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                     type="text"
                     value={entry}
                     placeholder="08:00"
-                    maxLength={5}
                     inputMode="numeric"
                     onChange={(e) => setEntry(formatTimeInput(e.target.value, entry))}
                     className="ltr-field w-full rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm font-bold text-brand-700 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
@@ -441,7 +451,6 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                     type="text"
                     value={exit}
                     placeholder="17:00"
-                    maxLength={5}
                     inputMode="numeric"
                     onChange={(e) => setExit(formatTimeInput(e.target.value, exit))}
                     className="ltr-field w-full rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm font-bold text-brand-700 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
