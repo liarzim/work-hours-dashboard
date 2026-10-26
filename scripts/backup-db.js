@@ -26,6 +26,12 @@ function escapeSqlValue(val) {
     return val ? 'TRUE' : 'FALSE';
   }
   if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    if (val.getHours() === 0 && val.getMinutes() === 0 && val.getSeconds() === 0) {
+      return `'${y}-${m}-${d}'`;
+    }
     return `'${val.toISOString()}'`;
   }
   if (typeof val === 'object') {
