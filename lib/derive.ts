@@ -88,8 +88,17 @@ export function deriveDayRecord(
   monthIndex: number, // 1-12
   term?: EmploymentTerm
 ): DayRecord {
-  const rawShifts = Array.isArray(raw.shifts) ? raw.shifts : [];
-  const shifts: ReportShift[] = rawShifts
+  const cleanDate = (raw.date || "").slice(0, 10);
+  let rawShifts = raw.shifts;
+  if (typeof rawShifts === "string") {
+    try {
+      rawShifts = JSON.parse(rawShifts);
+    } catch {
+      rawShifts = [];
+    }
+  }
+  const shiftsArray = Array.isArray(rawShifts) ? rawShifts : [];
+  const shifts: ReportShift[] = shiftsArray
     .filter((s: any) => s && (s.entry || s.exit))
     .map((s: any) => ({
       entry: s.entry ? String(s.entry).trim() : "",
@@ -120,7 +129,7 @@ export function deriveDayRecord(
   }
   const totalHours = totalHoursDecimal > 0 ? decimalToHhmm(totalHoursDecimal) : "";
   
-  const dailyStandard = calculateDailyStandard(raw.date, raw.classification, term);
+  const dailyStandard = calculateDailyStandard(cleanDate, raw.classification, term);
   
   // Overtime eligibility: if false (e.g. global contract with no daily overtime), overtime is 0
   const isOvertimeEligible = term ? term.overtimeEligible : true;
@@ -136,7 +145,7 @@ export function deriveDayRecord(
   const overtime150Decimal = isOvertimeEligible ? Math.max(0, Math.round((overtimeDecimal - 2.0) * 100) / 100) : 0;
   
 
-  const dow = getDayOfWeekFromIso(raw.date);
+  const dow = getDayOfWeekFromIso(cleanDate);
   const dayName = HEBREW_DAYS[dow];
   
   // Vacation balance is the annual quota minus vacation used YTD (including today)
@@ -146,8 +155,8 @@ export function deriveDayRecord(
   return {
     rowIndex: 0, // Not applicable in database mode
     tab: "database",
-    date: raw.date,
-    dateDisplay: isoToDdmmyyyy(raw.date),
+    date: cleanDate,
+    dateDisplay: isoToDdmmyyyy(cleanDate),
     entry,
     exit,
     shifts: shifts.length > 0 ? shifts : undefined,
