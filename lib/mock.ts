@@ -138,7 +138,10 @@ function applyRawInput(rec: DayRecord, input: ReportInput): void {
       : 0;
   rec.totalHoursDecimal = round1(total);
   rec.totalHours = decimalToHhmm(total);
-  rec.overtimeDecimal = round1(Math.max(total - rec.dailyStandard, 0));
+  const ot = round1(Math.max(total - rec.dailyStandard, 0));
+  rec.overtimeDecimal = ot;
+  rec.overtime125Decimal = Math.min(ot, 2.0);
+  rec.overtime150Decimal = Math.max(0, Math.round((ot - 2.0) * 100) / 100);
 }
 
 function getStore(): MockStore {

@@ -57,16 +57,20 @@ export function mapDbTermToEmploymentTerm(row: any): EmploymentTerm {
 
 export function findActiveTermForDate(terms: EmploymentTerm[], dateIso: string): EmploymentTerm {
   if (!terms || terms.length === 0) return DEFAULT_EMPLOYMENT_TERM;
+  const cleanDate = (dateIso || "").slice(0, 10);
   // Look for term active on this date, matching from most recent startDate
   for (let i = terms.length - 1; i >= 0; i--) {
     const t = terms[i];
-    if (t.startDate <= dateIso) {
-      if (!t.endDate || t.endDate >= dateIso) {
+    const tStart = (t.startDate || "").slice(0, 10);
+    const tEnd = t.endDate ? t.endDate.slice(0, 10) : null;
+    if (tStart <= cleanDate) {
+      if (!tEnd || tEnd >= cleanDate) {
         return t;
       }
     }
   }
-  return terms[0] || DEFAULT_EMPLOYMENT_TERM;
+  // If date is beyond latest term, use the latest term (or terms[0] if before all)
+  return terms[terms.length - 1] || terms[0] || DEFAULT_EMPLOYMENT_TERM;
 }
 
 export function findActiveTermForMonth(terms: EmploymentTerm[], year: number, month: number): EmploymentTerm {
@@ -409,15 +413,25 @@ export async function getReserveSummary(force = false): Promise<ReserveSummary> 
     const userId = user.id;
     const supabase = createSupabaseServerClient();
 
-    const { data: dbData, error } = await supabase
-      .from("reports")
-      .select("date, reserve_days, notes, order_type")
-      .eq("user_id", userId)
-      .gt("reserve_days", 0)
-      .order("date", { ascending: true });
+    const PAGE_SIZE = 1000;
+    let from = 0;
+    const dbData: any[] = [];
+    while (true) {
+      const { data: chunk, error } = await supabase
+        .from("reports")
+        .select("date, reserve_days, notes, order_type")
+        .eq("user_id", userId)
+        .gt("reserve_days", 0)
+        .order("date", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
 
-    if (error) throw new Error("שגיאה באחזור נתוני מילואים");
-    all = dbData || [];
+      if (error) throw new Error("שגיאה באחזור נתוני מילואים");
+      if (!chunk || chunk.length === 0) break;
+      dbData.push(...chunk);
+      if (chunk.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+    all = dbData;
   }
 
   const perYear = new Map<number, ReserveBucket>();
@@ -466,19 +480,52 @@ export async function getOvertimeSummary(force = false): Promise<OvertimeSummary
     const supabase = createSupabaseServerClient();
     const terms = await getEmploymentTerms();
 
-    const { data: dbData, error } = await supabase
-      .from("reports")
-      .select("date, entry, exit, shifts, classification, vacation_days, sick_days, reserve_days, notes, unique_notes, order_type")
-      .eq("user_id", userId)
-      .order("date", { ascending: true });
+    // Paginate through reports in chunks of 1000 to overcome PostgREST/Supabase row limits
+    const PAGE_SIZE = 1000;
+    let from = 0;
+    const allDbData: any[] = [];
+    while (true) {
+      const { data: chunk, error } = await supabase
+        .from("reports")
+        .select("date, entry, exit, shifts, classification, vacation_days, sick_days, reserve_days, notes, unique_notes, order_type")
+        .eq("user_id", userId)
+        .order("date", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
 
-    if (error) throw new Error("שגיאה באחזור נתוני שעות נוספות");
-
-    for (const r of dbData || []) {
-      const month = parseInt(r.date.slice(5, 7), 10);
-      const term = findActiveTermForDate(terms, r.date);
-      records.push(deriveDayRecord(r, 0, 0, month, term));
+      if (error) {
+        console.error("Error fetching overtime reports:", error);
+        throw new Error("שגיאה באחזור נתוני שעות נוספות");
+      }
+      if (!chunk || chunk.length === 0) break;
+      allDbData.push(...chunk);
+      if (chunk.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
+
+    // Deduplicate reports by cleanDate (YYYY-MM-DD), prioritizing records with reported hours
+    const dedupedMap = new Map<string, any>();
+    for (const r of allDbData) {
+      const cleanDate = (r.date || "").slice(0, 10);
+      if (!cleanDate) continue;
+      const existing = dedupedMap.get(cleanDate);
+      if (!existing) {
+        dedupedMap.set(cleanDate, { ...r, date: cleanDate });
+      } else {
+        const hasHours = (row: any) =>
+          Boolean(row.entry || row.exit || (Array.isArray(row.shifts) && row.shifts.length > 0));
+        if (!hasHours(existing) && hasHours(r)) {
+          dedupedMap.set(cleanDate, { ...r, date: cleanDate });
+        } else if (existing.date?.includes("T") && !r.date?.includes("T")) {
+          dedupedMap.set(cleanDate, { ...r, date: cleanDate });
+        }
+      }
+    }
+
+    dedupedMap.forEach((r, cleanDate) => {
+      const month = parseInt(cleanDate.slice(5, 7), 10);
+      const term = findActiveTermForDate(terms, cleanDate);
+      records.push(deriveDayRecord(r, 0, 0, month, term));
+    });
   }
 
   const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -488,11 +535,16 @@ export async function getOvertimeSummary(force = false): Promise<OvertimeSummary
   const recMap = new Map<string, DayRecord>();
 
   for (const r of records) {
-    recMap.set(r.date, r);
-    const ot125 = r.overtime125Decimal || 0;
-    const ot150 = r.overtime150Decimal || 0;
-    const year = parseInt(r.date.slice(0, 4), 10);
-    const month = parseInt(r.date.slice(5, 7), 10);
+    const cleanDate = (r.date || "").slice(0, 10);
+    recMap.set(cleanDate, r);
+    let ot125 = r.overtime125Decimal || 0;
+    let ot150 = r.overtime150Decimal || 0;
+    if (ot125 === 0 && ot150 === 0 && (r.overtimeDecimal || 0) > 0) {
+      ot125 = Math.min(r.overtimeDecimal, 2.0);
+      ot150 = Math.max(0, Math.round((r.overtimeDecimal - 2.0) * 100) / 100);
+    }
+    const year = parseInt(cleanDate.slice(0, 4), 10);
+    const month = parseInt(cleanDate.slice(5, 7), 10);
 
     let y = perYear.get(year);
     if (!y) perYear.set(year, (y = { key: year, ot125: 0, ot150: 0, total: 0 }));
@@ -548,8 +600,13 @@ export async function getOvertimeSummary(force = false): Promise<OvertimeSummary
         weekRanges.set(currentWeek, range);
 
         const rec = recMap.get(dateIso);
-        const ot125 = rec?.overtime125Decimal || 0;
-        const ot150 = rec?.overtime150Decimal || 0;
+        let ot125 = rec?.overtime125Decimal || 0;
+        let ot150 = rec?.overtime150Decimal || 0;
+        const recOt = rec?.overtimeDecimal || 0;
+        if (ot125 === 0 && ot150 === 0 && recOt > 0) {
+          ot125 = Math.min(recOt, 2.0);
+          ot150 = Math.max(0, Math.round((recOt - 2.0) * 100) / 100);
+        }
         const total = round2(ot125 + ot150);
 
         dayList.push({
