@@ -204,7 +204,20 @@ export default function OvertimeChart({ onInteraction }: OvertimeChartProps) {
     } else if (level === "months") {
       const mn = typeof k === "number" ? k : parseInt(String(k), 10);
       setSelectedMonth(mn);
-      setSelectedWeek(1);
+
+      // Smart week selection: find week with overtime or current week
+      const daysForMonth = data?.days?.[`${selectedYear}-${mn}`] ?? [];
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayDay = daysForMonth.find((d) => d.date === todayStr);
+      let initialWeek = 1;
+      if (todayDay && daysForMonth.some((d) => d.weekNumber === todayDay.weekNumber && d.total > 0)) {
+        initialWeek = todayDay.weekNumber;
+      } else {
+        const withOt = [...daysForMonth].reverse().find((d) => d.total > 0);
+        if (withOt) initialWeek = withOt.weekNumber;
+      }
+
+      setSelectedWeek(initialWeek);
       setLevel("days");
     }
   };

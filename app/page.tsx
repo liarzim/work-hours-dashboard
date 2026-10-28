@@ -69,6 +69,8 @@ export default function Home() {
       await mutate("/api/reserve");
       await mutate("/api/overtime");
       await mutate("/api/reports/missing");
+      await mutate("/api/overtime");
+      await mutate("/api/reserve");
     } finally {
       setSyncing(false);
     }
@@ -137,6 +139,10 @@ export default function Home() {
       const [y, m] = updates.date.split("-").map(Number);
       await mutate(monthKey(y, m));
       await mutate("/api/reports/missing");
+      await mutate("/api/overtime");
+      await mutate("/api/reserve");
+      await mutate("/api/overtime");
+      await mutate("/api/reserve");
     },
     [mutate]
   );
@@ -194,6 +200,8 @@ export default function Home() {
         }
       );
       await mutate("/api/reports/missing");
+      await mutate("/api/overtime");
+      await mutate("/api/reserve");
     },
     [mutate]
   );
@@ -325,6 +333,8 @@ export default function Home() {
         }
       );
       await mutate("/api/reports/missing");
+      await mutate("/api/overtime");
+      await mutate("/api/reserve");
     },
     [bulkDates, mutate]
   );

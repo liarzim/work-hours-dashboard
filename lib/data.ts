@@ -413,25 +413,16 @@ export async function getReserveSummary(force = false): Promise<ReserveSummary> 
     const userId = user.id;
     const supabase = createSupabaseServerClient();
 
-    const PAGE_SIZE = 1000;
-    let from = 0;
-    const dbData: any[] = [];
-    while (true) {
-      const { data: chunk, error } = await supabase
-        .from("reports")
-        .select("date, reserve_days, notes, order_type")
-        .eq("user_id", userId)
-        .gt("reserve_days", 0)
-        .order("date", { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
+    const { data: dbData, error } = await supabase
+      .from("reports")
+      .select("date, reserve_days, notes, order_type")
+      .eq("user_id", userId)
+      .gt("reserve_days", 0)
+      .order("date", { ascending: true })
+      .range(0, 4999);
 
-      if (error) throw new Error("שגיאה באחזור נתוני מילואים");
-      if (!chunk || chunk.length === 0) break;
-      dbData.push(...chunk);
-      if (chunk.length < PAGE_SIZE) break;
-      from += PAGE_SIZE;
-    }
-    all = dbData;
+    if (error) throw new Error("שגיאה באחזור נתוני מילואים");
+    all = dbData || [];
   }
 
   const perYear = new Map<number, ReserveBucket>();
@@ -480,14 +471,14 @@ export async function getOvertimeSummary(force = false): Promise<OvertimeSummary
     const supabase = createSupabaseServerClient();
     const terms = await getEmploymentTerms();
 
-    // Paginate through reports in chunks of 1000 to overcome PostgREST/Supabase row limits
-    const PAGE_SIZE = 1000;
+    // Fetch reports in chunks of 5000 (single fast query for full history)
+    const PAGE_SIZE = 5000;
     let from = 0;
     const allDbData: any[] = [];
     while (true) {
       const { data: chunk, error } = await supabase
         .from("reports")
-        .select("date, entry, exit, shifts, classification, vacation_days, sick_days, reserve_days, notes, unique_notes, order_type")
+        .select("date, entry, exit, shifts, classification")
         .eq("user_id", userId)
         .order("date", { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
@@ -578,6 +569,16 @@ export async function getOvertimeSummary(force = false): Promise<OvertimeSummary
     months[String(y)] = mList;
   });
 
+  for (const y of years) {
+    if (!months[String(y.key)]) {
+      const mList: OvertimeBucket[] = [];
+      for (let m = 1; m <= 12; m++) {
+        mList.push({ key: m, ot125: 0, ot150: 0, total: 0 });
+      }
+      months[String(y.key)] = mList;
+    }
+  }
+
   const days: Record<string, OvertimeDayBucket[]> = {};
   for (const y of years) {
     for (let m = 1; m <= 12; m++) {
@@ -623,13 +624,21 @@ export async function getOvertimeSummary(force = false): Promise<OvertimeSummary
         });
       }
 
+      const weekTotals = new Map<number, number>();
+      for (const item of dayList) {
+        const prev = weekTotals.get(item.weekNumber) || 0;
+        weekTotals.set(item.weekNumber, round2(prev + item.total));
+      }
+
       for (const item of dayList) {
         const r = weekRanges.get(item.weekNumber);
         if (r) {
           const sDay = String(r.start).padStart(2, "0");
           const eDay = String(r.end).padStart(2, "0");
           const mm = String(m).padStart(2, "0");
-          item.weekLabel = `שבוע ${item.weekNumber} (${sDay}/${mm} - ${eDay}/${mm})`;
+          const wTotal = weekTotals.get(item.weekNumber) || 0;
+          const totalStr = wTotal > 0 ? ` · ${wTotal} שעות` : "";
+          item.weekLabel = `שבוע ${item.weekNumber} (${sDay}/${mm} - ${eDay}/${mm}${totalStr})`;
         }
       }
 
