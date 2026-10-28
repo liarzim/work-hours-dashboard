@@ -471,26 +471,29 @@ export async function getOvertimeSummary(force = false): Promise<OvertimeSummary
     const supabase = createSupabaseServerClient();
     const terms = await getEmploymentTerms();
 
-    // Fetch reports in chunks of 5000 (single fast query for full history)
-    const PAGE_SIZE = 5000;
-    let from = 0;
-    const allDbData: any[] = [];
-    while (true) {
-      const { data: chunk, error } = await supabase
+    // PostgREST limits single requests to 1000 rows (PGRST_MAX_ROWS).
+    // Fetch all records in parallel chunks of 1000 to avoid sequential latency and pagination cutoffs.
+    const CHUNK_SIZE = 1000;
+    const offsets = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000];
+    const chunkPromises = offsets.map((from) =>
+      supabase
         .from("reports")
         .select("date, entry, exit, shifts, classification")
         .eq("user_id", userId)
         .order("date", { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
+        .range(from, from + CHUNK_SIZE - 1)
+    );
 
-      if (error) {
-        console.error("Error fetching overtime reports:", error);
+    const chunkResults = await Promise.all(chunkPromises);
+    const allDbData: any[] = [];
+    for (const res of chunkResults) {
+      if (res.error) {
+        console.error("Error fetching overtime reports chunk:", res.error);
         throw new Error("שגיאה באחזור נתוני שעות נוספות");
       }
-      if (!chunk || chunk.length === 0) break;
-      allDbData.push(...chunk);
-      if (chunk.length < PAGE_SIZE) break;
-      from += PAGE_SIZE;
+      if (res.data && res.data.length > 0) {
+        allDbData.push(...res.data);
+      }
     }
 
     // Deduplicate reports by cleanDate (YYYY-MM-DD), prioritizing records with reported hours
