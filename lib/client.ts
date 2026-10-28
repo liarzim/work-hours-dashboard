@@ -27,13 +27,15 @@ export function useMonthData(year: number, month: number) {
 
 export function useReserveSummary() {
   return useSWR<ReserveSummary>("/api/reserve", fetcher<ReserveSummary>, {
-    revalidateOnFocus: false,
+    revalidateOnFocus: true,
+    revalidateOnMount: true,
   });
 }
 
 export function useOvertimeSummary() {
   return useSWR<OvertimeSummary>("/api/overtime", fetcher<OvertimeSummary>, {
-    revalidateOnFocus: false,
+    revalidateOnFocus: true,
+    revalidateOnMount: true,
   });
 }
 
