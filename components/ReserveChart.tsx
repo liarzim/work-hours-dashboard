@@ -171,77 +171,54 @@ export default function ReserveChart() {
           {year === null ? "אין דיווחי מילואים בגיליון" : "אין דיווחי מילואים בשנה זו"}
         </p>
       ) : (
-        <>
-          <div className="h-72" dir="ltr">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: "#94a3b8" }}
-                  tickLine={false}
-                  axisLine={{ stroke: "#e2e8f0" }}
-                  interval={0}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#94a3b8" }}
-                  tickLine={false}
-                  axisLine={false}
-                  allowDecimals={false}
-                />
-                <Tooltip
-                  cursor={{ fill: "rgba(37, 99, 235, 0.06)" }}
-                  content={(props: any) => <CustomTooltip {...props} currentYear={year} />}
-                />
-                <Legend
-                  formatter={(v) => (
-                    <span style={{ fontSize: 12, color: "#64748b" }}>
-                      {v === "tzav8" ? "צו 8" : "מילואים רגילים"}
-                    </span>
-                  )}
-                />
-                <Bar
-                  dataKey="regular"
-                  stackId="reserve"
-                  fill={COLOR_REGULAR}
-                  onClick={drill}
-                  cursor={year === null ? "pointer" : "default"}
-                  maxBarSize={48}
-                />
-                <Bar
-                  dataKey="tzav8"
-                  stackId="reserve"
-                  fill={COLOR_TZAV8}
-                  radius={[4, 4, 0, 0]}
-                  onClick={drill}
-                  cursor={year === null ? "pointer" : "default"}
-                  maxBarSize={48}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Quick summary per year */}
-          {year === null && rows.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 pt-3 border-t border-slate-100">
-              {rows.map((r) => (
-                <button
-                  key={r.key}
-                  type="button"
-                  onClick={() => setYear(r.key)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-1.5 text-xs transition hover:bg-brand-50 hover:border-brand-200 cursor-pointer shadow-xs"
-                  title="לחץ לצפייה בפירוט חודשי לשנה זו"
-                >
-                  <span className="font-bold text-slate-700">שנת {r.key}:</span>
-                  <span className="font-extrabold text-brand-700">{r.total} ימים</span>
-                  <span className="text-[11px] text-slate-500">
-                    ({r.tzav8 > 0 ? `צו 8: ${r.tzav8}` : ""}{r.tzav8 > 0 && r.regular > 0 ? " · " : ""}{r.regular > 0 ? `רגיל: ${r.regular}` : ""})
+        <div className="h-72" dir="ltr">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={rows} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "#94a3b8" }}
+                tickLine={false}
+                axisLine={{ stroke: "#e2e8f0" }}
+                interval={0}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "#94a3b8" }}
+                tickLine={false}
+                axisLine={false}
+                allowDecimals={false}
+              />
+              <Tooltip
+                cursor={{ fill: "rgba(37, 99, 235, 0.06)" }}
+                content={(props: any) => <CustomTooltip {...props} currentYear={year} />}
+              />
+              <Legend
+                formatter={(v) => (
+                  <span style={{ fontSize: 12, color: "#64748b" }}>
+                    {v === "tzav8" ? "צו 8" : "מילואים רגילים"}
                   </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+                )}
+              />
+              <Bar
+                dataKey="regular"
+                stackId="reserve"
+                fill={COLOR_REGULAR}
+                onClick={drill}
+                cursor={year === null ? "pointer" : "default"}
+                maxBarSize={48}
+              />
+              <Bar
+                dataKey="tzav8"
+                stackId="reserve"
+                fill={COLOR_TZAV8}
+                radius={[4, 4, 0, 0]}
+                onClick={drill}
+                cursor={year === null ? "pointer" : "default"}
+                maxBarSize={48}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       )}
     </section>
   );
