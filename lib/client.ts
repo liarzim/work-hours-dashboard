@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import type { MonthData, ReserveSummary, StandardSettings } from "./types";
+import type { MonthData, ReserveSummary, OvertimeSummary, StandardSettings } from "./types";
 
 /** Client-side data hooks (SWR). Talks only to our own API routes. */
 
@@ -27,6 +27,12 @@ export function useMonthData(year: number, month: number) {
 
 export function useReserveSummary() {
   return useSWR<ReserveSummary>("/api/reserve", fetcher<ReserveSummary>, {
+    revalidateOnFocus: false,
+  });
+}
+
+export function useOvertimeSummary() {
+  return useSWR<OvertimeSummary>("/api/overtime", fetcher<OvertimeSummary>, {
     revalidateOnFocus: false,
   });
 }

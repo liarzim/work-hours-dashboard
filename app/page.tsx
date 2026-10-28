@@ -67,6 +67,7 @@ export default function Home() {
       await mutate(monthKey(year, month));
       await mutate("/api/settings");
       await mutate("/api/reserve");
+      await mutate("/api/overtime");
       await mutate("/api/reports/missing");
     } finally {
       setSyncing(false);

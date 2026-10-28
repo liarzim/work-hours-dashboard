@@ -10,6 +10,9 @@ import type {
   MissingReportItem,
   MissingReportsResponse,
   MissingReportType,
+  OvertimeBucket,
+  OvertimeDayBucket,
+  OvertimeSummary,
 } from "./types";
 import { HEBREW_DAYS } from "./types";
 import { computeMonthSummary } from "./calc";
@@ -449,6 +452,135 @@ export async function getReserveSummary(force = false): Promise<ReserveSummary> 
   });
 
   return { years, months };
+}
+
+export async function getOvertimeSummary(force = false): Promise<OvertimeSummary> {
+  const mode = currentMode();
+  let records: DayRecord[] = [];
+
+  if (mode === "mock") {
+    records = mock.mockAllRecords();
+  } else {
+    const user = await getAuthenticatedUser();
+    const userId = user.id;
+    const supabase = createSupabaseServerClient();
+    const terms = await getEmploymentTerms();
+
+    const { data: dbData, error } = await supabase
+      .from("reports")
+      .select("date, entry, exit, shifts, classification, vacation_days, sick_days, reserve_days, notes, unique_notes, order_type")
+      .eq("user_id", userId)
+      .order("date", { ascending: true });
+
+    if (error) throw new Error("שגיאה באחזור נתוני שעות נוספות");
+
+    for (const r of dbData || []) {
+      const month = parseInt(r.date.slice(5, 7), 10);
+      const term = findActiveTermForDate(terms, r.date);
+      records.push(deriveDayRecord(r, 0, 0, month, term));
+    }
+  }
+
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  const perYear = new Map<number, OvertimeBucket>();
+  const perMonth = new Map<number, Map<number, OvertimeBucket>>();
+  const recMap = new Map<string, DayRecord>();
+
+  for (const r of records) {
+    recMap.set(r.date, r);
+    const ot125 = r.overtime125Decimal || 0;
+    const ot150 = r.overtime150Decimal || 0;
+    const year = parseInt(r.date.slice(0, 4), 10);
+    const month = parseInt(r.date.slice(5, 7), 10);
+
+    let y = perYear.get(year);
+    if (!y) perYear.set(year, (y = { key: year, ot125: 0, ot150: 0, total: 0 }));
+    y.ot125 = round2(y.ot125 + ot125);
+    y.ot150 = round2(y.ot150 + ot150);
+    y.total = round2(y.ot125 + y.ot150);
+
+    let ms = perMonth.get(year);
+    if (!ms) perMonth.set(year, (ms = new Map()));
+    let m = ms.get(month);
+    if (!m) ms.set(month, (m = { key: month, ot125: 0, ot150: 0, total: 0 }));
+    m.ot125 = round2(m.ot125 + ot125);
+    m.ot150 = round2(m.ot150 + ot150);
+    m.total = round2(m.ot125 + m.ot150);
+  }
+
+  const currentY = new Date().getFullYear();
+  if (!perYear.has(currentY)) {
+    perYear.set(currentY, { key: currentY, ot125: 0, ot150: 0, total: 0 });
+  }
+
+  const years = Array.from(perYear.values()).sort((a, b) => b.key - a.key);
+
+  const months: Record<string, OvertimeBucket[]> = {};
+  perMonth.forEach((ms, y) => {
+    const mList: OvertimeBucket[] = [];
+    for (let m = 1; m <= 12; m++) {
+      const bucket = ms.get(m) || { key: m, ot125: 0, ot150: 0, total: 0 };
+      mList.push(bucket);
+    }
+    months[String(y)] = mList;
+  });
+
+  const days: Record<string, OvertimeDayBucket[]> = {};
+  for (const y of years) {
+    for (let m = 1; m <= 12; m++) {
+      const monthKey = `${y.key}-${m}`;
+      const numDays = daysInMonth(y.key, m);
+      const dayList: OvertimeDayBucket[] = [];
+
+      let currentWeek = 1;
+      const weekRanges = new Map<number, { start: number; end: number }>();
+
+      for (let d = 1; d <= numDays; d++) {
+        const dateIso = `${y.key}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const dow = getDayOfWeekFromIso(dateIso);
+        if (d > 1 && dow === 0) {
+          currentWeek++;
+        }
+
+        const range = weekRanges.get(currentWeek) || { start: d, end: d };
+        range.end = d;
+        weekRanges.set(currentWeek, range);
+
+        const rec = recMap.get(dateIso);
+        const ot125 = rec?.overtime125Decimal || 0;
+        const ot150 = rec?.overtime150Decimal || 0;
+        const total = round2(ot125 + ot150);
+
+        dayList.push({
+          date: dateIso,
+          dayOfMonth: d,
+          dayOfWeek: dow,
+          dayName: HEBREW_DAYS[dow],
+          weekNumber: currentWeek,
+          weekLabel: "",
+          ot125,
+          ot150,
+          total,
+          isWeekend: dow === 5 || dow === 6,
+        });
+      }
+
+      for (const item of dayList) {
+        const r = weekRanges.get(item.weekNumber);
+        if (r) {
+          const sDay = String(r.start).padStart(2, "0");
+          const eDay = String(r.end).padStart(2, "0");
+          const mm = String(m).padStart(2, "0");
+          item.weekLabel = `שבוע ${item.weekNumber} (${sDay}/${mm} - ${eDay}/${mm})`;
+        }
+      }
+
+      days[monthKey] = dayList;
+    }
+  }
+
+  return { years, months, days };
 }
 
 export async function saveReport(input: ReportInput): Promise<DayRecord | null> {

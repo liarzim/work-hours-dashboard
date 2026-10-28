@@ -135,6 +135,33 @@ export interface ReserveSummary {
   months: Record<string, ReserveBucket[]>;
 }
 
+/** Overtime aggregation for the drill-down chart (Year -> Month -> Week/Days). */
+export interface OvertimeBucket {
+  key: number;
+  ot125: number;
+  ot150: number;
+  total: number;
+}
+
+export interface OvertimeDayBucket {
+  date: string; // "2026-10-18"
+  dayOfMonth: number; // 18
+  dayOfWeek: number; // 0..6
+  dayName: string; // "יום א׳"
+  weekNumber: number; // 1..5
+  weekLabel: string; // "שבוע 4 (18/10 - 24/10)"
+  ot125: number;
+  ot150: number;
+  total: number;
+  isWeekend: boolean;
+}
+
+export interface OvertimeSummary {
+  years: OvertimeBucket[];
+  months: Record<string, OvertimeBucket[]>; // key: year string, array of 12 months
+  days: Record<string, OvertimeDayBucket[]>; // key: "year-month" (e.g. "2026-10")
+}
+
 /** Payload written back to the sheet (raw fields only — formulas do the rest). */
 export interface ReportInput {
   date: string; // ISO yyyy-mm-dd

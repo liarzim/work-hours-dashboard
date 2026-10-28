@@ -5,7 +5,7 @@ import { MonthData } from "@/lib/types";
 import KpiCards from "./KpiCards";
 import MonthlySummary from "./MonthlySummary";
 import DailyChart from "./DailyChart";
-import ReserveChart from "./ReserveChart";
+import BottomChartsCarousel from "./BottomChartsCarousel";
 import AlertToast from "./AlertToast";
 import OvertimeModal from "./OvertimeModal";
 
@@ -93,7 +93,7 @@ export default function Dashboard({ data, loading, year, month, onOpenMissingMod
         </div>
       </div>
 
-      <ReserveChart />
+      <BottomChartsCarousel />
 
       <AlertToast summary={summary} />
 
