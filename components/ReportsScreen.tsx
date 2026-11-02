@@ -97,25 +97,51 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
   }, [year, month, showMissingOnly, classFilter]);
 
   const getEffectiveClassification = (r: DayRecord): string => {
-    if (r.classification) {
-      return r.classification.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
-    }
-    if (r.date > todayIso) {
-      const hol = holidayMap.get(r.date);
+    const dow = getDayOfWeekFromIso(r.date);
+    const isNonWorking = nonWorkingDaysSet.has(dow);
+    const hol = holidayMap.get(r.date);
+    const hasHours = Boolean(
+      (r.entry && r.entry.trim() !== "") ||
+      (r.exit && r.exit.trim() !== "") ||
+      (r.shifts && r.shifts.some((s) => s.entry || s.exit))
+    );
+    const hasAbsence = Boolean((r.vacationDays ?? 0) > 0 || (r.sickDays ?? 0) > 0 || (r.reserveDays ?? 0) > 0);
+    const normC = (r.classification || "").replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+    const isWeekendClass =
+      normC === 'סופ"ש' ||
+      normC === "סופש" ||
+      normC === "שבת" ||
+      normC === "סופשבוע" ||
+      normC.includes("סופ");
+    const isExplicitAbsenceClass = [
+      "חופש",
+      "חופשה",
+      "מחלה",
+      "מילואים",
+      "עבודה במילואים",
+      "חג",
+      "ערב חג",
+      "חול המועד",
+    ].includes(normC);
+
+    if (isNonWorking) {
+      if (hasHours) return !normC || isWeekendClass ? "עבודה" : normC;
+      if (hasAbsence || isExplicitAbsenceClass) return normC;
       if (hol) return hol.category;
-  
-      const dow = getDayOfWeekFromIso(r.date);
-      if (nonWorkingDaysSet.has(dow)) return 'סופ"ש';
+      return 'סופ"ש';
     }
+
+    // Working day (e.g. Sun-Thu): never allow weekend classification
+    if (hasHours) return !normC || isWeekendClass ? "עבודה" : normC;
+    if (hasAbsence || isExplicitAbsenceClass) return normC;
+    if (hol) return hol.category;
     return "";
   };
 
   const getEffectiveNotes = (r: DayRecord): string => {
     if (r.notes) return r.notes;
-    if (r.date > todayIso) {
-      const hol = holidayMap.get(r.date);
-      if (hol) return hol.name;
-    }
+    const hol = holidayMap.get(r.date);
+    if (hol) return hol.name;
     return "";
   };
 
@@ -125,15 +151,13 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
     if (r.date > todayIso) return null;
 
     // 2. Must not be a defined non-working day (e.g. weekend)
-
-
     const dow = getDayOfWeekFromIso(r.date);
     if (nonWorkingDaysSet.has(dow)) return null;
 
     // 3. Must not be a holiday from the holidays settings table
     if (holidayDatesSet.has(r.date)) return null;
 
-    // 4. Must not have an excused absence / weekend / holiday classification
+    // 4. Must not have an excused absence / holiday classification (on a working day, 'סופ"ש' is never a valid excuse)
     const normC = (r.classification || "").replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
     if (
       normC === "חופש" ||
@@ -143,10 +167,7 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
       normC === "עבודה במילואים" ||
       normC === "חג" ||
       normC === "ערב חג" ||
-      normC === "חול המועד" ||
-      normC === 'סופ"ש' ||
-      normC === "סופש" ||
-      normC === "סופשבוע"
+      normC === "חול המועד"
     ) {
       return null;
     }

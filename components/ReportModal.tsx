@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState, useMemo } from "react";
 import { DayRecord, ReportInput, ReportShift } from "@/lib/types";
 import { SaveIcon, XIcon, PlusIcon, TrashIcon } from "./Icons";
 import { getClassifications, getOrderTypes, getHolidays, getHolidayForDate, HolidaySetting } from "@/lib/settingsStore";
-import { isoToDdmmyyyy } from "@/lib/date";
+import { isoToDdmmyyyy, getDayOfWeekFromIso } from "@/lib/date";
 
 interface Props {
   /** Existing record when editing, null for a fresh report. */
@@ -100,11 +100,17 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
   const initialClassification = useMemo(() => {
     const raw = record?.classification || "";
     const clean = raw.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+    const dStr = record?.date ?? defaultDate;
+    const dow = getDayOfWeekFromIso(dStr);
+    const isWeekend = dow === 5 || dow === 6;
     if (clean === "סופש" || clean === "סופשבוע" || clean === 'סופ"ש') {
-      return 'סופ"ש';
+      return isWeekend ? 'סופ"ש' : "עבודה";
     }
-    return raw || "עבודה";
-  }, [record?.classification]);
+    if (!clean) {
+      return "עבודה";
+    }
+    return clean;
+  }, [record?.classification, record?.date, defaultDate]);
   const [classification, setClassification] = useState(initialClassification);
   const [entry, setEntry] = useState(padTime(record?.entry ?? ""));
   const [exit, setExit] = useState(padTime(record?.exit ?? ""));

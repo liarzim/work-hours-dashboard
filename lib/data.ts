@@ -19,7 +19,7 @@ import { computeMonthSummary } from "./calc";
 import * as mock from "./mock";
 import { currentMode } from "./config";
 import { createSupabaseServerClient } from "./supabase/server";
-import { deriveDayRecord } from "./derive";
+import { deriveDayRecord, sanitizeRawReport } from "./derive";
 import { daysInMonth, isoToDdmmyyyy, todayIso, getDayOfWeekFromIso } from "./date";
 import { DEFAULT_HOLIDAYS_LIST, DEFAULT_HOLIDAY_DATES } from "./holidays";
 export { DEFAULT_HOLIDAYS_LIST, DEFAULT_HOLIDAY_DATES };
@@ -290,13 +290,12 @@ export async function getMonthData(
 
   // 4. Generate fully populated list of DayRecord for the selected month
   const records: DayRecord[] = [];
-  const currentTodayIso = todayIso();
+  const rowsToHeal: { id: string; classification: string; notes: string | null }[] = [];
 
   for (let d = 1; d <= lastDay; d++) {
     const iso = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     let dbRow = reportsMap.get(iso);
     const ytdUsed = ytdUsedMap.get(iso) ?? 0;
-    const isFuture = iso > currentTodayIso;
 
     // Total used since starting of data up to this day
     const totalUsedSinceStart = usedBeforeSelectedYear + ytdUsed;
@@ -307,27 +306,14 @@ export async function getMonthData(
     const holiday = DEFAULT_HOLIDAYS_LIST.find((h) => h.date === iso);
 
     if (dbRow) {
-      if (isFuture) {
-        const hasEnteredData = Boolean(
-          (dbRow.entry && String(dbRow.entry).trim() !== "") ||
-          (dbRow.exit && String(dbRow.exit).trim() !== "") ||
-          Number(dbRow.vacation_days || 0) > 0 ||
-          Number(dbRow.sick_days || 0) > 0 ||
-          Number(dbRow.reserve_days || 0) > 0 ||
-          (dbRow.notes && String(dbRow.notes).trim() !== "") ||
-          (dbRow.unique_notes && String(dbRow.unique_notes).trim() !== "") ||
-          (dbRow.order_type && String(dbRow.order_type).trim() !== "")
-        );
-        if (!hasEnteredData) {
-          if (holiday) {
-            dbRow = { ...dbRow, classification: holiday.category, notes: dbRow.notes || holiday.name };
-          } else if (isWeekend) {
-            dbRow = { ...dbRow, classification: 'סופ"ש' };
-          } else {
-            // Future workday with no data: leave classification empty
-            dbRow = { ...dbRow, classification: "" };
-          }
-        }
+      const origClass = dbRow.classification ?? "";
+      dbRow = sanitizeRawReport(dbRow);
+      if (dbRow.id && origClass !== dbRow.classification) {
+        rowsToHeal.push({
+          id: dbRow.id,
+          classification: dbRow.classification,
+          notes: dbRow.notes ?? null,
+        });
       }
       records.push(deriveDayRecord(dbRow, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month, activeTermForDay));
     } else {
@@ -356,6 +342,18 @@ export async function getMonthData(
       };
       records.push(deriveDayRecord(defaultRaw, totalAccumulatedQuotaForThisMonth, totalUsedSinceStart, month, activeTermForDay));
     }
+  }
+
+  if (rowsToHeal.length > 0) {
+    Promise.all(
+      rowsToHeal.map((item) =>
+        supabase
+          .from("reports")
+          .update({ classification: item.classification, notes: item.notes })
+          .eq("id", item.id)
+          .eq("user_id", userId)
+      )
+    ).catch((err) => console.warn("Background classification heal warning:", err));
   }
 
   const activeMonthTerm = findActiveTermForMonth(terms, year, month);
@@ -1099,7 +1097,8 @@ export async function getMissingReportsList(options?: {
     if (reportsRes.data) {
       for (const row of reportsRes.data) {
         const cleanDate = row.date.slice(0, 10);
-        reportsMap.set(cleanDate, { ...row, date: cleanDate });
+        const sanitized = sanitizeRawReport({ ...row, date: cleanDate });
+        reportsMap.set(cleanDate, sanitized);
       }
     }
   }
@@ -1148,8 +1147,7 @@ export async function getMissingReportsList(options?: {
         normC === "עבודה במילואים" ||
         normC === "חג" ||
         normC === "ערב חג" ||
-        normC === "חול המועד" ||
-        normC.includes("סופ");
+        normC === "חול המועד";
 
       if (hasBothHours || hasAbsence || isExcused) {
         continue;

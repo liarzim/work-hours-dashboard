@@ -1,6 +1,7 @@
 import { HEBREW_DAYS } from "./types";
 import type { DayRecord, EmploymentTerm, ReportShift } from "./types";
 import { getDayOfWeekFromIso } from "./date";
+import { DEFAULT_HOLIDAYS_LIST } from "./holidays";
 
 /** Convert YYYY-MM-DD to DD/MM/YYYY */
 export function isoToDdmmyyyy(iso: string): string {
@@ -28,17 +29,134 @@ export function decimalToHhmm(dec: number): string {
 export function isNonWorkingClassification(classification: string): boolean {
   if (!classification) return false;
   const c = classification.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
-  return (
-    [
-      "חופש",
-      "חופשה",
-      "חג",
-      "שבת",
-      'סופ"ש',
-      "סופש",
-      "סופשבוע",
-    ].includes(c) || c.includes("סופ")
+  return [
+    "חופש",
+    "חופשה",
+    "חג",
+    "שבת",
+    'סופ"ש',
+    "סופש",
+    "סופשבוע",
+  ].includes(c) || c.includes("סופ");
+}
+
+/**
+ * Sanitize and normalize a raw database report row so that:
+ * 1. Weekdays (Sun-Thu) NEVER carry a weekend ('סופ"ש' / 'סופש') classification,
+ *    and empty template rows on workdays without hours/absences get "" (or holiday category).
+ * 2. Weekends (Fri-Sat) without reported hours or absences ALWAYS get 'סופ"ש' (or holiday category),
+ *    never a leftover 'עבודה' from shifted/template imports.
+ */
+export function sanitizeRawReport<
+  T extends {
+    date: string;
+    entry?: string | null;
+    exit?: string | null;
+    shifts?: ReportShift[] | any;
+    vacation_days?: number | string | null;
+    sick_days?: number | string | null;
+    reserve_days?: number | string | null;
+    classification?: string | null;
+    notes?: string | null;
+    unique_notes?: string | null;
+    order_type?: string | null;
+  }
+>(raw: T): T {
+  const cleanDate = (raw.date || "").slice(0, 10);
+  if (!cleanDate || cleanDate.length < 10) return raw;
+
+  const dow = getDayOfWeekFromIso(cleanDate); // 0 = Sunday ... 4 = Thursday, 5 = Friday, 6 = Saturday
+  const isWeekend = dow === 5 || dow === 6;
+  const holiday = DEFAULT_HOLIDAYS_LIST.find((h) => h.date === cleanDate);
+
+  const hasEntry = Boolean(raw.entry && String(raw.entry).trim() !== "");
+  const hasExit = Boolean(raw.exit && String(raw.exit).trim() !== "");
+  let hasShifts = false;
+  if (raw.shifts) {
+    let parsed = raw.shifts;
+    if (typeof parsed === "string") {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch {
+        parsed = [];
+      }
+    }
+    if (Array.isArray(parsed)) {
+      hasShifts = parsed.some(
+        (s: any) =>
+          s &&
+          ((s.entry && String(s.entry).trim() !== "") ||
+            (s.exit && String(s.exit).trim() !== ""))
+      );
+    }
+  }
+  const hasHours = hasEntry || hasExit || hasShifts;
+
+  const hasAbsenceDays = Boolean(
+    Number(raw.vacation_days || 0) > 0 ||
+      Number(raw.sick_days || 0) > 0 ||
+      Number(raw.reserve_days || 0) > 0
   );
+
+  const rawClass = (raw.classification || "")
+    .replace(/""/g, '"')
+    .replace(/^["']|["']$/g, "")
+    .trim();
+
+  const isWeekendClass =
+    rawClass === 'סופ"ש' ||
+    rawClass === "סופש" ||
+    rawClass === "שבת" ||
+    rawClass === "סופשבוע" ||
+    rawClass.includes("סופ");
+
+  const isExplicitAbsenceClass = [
+    "חופש",
+    "חופשה",
+    "מחלה",
+    "מילואים",
+    "עבודה במילואים",
+    "חג",
+    "ערב חג",
+    "חול המועד",
+  ].includes(rawClass);
+
+  if (isWeekend) {
+    // Friday / Saturday
+    if (hasHours) {
+      const nextClass = !rawClass || isWeekendClass ? "עבודה" : rawClass;
+      return { ...raw, classification: nextClass };
+    }
+    if (hasAbsenceDays || isExplicitAbsenceClass) {
+      return { ...raw, classification: rawClass };
+    }
+    if (holiday) {
+      return {
+        ...raw,
+        classification: holiday.category,
+        notes: raw.notes || holiday.name,
+      };
+    }
+    return { ...raw, classification: 'סופ"ש' };
+  } else {
+    // Sunday - Thursday (Workdays: NEVER weekend!)
+    if (hasHours) {
+      const nextClass = !rawClass || isWeekendClass ? "עבודה" : rawClass;
+      return { ...raw, classification: nextClass };
+    }
+    if (hasAbsenceDays || isExplicitAbsenceClass) {
+      return { ...raw, classification: rawClass };
+    }
+    if (holiday) {
+      return {
+        ...raw,
+        classification: holiday.category,
+        notes: raw.notes || holiday.name,
+      };
+    }
+    // Unreported workday (no hours, no absence, no holiday): leave classification empty
+    return { ...raw, classification: "" };
+  }
 }
 
 /** Derive standard work hours based on Hebrew day of week, classification, and active employment term */
@@ -47,11 +165,16 @@ export function calculateDailyStandard(
   classification: string,
   term?: EmploymentTerm
 ): number {
-  if (isNonWorkingClassification(classification)) return 0;
-  
-
   const dow = getDayOfWeekFromIso(dateIso); // 0 = Sunday, 4 = Thursday, 5 = Friday, 6 = Saturday
   if (dow === 5 || dow === 6) return 0; // Friday / Saturday
+
+  // On weekdays (Sun-Thu), only actual vacation/holiday classifications zero out the daily standard
+  if (classification) {
+    const c = classification.replace(/""/g, '"').replace(/^["']|["']$/g, "").trim();
+    if (["חופש", "חופשה", "חג"].includes(c)) {
+      return 0;
+    }
+  }
 
   // If term is hourly with 0 standard hours, daily standard is 0
   if (term?.employmentType === "hourly" && term.dailyStandardSunWed === 0) {
@@ -66,7 +189,7 @@ export function calculateDailyStandard(
   return Math.round(rawStandard * scopeRatio * 100) / 100;
 }
 
-interface RawReport {
+export interface RawReport {
   date: string;
   entry: string | null;
   exit: string | null;
@@ -82,12 +205,13 @@ interface RawReport {
 
 /** Derive a full DayRecord from a database report row */
 export function deriveDayRecord(
-  raw: RawReport,
+  rawInput: RawReport,
   annualVacationQuota: number,
   ytdVacationUsedUpToDate: number,
   monthIndex: number, // 1-12
   term?: EmploymentTerm
 ): DayRecord {
+  const raw = sanitizeRawReport(rawInput);
   const cleanDate = (raw.date || "").slice(0, 10);
   let rawShifts = raw.shifts;
   if (typeof rawShifts === "string") {
@@ -143,7 +267,6 @@ export function deriveDayRecord(
   // First 2 overtime hours = 125%, beyond 2 hours = 150%
   const overtime125Decimal = isOvertimeEligible ? Math.min(overtimeDecimal, 2.0) : 0;
   const overtime150Decimal = isOvertimeEligible ? Math.max(0, Math.round((overtimeDecimal - 2.0) * 100) / 100) : 0;
-  
 
   const dow = getDayOfWeekFromIso(cleanDate);
   const dayName = HEBREW_DAYS[dow];
