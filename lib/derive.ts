@@ -10,19 +10,27 @@ export function isoToDdmmyyyy(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/** Convert HH:mm to total minutes (e.g. "07:30" -> 450) */
+export function hhmmToMinutes(time: string | null | undefined): number {
+  if (!time || !time.includes(":")) return 0;
+  const [hStr, mStr] = time.split(":");
+  const h = Number(hStr);
+  const m = mStr ? Number(mStr) : 0;
+  if (isNaN(h) || isNaN(m)) return 0;
+  return h * 60 + m;
+}
+
 /** Convert HH:mm to decimal hours (e.g. "07:30" -> 7.5) */
 export function hhmmToDecimal(time: string | null | undefined): number {
-  if (!time || !time.includes(":")) return 0;
-  const [h, m] = time.split(":").map(Number);
-  if (isNaN(h) || isNaN(m)) return 0;
-  return h + m / 60;
+  return hhmmToMinutes(time) / 60;
 }
 
 /** Convert decimal hours to HH:mm (e.g. 7.5 -> "07:30") */
 export function decimalToHhmm(dec: number): string {
   if (dec <= 0) return "";
-  const h = Math.floor(dec);
-  const m = Math.round((dec - h) * 60);
+  const totalMins = Math.round(dec * 60);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
@@ -233,25 +241,29 @@ export function deriveDayRecord(
   let entry = raw.entry ?? "";
   let exit = raw.exit ?? "";
   let totalHoursDecimal = 0;
+  let totalMinutes = 0;
 
   if (shifts.length > 0) {
     for (const s of shifts) {
       if (s.entry && s.exit) {
-        const sEntryDec = hhmmToDecimal(s.entry);
-        const sExitDec = hhmmToDecimal(s.exit);
-        const diff = Math.max(0, Math.round((sExitDec - sEntryDec) * 100) / 100);
-        totalHoursDecimal += diff;
+        const sEntryMin = hhmmToMinutes(s.entry);
+        const sExitMin = hhmmToMinutes(s.exit);
+        const diffMin = Math.max(0, sExitMin - sEntryMin);
+        totalMinutes += diffMin;
       }
     }
-    totalHoursDecimal = Math.round(totalHoursDecimal * 100) / 100;
+    totalHoursDecimal = Math.round((totalMinutes / 60) * 100) / 100;
     if (!entry && shifts[0]?.entry) entry = shifts[0].entry;
     if (!exit && shifts[shifts.length - 1]?.exit) exit = shifts[shifts.length - 1].exit;
   } else {
-    const entryDec = hhmmToDecimal(entry);
-    const exitDec = hhmmToDecimal(exit);
-    totalHoursDecimal = (entry && exit) ? Math.max(0, Math.round((exitDec - entryDec) * 100) / 100) : 0;
+    const entryMin = hhmmToMinutes(entry);
+    const exitMin = hhmmToMinutes(exit);
+    totalMinutes = (entry && exit) ? Math.max(0, exitMin - entryMin) : 0;
+    totalHoursDecimal = Math.round((totalMinutes / 60) * 100) / 100;
   }
-  const totalHours = totalHoursDecimal > 0 ? decimalToHhmm(totalHoursDecimal) : "";
+  const totalHours = totalMinutes > 0
+    ? `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`
+    : "";
   
   const dailyStandard = calculateDailyStandard(cleanDate, raw.classification, term);
   
