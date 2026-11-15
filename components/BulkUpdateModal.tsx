@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useMemo } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState, useMemo } from "react";
 import { DayRecord, ReportInput } from "@/lib/types";
 import { SaveIcon, XIcon } from "./Icons";
 import { getClassifications, getOrderTypes } from "@/lib/settingsStore";
@@ -15,9 +15,9 @@ interface Props {
 function formatTimeInput(value: string, prevValue: string = ""): string {
   if (!value) return "";
 
-  // Allow backspacing over colon or deleting
+  // When backspacing over an auto-inserted colon (e.g. "16:" -> "16"), delete the preceding hour digit too ("1")
   if (prevValue.endsWith(":") && value === prevValue.slice(0, -1)) {
-    return value;
+    return value.slice(0, -1);
   }
   if (value.endsWith(":") && value.length < prevValue.length) {
     return value;
@@ -58,6 +58,30 @@ function formatTimeInput(value: string, prevValue: string = ""): string {
   let mmInt = parseInt(mm, 10);
   if (isNaN(mmInt) || mmInt > 59) mm = "59";
   return `${hh}:${mm}`;
+}
+
+
+function handleTimeInputChange(
+  e: ChangeEvent<HTMLInputElement>,
+  prevValue: string,
+  onChange: (val: string) => void
+) {
+  const inputEl = e.currentTarget;
+  const formatted = formatTimeInput(inputEl.value, prevValue);
+  // Synchronously update DOM value and move caret to the end (after ':') BEFORE React reconciles selection
+  inputEl.value = formatted;
+  const endPos = formatted.length;
+  try {
+    inputEl.setSelectionRange(endPos, endPos);
+  } catch {}
+  onChange(formatted);
+  requestAnimationFrame(() => {
+    try {
+      if (document.activeElement === inputEl) {
+        inputEl.setSelectionRange(endPos, endPos);
+      }
+    } catch {}
+  });
 }
 
 export default function BulkUpdateModal({
@@ -258,9 +282,11 @@ export default function BulkUpdateModal({
                     <label className="mb-1 block text-xs text-slate-500 font-semibold">כניסה</label>
                     <input
                       type="text"
+                      dir="ltr"
+                      inputMode="numeric"
                       value={entry}
                       placeholder="08:00"
-                      onChange={(e) => setEntry(formatTimeInput(e.target.value, entry))}
+                      onChange={(e) => handleTimeInputChange(e, entry, setEntry)}
                       className="ltr-field w-full rounded-xl border border-transparent bg-white px-3 py-2 text-sm font-bold text-brand-700 shadow-sm outline-none focus:ring-2 focus:ring-brand-100"
                     />
                   </div>
@@ -268,9 +294,11 @@ export default function BulkUpdateModal({
                     <label className="mb-1 block text-xs text-slate-500 font-semibold">יציאה</label>
                     <input
                       type="text"
+                      dir="ltr"
+                      inputMode="numeric"
                       value={exit}
                       placeholder="17:00"
-                      onChange={(e) => setExit(formatTimeInput(e.target.value, exit))}
+                      onChange={(e) => handleTimeInputChange(e, exit, setExit)}
                       className="ltr-field w-full rounded-xl border border-transparent bg-white px-3 py-2 text-sm font-bold text-brand-700 shadow-sm outline-none focus:ring-2 focus:ring-brand-100"
                     />
                   </div>
