@@ -536,13 +536,12 @@ export default function ReportsScreen({ data, year, month, onYear, onMonth, onEd
                         <span className="font-semibold text-amber-600 text-xs">0.0</span>
                       ) : (() => {
                         const effClass = getEffectiveClassification(r);
-                        const isNonWorkOrAbsence =
+                        const isPaidLeaveOrNonWork =
                           (r.vacationDays || 0) > 0 ||
                           (r.sickDays || 0) > 0 ||
-                          (r.reserveDays || 0) > 0 ||
-                          ["חופש", "חופשה", "חג", "מחלה", "מילואים", 'סופ"ש', "סופש", "סופשבוע"].includes(effClass);
+                          ["חופש", "חופשה", "חג", "מחלה", 'סופ"ש', "סופש", "סופשבוע"].includes(effClass);
                         const deficitHours =
-                          !isNonWorkOrAbsence && (r.totalHoursDecimal || 0) > 0 && (r.dailyStandard || 0) > 0
+                          !isPaidLeaveOrNonWork && (r.totalHoursDecimal || 0) > 0 && (r.dailyStandard || 0) > 0
                             ? Math.round(((r.dailyStandard || 0) - (r.totalHoursDecimal || 0)) * 100) / 100
                             : 0;
 
