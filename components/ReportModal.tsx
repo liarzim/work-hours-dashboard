@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useMemo } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState, useMemo } from "react";
 import { DayRecord, ReportInput, ReportShift } from "@/lib/types";
 import { SaveIcon, XIcon, PlusIcon, TrashIcon } from "./Icons";
 import { getClassifications, getOrderTypes, getHolidays, getHolidayForDate, HolidaySetting } from "@/lib/settingsStore";
@@ -23,9 +23,9 @@ function padTime(t: string): string {
 function formatTimeInput(value: string, prevValue: string = ""): string {
   if (!value) return "";
 
-  // Allow backspacing over colon or deleting
+  // When backspacing over an auto-inserted colon (e.g. "16:" -> "16"), delete the preceding hour digit too ("1")
   if (prevValue.endsWith(":") && value === prevValue.slice(0, -1)) {
-    return value;
+    return value.slice(0, -1);
   }
   if (value.endsWith(":") && value.length < prevValue.length) {
     return value;
@@ -68,6 +68,30 @@ function formatTimeInput(value: string, prevValue: string = ""): string {
   return `${hh}:${mm}`;
 }
 
+
+
+function handleTimeInputChange(
+  e: ChangeEvent<HTMLInputElement>,
+  prevValue: string,
+  onChange: (val: string) => void
+) {
+  const inputEl = e.currentTarget;
+  const formatted = formatTimeInput(inputEl.value, prevValue);
+  // Synchronously update DOM value and move caret to the end (after ':') BEFORE React reconciles selection
+  inputEl.value = formatted;
+  const endPos = formatted.length;
+  try {
+    inputEl.setSelectionRange(endPos, endPos);
+  } catch {}
+  onChange(formatted);
+  requestAnimationFrame(() => {
+    try {
+      if (document.activeElement === inputEl) {
+        inputEl.setSelectionRange(endPos, endPos);
+      }
+    } catch {}
+  });
+}
 
 function AbsenceInput({
   label,
@@ -407,10 +431,11 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                         <label className="mb-1 block text-[11px] font-medium text-slate-500">כניסה</label>
                         <input
                           type="text"
+                          dir="ltr"
                           value={s.entry}
                           placeholder="08:00"
                           inputMode="numeric"
-                          onChange={(e) => updateShift(idx, "entry", formatTimeInput(e.target.value, s.entry))}
+                          onChange={(e) => handleTimeInputChange(e, s.entry, (val) => updateShift(idx, "entry", val))}
                           className="ltr-field w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-200"
                         />
                       </div>
@@ -418,10 +443,11 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                         <label className="mb-1 block text-[11px] font-medium text-slate-500">יציאה</label>
                         <input
                           type="text"
+                          dir="ltr"
                           value={s.exit}
                           placeholder="12:00"
                           inputMode="numeric"
-                          onChange={(e) => updateShift(idx, "exit", formatTimeInput(e.target.value, s.exit))}
+                          onChange={(e) => handleTimeInputChange(e, s.exit, (val) => updateShift(idx, "exit", val))}
                           className="ltr-field w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-200"
                         />
                       </div>
@@ -444,10 +470,11 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                   <label className="mb-1.5 block text-xs font-medium text-slate-500">כניסה</label>
                   <input
                     type="text"
+                    dir="ltr"
                     value={entry}
                     placeholder="08:00"
                     inputMode="numeric"
-                    onChange={(e) => setEntry(formatTimeInput(e.target.value, entry))}
+                    onChange={(e) => handleTimeInputChange(e, entry, setEntry)}
                     className="ltr-field w-full rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm font-bold text-brand-700 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                   />
                 </div>
@@ -455,10 +482,11 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                   <label className="mb-1.5 block text-xs font-medium text-slate-500">יציאה</label>
                   <input
                     type="text"
+                    dir="ltr"
                     value={exit}
                     placeholder="17:00"
                     inputMode="numeric"
-                    onChange={(e) => setExit(formatTimeInput(e.target.value, exit))}
+                    onChange={(e) => handleTimeInputChange(e, exit, setExit)}
                     className="ltr-field w-full rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm font-bold text-brand-700 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                   />
                 </div>
