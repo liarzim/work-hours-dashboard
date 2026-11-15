@@ -176,12 +176,43 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
     });
   };
 
-  // Convert HH:mm to minutes
+  // Convert complete HH:mm to minutes
   const toMin = (t: string) => {
     if (!t || !t.includes(":")) return 0;
-    const [h, m] = t.split(":").map(Number);
+    const [hStr, mStr] = t.split(":");
+    const h = Number(hStr);
+    const m = mStr ? Number(mStr) : 0;
+    if (isNaN(h) || isNaN(m)) return 0;
     return h * 60 + m;
   };
+
+  // Detect overlapping or inverted segments
+  const shiftWarnings = useMemo(() => {
+    if (shifts.length === 0) return [];
+    const warnings: string[] = [];
+    const intervals: { idx: number; start: number; end: number }[] = [];
+    shifts.forEach((s, idx) => {
+      if (s.entry && s.exit && s.entry.length >= 4 && s.exit.length >= 4) {
+        const start = toMin(s.entry);
+        const end = toMin(s.exit);
+        if (end <= start) {
+          warnings.push(`במקטע ${idx + 1} שעת היציאה (${s.exit}) מוקדמת או שווה לשעת הכניסה (${s.entry})`);
+        } else {
+          intervals.push({ idx: idx + 1, start, end });
+        }
+      }
+    });
+    for (let i = 0; i < intervals.length; i++) {
+      for (let j = i + 1; j < intervals.length; j++) {
+        const a = intervals[i];
+        const b = intervals[j];
+        if (Math.max(a.start, b.start) < Math.min(a.end, b.end)) {
+          warnings.push(`קיימת חפיפת שעות בין מקטע ${a.idx} למקטע ${b.idx}`);
+        }
+      }
+    }
+    return warnings;
+  }, [shifts]);
 
   // Live total hours calculation
   const computedTotalHours = useMemo(() => {
@@ -194,16 +225,16 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
         }
       }
       const hrs = totalMins / 60;
-      const h = Math.floor(hrs);
-      const m = Math.round((hrs - h) * 60);
+      const h = Math.floor(totalMins / 60);
+      const m = totalMins % 60;
       return { decimal: Math.round(hrs * 100) / 100, text: `${h}:${String(m).padStart(2, "0")}` };
     }
     if (entry && exit) {
       const diff = toMin(exit) - toMin(entry);
       if (diff > 0) {
         const hrs = diff / 60;
-        const h = Math.floor(hrs);
-        const m = Math.round((hrs - h) * 60);
+        const h = Math.floor(diff / 60);
+        const m = diff % 60;
         return { decimal: Math.round(hrs * 100) / 100, text: `${h}:${String(m).padStart(2, "0")}` };
       }
     }
@@ -400,60 +431,83 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
 
             {shifts.length > 0 ? (
               <div className="space-y-3">
-                {shifts.map((s, idx) => (
-                  <div key={idx} className="relative rounded-xl border border-brand-200/90 bg-white p-3 shadow-xs transition hover:border-brand-300">
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-100 text-[11px] font-extrabold text-brand-700">
-                          {idx + 1}
-                        </span>
-                        <input
-                          type="text"
-                          value={s.description || `מקטע ${idx + 1}`}
-                          placeholder={`מקטע ${idx + 1}`}
-                          onChange={(e) => updateShift(idx, "description", e.target.value)}
-                          className="text-xs font-bold text-slate-700 bg-transparent border-none outline-none focus:text-brand-700"
-                        />
+                {shifts.map((s, idx) => {
+                  const segDiff = s.entry && s.exit ? Math.max(0, toMin(s.exit) - toMin(s.entry)) : 0;
+                  const segH = Math.floor(segDiff / 60);
+                  const segM = segDiff % 60;
+                  const segDec = Math.round((segDiff / 60) * 100) / 100;
+                  const segDurationText = segDiff > 0 ? `${segH}:${String(segM).padStart(2, "0")} (${segDec} שע׳)` : null;
+
+                  return (
+                    <div key={idx} className="relative rounded-xl border border-brand-200/90 bg-white p-3 shadow-xs transition hover:border-brand-300">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-100 text-[11px] font-extrabold text-brand-700">
+                            {idx + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={s.description || `מקטע ${idx + 1}`}
+                            placeholder={`מקטע ${idx + 1}`}
+                            onChange={(e) => updateShift(idx, "description", e.target.value)}
+                            className="w-24 text-xs font-bold text-slate-700 bg-transparent border-none outline-none focus:text-brand-700"
+                          />
+                          {segDurationText && (
+                            <span className="rounded-md bg-brand-50 border border-brand-200 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
+                              {segDurationText}
+                            </span>
+                          )}
+                        </div>
+                        {shifts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeShift(idx)}
+                            className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                            title="מחיקת מקטע"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
-                      {shifts.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeShift(idx)}
-                          className="rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
-                          title="מחיקת מקטע"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="mb-1 block text-[11px] font-medium text-slate-500">כניסה</label>
+                          <input
+                            type="text"
+                            dir="ltr"
+                            value={s.entry}
+                            placeholder="08:00"
+                            inputMode="numeric"
+                            onFocus={(e) => e.currentTarget.select()}
+                            onChange={(e) => handleTimeInputChange(e, s.entry, (val) => updateShift(idx, "entry", val))}
+                            className="ltr-field w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-[11px] font-medium text-slate-500">יציאה</label>
+                          <input
+                            type="text"
+                            dir="ltr"
+                            value={s.exit}
+                            placeholder="12:00"
+                            inputMode="numeric"
+                            onFocus={(e) => e.currentTarget.select()}
+                            onChange={(e) => handleTimeInputChange(e, s.exit, (val) => updateShift(idx, "exit", val))}
+                            className="ltr-field w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-200"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-slate-500">כניסה</label>
-                        <input
-                          type="text"
-                          dir="ltr"
-                          value={s.entry}
-                          placeholder="08:00"
-                          inputMode="numeric"
-                          onChange={(e) => handleTimeInputChange(e, s.entry, (val) => updateShift(idx, "entry", val))}
-                          className="ltr-field w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-slate-500">יציאה</label>
-                        <input
-                          type="text"
-                          dir="ltr"
-                          value={s.exit}
-                          placeholder="12:00"
-                          inputMode="numeric"
-                          onChange={(e) => handleTimeInputChange(e, s.exit, (val) => updateShift(idx, "exit", val))}
-                          className="ltr-field w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-brand-700 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-1 focus:ring-brand-200"
-                        />
-                      </div>
-                    </div>
+                  );
+                })}
+
+                {shiftWarnings.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 space-y-0.5">
+                    {shiftWarnings.map((w, i) => (
+                      <p key={i}>⚠️ {w}</p>
+                    ))}
                   </div>
-                ))}
+                )}
 
                 <button
                   type="button"
@@ -474,6 +528,7 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                     value={entry}
                     placeholder="08:00"
                     inputMode="numeric"
+                    onFocus={(e) => e.currentTarget.select()}
                     onChange={(e) => handleTimeInputChange(e, entry, setEntry)}
                     className="ltr-field w-full rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm font-bold text-brand-700 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                   />
@@ -486,6 +541,7 @@ export default function ReportModal({ record, defaultDate, onClose, onSave }: Pr
                     value={exit}
                     placeholder="17:00"
                     inputMode="numeric"
+                    onFocus={(e) => e.currentTarget.select()}
                     onChange={(e) => handleTimeInputChange(e, exit, setExit)}
                     className="ltr-field w-full rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm font-bold text-brand-700 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                   />
